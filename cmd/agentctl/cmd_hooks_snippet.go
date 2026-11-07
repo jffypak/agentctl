@@ -1,13 +1,34 @@
 package main
 
-import "context"
+import (
+	"context"
+	"fmt"
 
-var _ = registerStub("hooks-snippet", "m1-hook-state")
+	"github.com/jffypak/agentctl/internal/hookingest"
+)
 
-// STUB (m1-walking-skeleton) — owned and rewritten whole by m1-hook-state.
+// cmdHooksSnippet: agentctl hooks-snippet
 //
-// `agentctl hooks-snippet` prints the generated hooks JSON for users to merge into their
-// own Claude settings (how adopted panes get hooks).
-func cmdHooksSnippet(ctx context.Context, sys *system, args []string) int {
-	return notImplemented(sys, "hooks-snippet", "m1-hook-state")
+// Prints (stdout, JSON only) exactly the hook settings `agentctl new` writes
+// to <home>/hooks/claude-settings.json. Merging its "hooks" object into your
+// own Claude settings is how an adopted pane gets hook-driven state; the hook
+// then matches the pane by identity (no AGENTCTL_TASK_ID needed).
+func cmdHooksSnippet(_ context.Context, sys *system, args []string) int {
+	fs := newFlagSet(sys, "hooks-snippet")
+	pos, err := parseInterspersed(fs, args)
+	if err != nil {
+		return flagExit(err)
+	}
+	if len(pos) != 0 {
+		return sys.usageError("hooks-snippet", "usage: agentctl hooks-snippet (takes no arguments)")
+	}
+	b, err := hookingest.SettingsSnippet(sys.executable)
+	if err != nil {
+		return sys.fail(err)
+	}
+	if _, err := sys.stdout.Write(b); err != nil {
+		return sys.fail(err)
+	}
+	fmt.Fprintln(sys.stderr, `agentctl hooks-snippet: merge the "hooks" object into ~/.claude/settings.json (or a project's .claude/settings.json) so adopted panes report state`)
+	return exitOK
 }
