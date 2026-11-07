@@ -57,7 +57,7 @@ func (a *Adapter) ParseHook(payload []byte, _ adapter.HookEnv) (adapter.HookObse
 	}
 	obs := adapter.HookObservation{
 		Event:          p.HookEventName,
-		AgentSessionID: bound(oneLine(p.SessionID), maxSessionID),
+		AgentSessionID: bound(hookLine(p.SessionID), maxSessionID),
 		Cwd:            p.Cwd,
 		Attrs:          map[string]string{},
 	}
@@ -65,12 +65,12 @@ func (a *Adapter) ParseHook(payload []byte, _ adapter.HookEnv) (adapter.HookObse
 		"source": p.Source, "tool_name": p.ToolName, "notification_type": p.NotificationType,
 		"trigger": p.Trigger, "reason": p.Reason, "error": p.Error,
 	} {
-		if v = bound(oneLine(v), maxAttrLen); v != "" {
+		if v = bound(hookLine(v), maxAttrLen); v != "" {
 			obs.Attrs[k] = v
 		}
 	}
 	obs.State, obs.Detail = mapHook(p, obs.Attrs)
-	obs.Detail = bound(oneLine(obs.Detail), MaxHookDetail)
+	obs.Detail = bound(hookLine(obs.Detail), MaxHookDetail)
 	if p.HookEventName == "UserPromptSubmit" && p.Prompt != "" {
 		sum := sha256.Sum256([]byte(p.Prompt))
 		obs.PromptSHA256 = hex.EncodeToString(sum[:])
@@ -88,10 +88,10 @@ func decodeHook(payload []byte) (hookPayload, error) {
 	}
 	var p hookPayload
 	if err := json.Unmarshal(trimmed, &p); err != nil {
-		return hookPayload{}, fmt.Errorf("claude: malformed hook payload: %s", oneLine(err.Error()))
+		return hookPayload{}, fmt.Errorf("claude: malformed hook payload: %s", hookLine(err.Error()))
 	}
 	if !validEventName(p.HookEventName) {
-		return hookPayload{}, fmt.Errorf("claude: hook payload has no valid hook_event_name (%q)", bound(oneLine(p.HookEventName), maxEventName))
+		return hookPayload{}, fmt.Errorf("claude: hook payload has no valid hook_event_name (%q)", bound(hookLine(p.HookEventName), maxEventName))
 	}
 	return p, nil
 }
@@ -162,9 +162,9 @@ func withParen(label, v string) string {
 	return label + " (" + v + ")"
 }
 
-// oneLine sanitizes terminal control sequences and folds whitespace runs
+// hookLine sanitizes terminal control sequences and folds whitespace runs
 // (including newlines and tabs) into single spaces.
-func oneLine(s string) string {
+func hookLine(s string) string {
 	return strings.Join(strings.Fields(domain.SanitizeTerminalText(s)), " ")
 }
 
@@ -195,16 +195,16 @@ func PaneFromEnv(env adapter.HookEnv) (HookPane, error) {
 	}
 	sock := tmux.SocketFromTMUX(env.TMUX)
 	if sock == "" || !filepath.IsAbs(sock) {
-		return HookPane{}, fmt.Errorf("claude: cannot parse $TMUX %q", bound(oneLine(env.TMUX), 256))
+		return HookPane{}, fmt.Errorf("claude: cannot parse $TMUX %q", bound(hookLine(env.TMUX), 256))
 	}
 	rest := strings.TrimPrefix(env.TMUX, sock+",")
 	pidStr, _, _ := strings.Cut(rest, ",")
 	pid, err := strconv.Atoi(pidStr)
 	if err != nil || pid <= 0 {
-		return HookPane{}, fmt.Errorf("claude: cannot parse the server pid in $TMUX %q", bound(oneLine(env.TMUX), 256))
+		return HookPane{}, fmt.Errorf("claude: cannot parse the server pid in $TMUX %q", bound(hookLine(env.TMUX), 256))
 	}
 	if !validPaneID(env.TMUXPane) {
-		return HookPane{}, fmt.Errorf("claude: invalid $TMUX_PANE %q", bound(oneLine(env.TMUXPane), 32))
+		return HookPane{}, fmt.Errorf("claude: invalid $TMUX_PANE %q", bound(hookLine(env.TMUXPane), 32))
 	}
 	return HookPane{Socket: sock, ServerPID: pid, PaneID: env.TMUXPane}, nil
 }

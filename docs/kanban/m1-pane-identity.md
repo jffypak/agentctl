@@ -2,7 +2,7 @@
 id: m1-pane-identity
 title: Reconcile, adopt, and close by explicit pane identity (disconnected detection,
   restart recovery)
-status: backlog
+status: done
 priority: medium
 milestone: m1-see-agents
 labels:
@@ -11,7 +11,7 @@ labels:
 dependencies:
 - m1-walking-skeleton
 created: '2026-11-06'
-updated: '2026-11-06'
+updated: '2026-11-07'
 acceptance_criteria: '- Integration cases: pane killed -> disconnected{pane_missing};
   server killed -> disconnected{server_gone}; server restarted so %N is reused with
   different pane pid + server pid -> disconnected{identity_mismatch} and the new pane
@@ -40,6 +40,15 @@ history:
 - when: '2026-11-06'
   from: null
   to: backlog
+- when: '2026-11-07'
+  from: backlog
+  to: in-progress
+  note: 'director: dispatched to worktree /Users/jpark/Code/agent-tui/.tinkerbell/worktrees/m1-pane-identity
+    (tb/m1-pane-identity)'
+- when: '2026-11-07'
+  from: in-progress
+  to: done
+  note: "director: done \u2014 acceptance pass green; promote to done"
 ---
 
 # Reconcile, adopt, and close by explicit pane identity (disconnected detection, restart recovery)
