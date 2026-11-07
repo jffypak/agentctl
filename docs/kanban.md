@@ -15,15 +15,14 @@ _12 issue(s) — auto-generated; do not edit by hand._
 - **m4-task-contracts-checks** [Phase 2: task contracts + controller-executed checks + verified gating](kanban/m4-task-contracts-checks.md) — `low` _m4-verified-tasks_ `spec-derived` `later-phase`
 - **m5-workflow-graph** [Phase 3: declarative workflow DAG, integration checkout, locks, graph view](kanban/m5-workflow-graph.md) — `low` _m5-workflow-graph_ `spec-derived` `later-phase`
 
-## todo (3)
+## todo (2)
 
-- **m1-walking-skeleton** [Walking skeleton: `agentctl new` launches an agent in worktree+tmux; `agentctl ls` lists it](kanban/m1-walking-skeleton.md) — `high` _m1-see-agents_ `spec-derived` `phase-1`
 - **m2-tui-inbox** [Attention-first TUI: list, detail, attach/focus, empty/error states, `stats`, `tmux-binding`](kanban/m2-tui-inbox.md) — _m2-direct-agents_ `spec-derived` `phase-1`
 - **m3-acceptance-e2e** [Prove every Phase-1 acceptance criterion end-to-end; demo script; README](kanban/m3-acceptance-e2e.md) — _m3-phase1-acceptance_ `spec-derived` `phase-1`
 
-## in-progress (0)
+## in-progress (1)
 
-_empty_
+- **m1-walking-skeleton** [Walking skeleton: `agentctl new` launches an agent in worktree+tmux; `agentctl ls` lists it](kanban/m1-walking-skeleton.md) — `high` _m1-see-agents_ `spec-derived` `phase-1`
 
 ## blocked (0)
 

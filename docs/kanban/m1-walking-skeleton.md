@@ -2,7 +2,7 @@
 id: m1-walking-skeleton
 title: 'Walking skeleton: `agentctl new` launches an agent in worktree+tmux; `agentctl
   ls` lists it'
-status: todo
+status: in-progress
 priority: high
 milestone: m1-see-agents
 labels:
@@ -44,6 +44,11 @@ history:
 - when: '2026-11-06'
   from: null
   to: todo
+- when: '2026-11-06'
+  from: todo
+  to: in-progress
+  note: 'director: dispatched to worktree /Users/jpark/Code/agent-tui/.tinkerbell/worktrees/m1-walking-skeleton
+    (tb/m1-walking-skeleton)'
 ---
 
 # Walking skeleton: `agentctl new` launches an agent in worktree+tmux; `agentctl ls` lists it
