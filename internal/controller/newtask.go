@@ -55,6 +55,10 @@ type NewTaskResult struct {
 // session is recorded as failed with the tmux error as its detail.
 func (c *Controller) NewTask(ctx context.Context, req NewTaskRequest) (NewTaskResult, error) {
 	name := req.Name
+	if !filepath.IsAbs(req.Cwd) {
+		// never fall back to the process cwd: that could be any repository
+		return NewTaskResult{}, userErr(ErrNotARepo, nil, "no absolute working directory given (%q); run agentctl new from inside a git repository", req.Cwd)
+	}
 	if err := domain.ValidateSlug(name); err != nil {
 		return NewTaskResult{}, userErr(ErrInvalidName, err, "%v", err)
 	}

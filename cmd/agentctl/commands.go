@@ -63,6 +63,16 @@ func printUsage(w io.Writer) {
 	_ = tw.Flush()
 }
 
+// stubs maps each still-stubbed subcommand to the issue that owns it. Every
+// stub file registers itself (`var _ = registerStub(...)`), so rewriting the
+// file whole removes the entry; tests check exactly the stubs that remain.
+var stubs = map[string]string{}
+
+func registerStub(name, issue string) bool {
+	stubs[name] = issue
+	return true
+}
+
 // notImplemented is what every stub subcommand returns until its card lands.
 // It writes only to stderr (stdout must stay empty for `hook`).
 func notImplemented(sys *system, name, issue string) int {

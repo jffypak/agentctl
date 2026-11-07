@@ -2,6 +2,8 @@ package main
 
 import "context"
 
+var _ = registerStub("close", "m1-pane-identity")
+
 // STUB (m1-walking-skeleton) — owned and rewritten whole by m1-pane-identity.
 //
 // `agentctl close <name> [--stop [--yes]]` marks the task closed; the worktree and branch

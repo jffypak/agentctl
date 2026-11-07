@@ -2,6 +2,8 @@ package main
 
 import "context"
 
+var _ = registerStub("tmux-binding", "m2-tui-inbox")
+
 // STUB (m1-walking-skeleton) — owned and rewritten whole by m2-tui-inbox.
 //
 // `agentctl tmux-binding` prints

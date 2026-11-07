@@ -74,23 +74,44 @@ func rowCounts(t *testing.T, env testenv.Env) [3]int {
 
 func TestStubSubcommandsExit2(t *testing.T) {
 	env := testenv.NewEnv(t)
-	stubs := map[string]string{
-		"tui": "m2-tui-inbox", "adopt": "m1-pane-identity", "show": "m1-inspect", "diff": "m1-inspect",
-		"send": "m2-prompt-queue", "close": "m1-pane-identity", "hook": "m1-hook-state", "deliver": "m2-prompt-queue",
-		"stats": "m2-tui-inbox", "hooks-snippet": "m1-hook-state", "tmux-binding": "m2-tui-inbox",
+	names := map[string]bool{}
+	for _, c := range commands {
+		names[c.name] = true
 	}
 	for name, issue := range stubs {
+		if !names[name] {
+			t.Errorf("stub %q is not in the command table", name)
+		}
 		r := runCmd(t, env, t.TempDir(), name, "whatever")
 		want := "agentctl " + name + ": not implemented yet (" + issue + ")\n"
 		if r.code != 2 || r.stderr != want || r.stdout != "" {
 			t.Errorf("%s: code=%d stdout=%q stderr=%q, want 2 and %q", name, r.code, r.stdout, r.stderr, want)
 		}
 	}
-	if r := runCmd(t, env, t.TempDir()); r.code != 2 || !strings.Contains(r.stderr, "not implemented yet (m2-tui-inbox)") {
-		t.Errorf("bare agentctl = %+v, want the tui stub", r)
+	if issue, ok := stubs["tui"]; ok {
+		if r := runCmd(t, env, t.TempDir()); r.code != 2 || !strings.Contains(r.stderr, "not implemented yet ("+issue+")") {
+			t.Errorf("bare agentctl = %+v, want the tui stub", r)
+		}
 	}
-	if len(commands) != len(stubs)+2 {
-		t.Errorf("command table has %d entries, want %d stubs + new + ls", len(commands), len(stubs))
+}
+
+// TestSkeletonStubRegistry pins the skeleton's stub set; it shrinks as cards
+// rewrite their stubs (each removal must come with the card's own tests).
+func TestSkeletonStubRegistry(t *testing.T) {
+	owners := map[string]string{
+		"tui": "m2-tui-inbox", "adopt": "m1-pane-identity", "show": "m1-inspect", "diff": "m1-inspect",
+		"send": "m2-prompt-queue", "close": "m1-pane-identity", "hook": "m1-hook-state", "deliver": "m2-prompt-queue",
+		"stats": "m2-tui-inbox", "hooks-snippet": "m1-hook-state", "tmux-binding": "m2-tui-inbox",
+	}
+	for name, issue := range stubs {
+		if owners[name] != issue {
+			t.Errorf("stub %s is owned by %q, ARCHITECTURE/kanban say %q", name, issue, owners[name])
+		}
+	}
+	for _, real := range []string{"new", "ls"} {
+		if _, ok := stubs[real]; ok {
+			t.Errorf("%s must not be a stub", real)
+		}
 	}
 }
 

@@ -115,3 +115,41 @@ func TestBranchExistsAndAddWorktree(t *testing.T) {
 		t.Fatalf("AddWorktree existing path = %v, want ErrWorktreePathExists", err)
 	}
 }
+
+func TestToplevelAndMergeBase(t *testing.T) {
+	t.Parallel()
+	env := testenv.NewEnv(t)
+	repo := testenv.TempRepo(t, env)
+	g, ctx := newGit(env), context.Background()
+	base := repo.HeadSHA(t)
+	wt := filepath.Join(repo.WorktreesDir(), "adopted")
+	if err := g.AddWorktree(ctx, repo.Root, wt, "agentctl/adopted", base); err != nil {
+		t.Fatal(err)
+	}
+	sub := filepath.Join(wt, "pkg")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if top, err := g.Toplevel(ctx, sub); err != nil || top != wt {
+		t.Fatalf("Toplevel(%s) = %q %v, want %q", sub, top, err, wt)
+	}
+	if _, err := g.Toplevel(ctx, t.TempDir()); !errors.Is(err, gitx.ErrNotARepo) {
+		t.Fatalf("Toplevel(non-repo) = %v", err)
+	}
+	// diverge: one commit on main, one on the worktree branch
+	repo.WriteFile(t, "main.txt", "m")
+	repo.Git(t, "add", "main.txt")
+	repo.Git(t, "commit", "-q", "-m", "main moves")
+	if err := os.WriteFile(filepath.Join(wt, "wt.txt"), []byte("w"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	testenv.GitIn(t, env, wt, "add", "wt.txt")
+	testenv.GitIn(t, env, wt, "commit", "-q", "-m", "branch moves")
+	mb, err := g.MergeBase(ctx, wt, "HEAD", repo.HeadSHA(t))
+	if err != nil || mb != base {
+		t.Fatalf("MergeBase = %q %v, want %q", mb, err, base)
+	}
+	if _, err := g.MergeBase(ctx, wt, "HEAD", "-evil"); err == nil {
+		t.Fatal("flag-like rev accepted")
+	}
+}

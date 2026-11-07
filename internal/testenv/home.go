@@ -9,6 +9,8 @@
 package testenv
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -112,11 +114,24 @@ func NewEnv(t testing.TB) Env {
 		"GIT_COMMITTER_NAME=agentctl test",
 		"GIT_COMMITTER_EMAIL=test@agentctl.invalid",
 		"GIT_CEILING_DIRECTORIES=" + root,
+		// Poison socket: a test that forgets NewTmuxServer can never reach the
+		// user's default server ($TMUX is absent, so this would be the next
+		// candidate). The directory is never created; NewTmuxServer overrides it.
+		"AGENTCTL_TMUX_SOCKET=" + poisonSocket(),
 	}
 	if v := os.Getenv("TMPDIR"); v != "" {
 		env = append(env, "TMPDIR="+v)
 	}
 	return env
+}
+
+// PoisonSocketPrefix starts every NewEnv default AGENTCTL_TMUX_SOCKET.
+const PoisonSocketPrefix = "/tmp/agentctl-test-no-server-"
+
+func poisonSocket() string {
+	var b [4]byte
+	_, _ = rand.Read(b[:])
+	return PoisonSocketPrefix + hex.EncodeToString(b[:]) + "/none"
 }
 
 // TempHome returns a fresh private directory suitable for AGENTCTL_HOME.

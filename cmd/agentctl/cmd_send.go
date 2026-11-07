@@ -2,6 +2,8 @@ package main
 
 import "context"
 
+var _ = registerStub("send", "m2-prompt-queue")
+
 // STUB (m1-walking-skeleton) — owned and rewritten whole by m2-prompt-queue.
 //
 // `agentctl send <name> <message>` / `send --cancel <id>`: validate, queue, Drain.

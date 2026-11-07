@@ -2,6 +2,8 @@ package main
 
 import "context"
 
+var _ = registerStub("hooks-snippet", "m1-hook-state")
+
 // STUB (m1-walking-skeleton) — owned and rewritten whole by m1-hook-state.
 //
 // `agentctl hooks-snippet` prints the generated hooks JSON for users to merge into their

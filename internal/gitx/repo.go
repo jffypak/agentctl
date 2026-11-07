@@ -104,3 +104,40 @@ func (g Git) BranchExists(ctx context.Context, repoRoot, branch string) (bool, e
 	}
 	return false, err
 }
+
+// ToplevelArgs prints the root of the worktree containing the directory.
+func ToplevelArgs() []string { return []string{"rev-parse", "--show-toplevel"} }
+
+// MergeBaseArgs prints the best common ancestor of two revisions.
+func MergeBaseArgs(a, b string) []string { return []string{"merge-base", a, b} }
+
+// Toplevel returns the realpath of the worktree root containing dir (a linked
+// worktree's own root, not the main repo). Adopt uses it for a pane's cwd.
+func (g Git) Toplevel(ctx context.Context, dir string) (string, error) {
+	out, err := g.run(ctx, dir, ToplevelArgs()...)
+	if err != nil {
+		return "", err
+	}
+	top, err := filepath.EvalSymlinks(trim(out))
+	if err != nil {
+		return "", fmt.Errorf("gitx: resolve worktree root for %s: %w", dir, err)
+	}
+	return top, nil
+}
+
+// MergeBase returns the merge base of revisions a and b, evaluated in dir. An
+// adopted task's base is MergeBase(HEAD, <main checkout HEAD sha>), falling
+// back to HEAD when there is none.
+func (g Git) MergeBase(ctx context.Context, dir, a, b string) (string, error) {
+	if err := checkArg("revision", a); err != nil {
+		return "", err
+	}
+	if err := checkArg("revision", b); err != nil {
+		return "", err
+	}
+	out, err := g.run(ctx, dir, MergeBaseArgs(a, b)...)
+	if err != nil {
+		return "", err
+	}
+	return trim(out), nil
+}

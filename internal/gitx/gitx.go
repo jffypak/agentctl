@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
@@ -59,8 +60,13 @@ func (g Git) env() []string {
 	return append(out, "GIT_OPTIONAL_LOCKS=0", "LC_ALL=C")
 }
 
-// run executes `git -C dir args...` and returns stdout.
+// run executes `git -C dir args...` and returns stdout. dir must be absolute:
+// `git -C ""` (or a relative dir) would silently resolve against the process
+// cwd, i.e. whatever repository agentctl happens to run in.
 func (g Git) run(ctx context.Context, dir string, args ...string) ([]byte, error) {
+	if !filepath.IsAbs(dir) {
+		return nil, fmt.Errorf("gitx: directory %q is not absolute", dir)
+	}
 	bin := g.Bin
 	if bin == "" {
 		bin = "git"

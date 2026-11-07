@@ -31,6 +31,15 @@ func TestNewEnvIsHermeticInsideTmux(t *testing.T) {
 	if env.Get("GIT_CONFIG_GLOBAL") != "/dev/null" || env.Get("GIT_CONFIG_NOSYSTEM") != "1" {
 		t.Error("git config not isolated")
 	}
+	// Without NewTmuxServer, socket resolution must land on a socket that
+	// cannot exist, never the user's default server.
+	sock, err := tmux.ResolveSocket(env.Getenv, os.Getuid())
+	if err != nil || !strings.Contains(sock, "/agentctl-test-no-server-") {
+		t.Fatalf("default socket for a server-less env = %q %v", sock, err)
+	}
+	if _, err := os.Stat(filepath.Dir(sock)); err == nil {
+		t.Fatalf("poison socket dir %s exists", filepath.Dir(sock))
+	}
 }
 
 func TestEnvWithWithoutAreImmutable(t *testing.T) {

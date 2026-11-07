@@ -2,6 +2,8 @@ package main
 
 import "context"
 
+var _ = registerStub("hook", "m1-hook-state")
+
 // STUB (m1-walking-skeleton) — owned and rewritten whole by m1-hook-state.
 //
 // `agentctl hook` is spawned by Claude Code per hook event. It must always exit 0,

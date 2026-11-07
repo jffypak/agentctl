@@ -2,6 +2,8 @@ package main
 
 import "context"
 
+var _ = registerStub("diff", "m1-inspect")
+
 // STUB (m1-walking-skeleton) — owned and rewritten whole by m1-inspect.
 //
 // `agentctl diff <name> [--stat]` pipes `git diff <base_sha>` plus untracked files to the pager.

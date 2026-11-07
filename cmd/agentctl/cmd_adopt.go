@@ -2,6 +2,8 @@ package main
 
 import "context"
 
+var _ = registerStub("adopt", "m1-pane-identity")
+
 // STUB (m1-walking-skeleton) — owned and rewritten whole by m1-pane-identity.
 //
 // `agentctl adopt` lists unregistered candidate panes; `agentctl adopt %N --name <name>`

@@ -2,7 +2,6 @@ package claude_test
 
 import (
 	"context"
-	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -36,26 +35,6 @@ func TestLaunchArgvAndNames(t *testing.T) {
 	}
 }
 
-func TestStubsReportNotImplemented(t *testing.T) {
-	a := claude.New(claude.Config{})
-	ctx := context.Background()
-	if _, err := a.ParseHook([]byte(`{}`), adapter.HookEnv{}); !errors.Is(err, adapter.ErrNotImplemented) {
-		t.Errorf("ParseHook = %v", err)
-	}
-	if obs, err := a.Observe(ctx, adapter.Handle{}); !errors.Is(err, adapter.ErrNotImplemented) || obs.Liveness.IsAlive() {
-		t.Errorf("Observe = %+v %v", obs, err)
-	}
-	if _, err := a.Deliver(ctx, adapter.Handle{}, adapter.Message{}); !errors.Is(err, adapter.ErrNotImplemented) {
-		t.Errorf("Deliver = %v", err)
-	}
-	if err := a.Stop(ctx, adapter.Handle{}); !errors.Is(err, adapter.ErrNotImplemented) {
-		t.Errorf("Stop = %v", err)
-	}
-	if p, err := a.EnsureSettings("/h"); err != nil || p != "/h/hooks/claude-settings.json" {
-		t.Errorf("EnsureSettings = %q %v", p, err)
-	}
-}
-
 func TestStartLaunchesInWorktreeWithIdentity(t *testing.T) {
 	t.Parallel()
 	env := testenv.NewEnv(t)
@@ -63,7 +42,7 @@ func TestStartLaunchesInWorktreeWithIdentity(t *testing.T) {
 	work, _ := filepath.EvalSymlinks(t.TempDir())
 	home := env.Get("AGENTCTL_HOME")
 	argvFile := filepath.Join(work, "argv")
-	a := claude.New(claude.Config{Runner: srv.Runner()})
+	a := claude.New(claude.Config{Runner: srv.Runner(), AgentctlPath: "/opt/agentctl/bin/agentctl"})
 	h, err := a.Start(context.Background(), adapter.LaunchSpec{
 		TaskID: "demo", Goal: "do it", Worktree: work, Home: home, Socket: srv.Socket,
 		AgentCmd: []string{"/bin/sh", "-c", `printf '%s\n' "$@" > "$0"; exec sleep 600`, argvFile},

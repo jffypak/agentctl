@@ -2,6 +2,8 @@ package main
 
 import "context"
 
+var _ = registerStub("show", "m1-inspect")
+
 // STUB (m1-walking-skeleton) — owned and rewritten whole by m1-inspect.
 //
 // `agentctl show <name> [--full]` prints the task/session/identity/state block and the

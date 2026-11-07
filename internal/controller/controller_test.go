@@ -476,3 +476,17 @@ func TestTunablesDefaults(t *testing.T) {
 		t.Fatalf("withDefaults = %+v", got)
 	}
 }
+
+func TestNewTaskRequiresAbsoluteCwd(t *testing.T) {
+	t.Parallel()
+	ctl := openController(t, agentEnv(testenv.NewEnv(t), sleepAgent))
+	for _, cwd := range []string{"", "relative/dir"} {
+		_, err := ctl.NewTask(context.Background(), NewTaskRequest{Name: "demo", Goal: "g", Cwd: cwd})
+		if !errors.Is(err, ErrNotARepo) || strings.Contains(err.Error(), "\n") {
+			t.Errorf("NewTask(cwd=%q) = %v, want one-line ErrNotARepo (never the process cwd)", cwd, err)
+		}
+	}
+	if count(t, ctl, "tasks") != 0 {
+		t.Fatal("partial task row")
+	}
+}

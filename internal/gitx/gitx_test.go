@@ -1,6 +1,7 @@
 package gitx
 
 import (
+	"context"
 	"errors"
 	"reflect"
 	"strings"
@@ -18,6 +19,8 @@ func TestArgBuilders(t *testing.T) {
 		{"head sha", HeadSHAArgs(), []string{"rev-parse", "--verify", "-q", "HEAD^{commit}"}},
 		{"branch exists", BranchExistsArgs("agentctl/demo"), []string{"show-ref", "--verify", "--quiet", "refs/heads/agentctl/demo"}},
 		{"worktree list", WorktreeListArgs(), []string{"worktree", "list", "--porcelain", "-z"}},
+		{"toplevel", ToplevelArgs(), []string{"rev-parse", "--show-toplevel"}},
+		{"merge-base", MergeBaseArgs("HEAD", "abc"), []string{"merge-base", "HEAD", "abc"}},
 	}
 	for _, c := range cases {
 		if !reflect.DeepEqual(c.got, c.want) {
@@ -101,5 +104,14 @@ func TestClassify(t *testing.T) {
 		if strings.Contains(err.Error(), "\n") {
 			t.Errorf("multi-line error %q", err)
 		}
+	}
+}
+
+func TestRunRejectsEmptyDir(t *testing.T) {
+	if _, err := (Git{}).run(context.Background(), "", "status"); err == nil {
+		t.Fatal("empty dir accepted: git -C '' would use the process cwd")
+	}
+	if _, err := (Git{}).MainRepo(context.Background(), "rel"); err == nil {
+		t.Fatal("relative dir accepted")
 	}
 }
