@@ -40,6 +40,9 @@ const logTimeFormat = "20060102T150405.000Z"
 var (
 	ErrPaneUnavailable = errors.New("pane unavailable")
 	ErrDiffUnavailable = errors.New("diff unavailable")
+	// ErrOutputClosed: WriteFullDiff's reader went away (`| head`, a pager
+	// quit early). Callers treat it as success.
+	ErrOutputClosed = gitx.ErrOutputClosed
 )
 
 // FileChange is one changed file (paths verbatim; render with DisplayPath).
@@ -121,7 +124,7 @@ func (c *Controller) DiffSummary(ctx context.Context, taskID string) (DiffSummar
 }
 
 // WriteFullDiff writes `git diff <base_sha>` plus every untracked file as a
-// new-file diff to w (color for a `less -R` pager). gitx.ErrOutputClosed (via
+// new-file diff to w (color for a `less -R` pager). ErrOutputClosed (via
 // errors.Is) means w's reader went away.
 func (c *Controller) WriteFullDiff(ctx context.Context, taskID string, w io.Writer, color bool) error {
 	v, _, err := c.findTask(ctx, taskID)
@@ -131,7 +134,11 @@ func (c *Controller) WriteFullDiff(ctx context.Context, taskID string, w io.Writ
 	if err := checkDiffable(v); err != nil {
 		return err
 	}
-	return c.git.WriteFullDiff(ctx, v.Worktree, v.BaseSHA, color, w)
+	err = c.git.WriteFullDiff(ctx, v.Worktree, v.BaseSHA, color, w)
+	if err == nil || errors.Is(err, ErrOutputClosed) {
+		return err
+	}
+	return userErr(ErrDiffUnavailable, err, "task %s: diff failed: %v", taskID, err)
 }
 
 // FullDiffCmd renders the colored full diff and returns the pager command
