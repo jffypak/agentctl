@@ -21,8 +21,10 @@ import (
 //     session.disconnected{reason}; all with source pane, confidence pane;
 //   - starting with no hook for Tunables.StartingTimeout -> unknown / none,
 //     source timeout (guarded: a hook that arrives first wins);
-//   - LivenessUnverified (probe failed) changes nothing; the probe error is
-//     returned so `ls` can warn.
+//   - LivenessUnverified (probe failed) is never treated as a pane verdict;
+//     the probe error is returned so `ls` can warn. The starting timeout is
+//     about missing hooks, not the pane, so it still applies (unknown is the
+//     honest label when nothing can be verified, invariant 6).
 //
 // It is idempotent and safe to run concurrently (store.ReconcileTransition
 // re-reads the state inside its transaction), so `ls` and the TUI tick can

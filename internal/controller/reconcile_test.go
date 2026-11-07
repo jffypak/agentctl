@@ -348,6 +348,21 @@ func TestReconcileProbeFailureChangesNothing(t *testing.T) {
 	if after := piDump(t, f.ctl); !reflect.DeepEqual(before, after) {
 		t.Fatalf("an unverified probe changed state:\n%+v\n%+v", before, after)
 	}
+
+	// The starting timeout is about hooks, not the pane: it still applies, and
+	// an unverified probe never yields disconnected.
+	later := &piClock{t: time.Now().Add(time.Hour)}
+	blind := piOpen(t, f.env, Tunables{StartingTimeout: time.Second}, later.Now)
+	blind.tmuxRunner = failingRunner{}
+	if err := blind.Reconcile(context.Background()); err == nil {
+		t.Fatal("want the probe error")
+	}
+	if s := piSession(t, f.ctl, "demo"); s.State != domain.StateUnknown || s.Confidence != domain.ConfidenceNone {
+		t.Fatalf("session = %s/%s, want unknown/none", s.State, s.Confidence)
+	}
+	if n := len(piEvents(t, f.ctl, "demo", domain.EventSessionDisconnected)); n != 0 {
+		t.Fatalf("session.disconnected events = %d", n)
+	}
 }
 
 func TestReconcileConcurrentReconcilersAppendOneEvent(t *testing.T) {
