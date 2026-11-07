@@ -20,9 +20,9 @@ _12 issue(s) — auto-generated; do not edit by hand._
 - **m2-tui-inbox** [Attention-first TUI: list, detail, attach/focus, empty/error states, `stats`, `tmux-binding`](kanban/m2-tui-inbox.md) — _m2-direct-agents_ `spec-derived` `phase-1`
 - **m3-acceptance-e2e** [Prove every Phase-1 acceptance criterion end-to-end; demo script; README](kanban/m3-acceptance-e2e.md) — _m3-phase1-acceptance_ `spec-derived` `phase-1`
 
-## in-progress (1)
+## in-progress (0)
 
-- **m1-walking-skeleton** [Walking skeleton: `agentctl new` launches an agent in worktree+tmux; `agentctl ls` lists it](kanban/m1-walking-skeleton.md) — `high` _m1-see-agents_ `spec-derived` `phase-1`
+_empty_
 
 ## blocked (0)
 
@@ -32,8 +32,8 @@ _empty_
 
 _empty_
 
-## done (0)
+## done (1)
 
-_empty_
+- **m1-walking-skeleton** [Walking skeleton: `agentctl new` launches an agent in worktree+tmux; `agentctl ls` lists it](kanban/m1-walking-skeleton.md) — `high` _m1-see-agents_ `spec-derived` `phase-1`
 
 <!-- tb:kanban:board:end -->

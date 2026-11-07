@@ -2,14 +2,14 @@
 id: m1-walking-skeleton
 title: 'Walking skeleton: `agentctl new` launches an agent in worktree+tmux; `agentctl
   ls` lists it'
-status: in-progress
+status: done
 priority: high
 milestone: m1-see-agents
 labels:
 - spec-derived
 - phase-1
 created: '2026-11-06'
-updated: '2026-11-06'
+updated: '2026-11-07'
 acceptance_criteria: "- scripts/check.sh fails on non-empty gofmt -l, go vet, go test\
   \ -race ./..., or a go mod tidy diff; scripts/doctor.sh runs it\n- go list -m all\
   \ shows every pin from ARCHITECTURE.md (bubbletea/bubbles/lipgloss v2, modernc sqlite,\
@@ -49,6 +49,10 @@ history:
   to: in-progress
   note: 'director: dispatched to worktree /Users/jpark/Code/agent-tui/.tinkerbell/worktrees/m1-walking-skeleton
     (tb/m1-walking-skeleton)'
+- when: '2026-11-07'
+  from: in-progress
+  to: done
+  note: "director: done \u2014 acceptance pass green; promote to done"
 ---
 
 # Walking skeleton: `agentctl new` launches an agent in worktree+tmux; `agentctl ls` lists it
