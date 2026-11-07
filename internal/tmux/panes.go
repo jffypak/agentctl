@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/jffypak/agentctl/internal/domain"
 )
@@ -100,6 +101,10 @@ func parsePane(line string) (Pane, error) {
 			ints = append(ints, 0)
 			continue
 		}
+		if i == 7 { // tmux 3.5a prints the signal of a signal-killed pane as a name ("term")
+			ints = append(ints, signalNumber(f[i]))
+			continue
+		}
 		n, err := strconv.Atoi(f[i])
 		if err != nil {
 			return Pane{}, fmt.Errorf("tmux: unexpected field %d in list-panes line %q", i, line)
@@ -114,6 +119,35 @@ func parsePane(line string) (Pane, error) {
 		Dead: ints[3] == 1, DeadStatus: ints[4], DeadSignal: ints[5],
 		SessionName: f[8], CurrentCommand: f[9], CurrentPath: f[10],
 	}, nil
+}
+
+// UnknownSignal is the DeadSignal reported for a signal name we cannot map.
+// It is deliberately non-zero: a zero signal with a zero status would read as
+// a clean exit and render a killed agent as success (invariant 6).
+const UnknownSignal = 255
+
+// signalNames maps tmux's lowercase signal names to this platform's numbers
+// (syscall constants, so e.g. SIGBUS is 10 on darwin and 7 on linux).
+var signalNames = map[string]syscall.Signal{
+	"hup": syscall.SIGHUP, "int": syscall.SIGINT, "quit": syscall.SIGQUIT,
+	"ill": syscall.SIGILL, "trap": syscall.SIGTRAP, "abrt": syscall.SIGABRT,
+	"bus": syscall.SIGBUS, "fpe": syscall.SIGFPE, "kill": syscall.SIGKILL,
+	"usr1": syscall.SIGUSR1, "segv": syscall.SIGSEGV, "usr2": syscall.SIGUSR2,
+	"pipe": syscall.SIGPIPE, "alrm": syscall.SIGALRM, "term": syscall.SIGTERM,
+	"xcpu": syscall.SIGXCPU, "xfsz": syscall.SIGXFSZ, "sys": syscall.SIGSYS,
+}
+
+// signalNumber parses pane_dead_signal, which tmux prints either as a number
+// or as a (lowercase, SIG-less) name. Never returns 0 for a non-empty field.
+func signalNumber(field string) int {
+	if n, err := strconv.Atoi(field); err == nil {
+		return n
+	}
+	name := strings.TrimPrefix(strings.ToLower(field), "sig")
+	if sig, ok := signalNames[name]; ok {
+		return int(sig)
+	}
+	return UnknownSignal
 }
 
 // Find returns the pane with id paneID.

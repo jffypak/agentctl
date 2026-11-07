@@ -251,14 +251,10 @@ func TestReconcileDeadPaneExitStatus(t *testing.T) {
 	}
 }
 
-// TestReconcileSignalKilledPaneIsFailed documents a skeleton bug found here:
-// tmux 3.5a prints pane_dead_signal as a name ("term") and pane_dead_status
-// empty for a pane killed by a signal, and tmux/panes.go (skeleton-owned)
-// rejects that line, so the whole socket's snapshot fails and every session
-// on it stays unverified. Fix proposed in docs/notes/m1-pane-identity.md;
-// remove the Skip once panes.go parses signal names.
+// TestReconcileSignalKilledPaneIsFailed: tmux 3.5a prints pane_dead_signal as
+// a name ("term") with an empty pane_dead_status for a pane killed by a
+// signal; one such pane must not make the whole socket's snapshot unparseable.
 func TestReconcileSignalKilledPaneIsFailed(t *testing.T) {
-	t.Skip("blocked on tmux/panes.go parsing pane_dead_signal names (docs/notes/m1-pane-identity.md, finding 1)")
 	t.Parallel()
 	f := newFixture(t, []string{"sh", "-c", "kill -TERM $$", "agent"})
 	s := piNewTask(t, f.ctl, f.repo, "sig")
