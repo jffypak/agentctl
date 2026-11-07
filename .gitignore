@@ -1,0 +1,8 @@
+
+# --- tinkerbell ---
+.tinkerbell/state/
+.tinkerbell/config/local/
+!.tinkerbell/config/local/example.yaml
+.tinkerbell/**/__pycache__/
+.tinkerbell/.pytest_cache/
+.tinkerbell/worktrees/
