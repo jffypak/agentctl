@@ -214,8 +214,8 @@ func TestReconcileDeadPaneExitStatus(t *testing.T) {
 	f := newFixture(t, sleepAgent)
 	ctx := context.Background()
 	for name, argv := range map[string][]string{
-		"zero":   {"sh", "-c", "exit 0", "agent"},
-		"three":  {"sh", "-c", "exit 3", "agent"},
+		"zero":  {"sh", "-c", "exit 0", "agent"},
+		"three": {"sh", "-c", "exit 3", "agent"},
 	} {
 		c := openController(t, agentEnv(f.env, argv))
 		s := piNewTask(t, c, f.repo, name)
@@ -230,8 +230,8 @@ func TestReconcileDeadPaneExitStatus(t *testing.T) {
 		detail string
 		label  string
 	}{
-		"zero":   {domain.StateStopped, "exit 0", "exited"},
-		"three":  {domain.StateFailed, "exit 3", "failed"},
+		"zero":  {domain.StateStopped, "exit 0", "exited"},
+		"three": {domain.StateFailed, "exit 3", "failed"},
 	} {
 		s := piSession(t, f.ctl, name)
 		if s.State != want.state || s.LastDetail != want.detail || s.Confidence != domain.ConfidencePane || s.EndedAt.IsZero() {
