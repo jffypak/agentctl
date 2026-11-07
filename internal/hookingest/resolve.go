@@ -3,6 +3,7 @@ package hookingest
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/jffypak/agentctl/internal/adapter"
 	"github.com/jffypak/agentctl/internal/adapter/claude"
@@ -20,6 +21,7 @@ const (
 const (
 	OrphanInvalidTaskID       = "invalid_task_id"
 	OrphanUnknownTask         = "unknown_task"
+	OrphanNoSession           = "no_session" // task exists but its session row never appeared
 	OrphanNoTmuxEnv           = "no_tmux_env"
 	OrphanAmbiguousPane       = "ambiguous_pane"
 	OrphanLaunchedWithoutTask = "launched_without_task_env"
@@ -89,12 +91,9 @@ func resolveTask(ctx context.Context, st *store.Store, env adapter.HookEnv) (mat
 	if domain.ValidateSlug(env.TaskID) != nil {
 		return match{orphan: OrphanInvalidTaskID}, nil
 	}
-	sess, err := st.Sessions().LatestForTask(ctx, env.TaskID)
-	if errors.Is(err, store.ErrNotFound) {
-		return match{orphan: OrphanUnknownTask}, nil
-	}
-	if err != nil {
-		return match{}, err
+	sess, orphan, err := latestSession(ctx, st, env.TaskID)
+	if err != nil || orphan != "" {
+		return match{orphan: orphan}, err
 	}
 	pane, err := claude.PaneFromEnv(env)
 	if err != nil {
@@ -104,6 +103,38 @@ func resolveTask(ctx context.Context, st *store.Store, env adapter.HookEnv) (mat
 		return match{orphan: reason}, nil
 	}
 	return match{session: sess, how: MatchTaskEnv}, nil
+}
+
+// sessionWait bounds how long a hook waits for the session row of a task
+// that exists but has none yet. `agentctl new` reserves the task, starts tmux,
+// and inserts the session only after tmux returns the pane identity, so a
+// fast agent's SessionStart hook can arrive in between.
+var sessionWait = time.Second
+
+const sessionPoll = 20 * time.Millisecond
+
+func latestSession(ctx context.Context, st *store.Store, taskID string) (store.Session, string, error) {
+	deadline := time.Now().Add(sessionWait)
+	for {
+		sess, err := st.Sessions().LatestForTask(ctx, taskID)
+		if !errors.Is(err, store.ErrNotFound) {
+			return sess, "", err
+		}
+		exists, err := st.Tasks().Exists(ctx, taskID)
+		switch {
+		case err != nil:
+			return store.Session{}, "", err
+		case !exists:
+			return store.Session{}, OrphanUnknownTask, nil
+		case time.Now().After(deadline):
+			return store.Session{}, OrphanNoSession, nil
+		}
+		select {
+		case <-ctx.Done():
+			return store.Session{}, "", ctx.Err()
+		case <-time.After(sessionPoll):
+		}
+	}
 }
 
 // recordOrphan appends hook.orphan. It carries no task/session columns: the

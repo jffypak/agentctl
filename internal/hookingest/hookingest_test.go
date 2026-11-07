@@ -504,3 +504,43 @@ func assertMode(t *testing.T, path string, want os.FileMode) {
 		t.Fatalf("%s mode %o, want %o", path, fi.Mode().Perm(), want)
 	}
 }
+
+// TestHookWaitsForALaunchingSession: `agentctl new` reserves the task, starts
+// tmux, and inserts the session row only once tmux has returned the pane
+// identity. A fast agent's SessionStart hook can arrive in between; it must
+// wait for the row instead of becoming an orphan.
+func TestHookWaitsForALaunchingSession(t *testing.T) {
+	f := newFixture(t, domain.OriginLaunched, domain.StateStarting)
+	ctx := context.Background()
+	repo, _ := f.st.Repos().Upsert(ctx, "/repos/main", "main")
+	if _, err := f.st.Tasks().Reserve(ctx, store.Task{ID: "late", RepoID: repo.ID, Name: "late", WorktreePath: "/w/late", Branch: "agentctl/late"}); err != nil {
+		t.Fatal(err)
+	}
+	env := f.env("late")
+	env["TMUX_PANE"] = "%5"
+	done := make(chan runResult, 1)
+	go func() { done <- f.run(env, payload("SessionStart", "source", "startup")) }()
+	time.Sleep(100 * time.Millisecond) // the launch window being simulated, not a wait for a condition
+	sess, err := f.st.Sessions().Create(ctx, store.NewSession{
+		TaskID: "late", AgentType: "claude", Origin: domain.OriginLaunched, State: domain.StateStarting, Confidence: domain.ConfidenceNone,
+		Identity: domain.Identity{Socket: f.socket, ServerPID: serverPID, SessionID: "$1", PaneID: "%5", PanePID: 78},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := <-done
+	if r.Orphan != "" || !r.Applied || r.SessionID != sess.ID {
+		t.Fatalf("outcome = %+v", r.Outcome)
+	}
+
+	// a task whose session never appears is an orphan once the wait is over
+	old := sessionWait
+	sessionWait = 50 * time.Millisecond
+	defer func() { sessionWait = old }()
+	if _, err := f.st.Tasks().Reserve(ctx, store.Task{ID: "never", RepoID: repo.ID, Name: "never", WorktreePath: "/w/never", Branch: "agentctl/never"}); err != nil {
+		t.Fatal(err)
+	}
+	if r := f.run(f.env("never"), payload("Stop")); r.Orphan != OrphanNoSession {
+		t.Fatalf("outcome = %+v", r.Outcome)
+	}
+}
