@@ -10,7 +10,9 @@ import (
 )
 
 // HookInput is one Claude Code hook observation to record against a session
-// that hookingest has already resolved and identity-checked.
+// that hookingest has already resolved and identity-checked. With State ""
+// a non-empty Detail only refreshes last_detail of a non-terminal session
+// (SessionEnd: the terminal state is reconcile's, from the real exit status).
 type HookInput struct {
 	SessionID      int64
 	Event          string            // hook_event_name
@@ -33,7 +35,8 @@ type HookResult struct {
 // set, transitions the session to it with confidence hook, source hook and
 // cause_id = the hook.received id — all in one BEGIN IMMEDIATE transaction, so
 // the hook process takes the write lock once. It also records the Claude
-// session_id in agent_session_id (this file is its only writer). A refused
+// session_id in agent_session_id (this file is its only writer). A
+// record-only input with a Detail refreshes last_detail alone. A refused
 // transition (terminal states are sticky) still records the hook and is not
 // an error.
 func (ss *Sessions) RecordHook(ctx context.Context, in HookInput) (HookResult, error) {
@@ -61,6 +64,12 @@ func (ss *Sessions) RecordHook(ctx context.Context, in HookInput) (HookResult, e
 		if in.AgentSessionID != "" && in.AgentSessionID != cur.AgentSessionID && !cur.State.IsTerminal() {
 			if _, err := tx.ExecContext(ctx, `UPDATE sessions SET agent_session_id = ? WHERE id = ?`, in.AgentSessionID, cur.ID); err != nil {
 				return fmt.Errorf("store: session %d agent_session_id: %w", cur.ID, err)
+			}
+		}
+		if in.State == "" && in.Detail != "" && !cur.State.IsTerminal() {
+			if _, err := tx.ExecContext(ctx, `UPDATE sessions SET last_detail = ? WHERE id = ? AND agent_state = ?`,
+				cleanDetail(in.Detail), cur.ID, cur.State); err != nil {
+				return fmt.Errorf("store: session %d last_detail: %w", cur.ID, err)
 			}
 		}
 		if in.State != "" {

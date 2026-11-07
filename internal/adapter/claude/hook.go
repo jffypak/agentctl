@@ -46,7 +46,9 @@ type hookPayload struct {
 
 // ParseHook maps one Claude Code hook payload (stdin JSON) to an observation,
 // following the hook->state table in ARCHITECTURE.md §Agent adapter.
-// HookObservation.State == "" means "record only, no state change". It is
+// HookObservation.State == "" means "record only, no state change"; a
+// record-only observation with a Detail (SessionEnd) only refreshes
+// last_detail. It is
 // pure: no I/O, transcript_path is never opened, and of the prompt only its
 // sha256 is kept. A payload that is not a single JSON object with a valid
 // hook_event_name is an error.
@@ -143,7 +145,11 @@ func mapHook(p hookPayload, attrs map[string]string) (domain.AgentState, string)
 	case "Stop":
 		return domain.StateReady, "turn finished"
 	case "SessionEnd":
-		return domain.StateStopped, withParen("session ended", attrs["reason"])
+		// Detail only, never the sticky terminal state: reconcile reads the
+		// dead pane's real exit status (a crash after SessionEnd must read
+		// failed, not stopped), and /clear and /resume fire SessionEnd in a
+		// process that keeps running.
+		return "", withParen("session ended", attrs["reason"])
 	}
 	return "", ""
 }

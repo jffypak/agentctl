@@ -152,3 +152,33 @@ func TestActiveByPane(t *testing.T) {
 		t.Fatalf("terminal session still active: %+v", got)
 	}
 }
+
+// TestRecordHookDetailOnly: a record-only observation that carries a detail
+// (SessionEnd) updates last_detail and nothing else.
+func TestRecordHookDetailOnly(t *testing.T) {
+	st, _ := openTest(t)
+	ctx := context.Background()
+	seedTask(t, st, "demo")
+	sess := seedSession(t, st, "demo", domain.StateStarting)
+	if _, err := st.Sessions().Transition(ctx, sess.ID, domain.StateReady, domain.ConfidenceHook, "turn finished", domain.SourceHook); err != nil {
+		t.Fatal(err)
+	}
+	before, _ := st.Sessions().Get(ctx, sess.ID)
+	res, err := st.Sessions().RecordHook(ctx, HookInput{SessionID: sess.ID, Event: "SessionEnd", Detail: "session ended (other)"})
+	if err != nil || res.Applied || res.Refused {
+		t.Fatalf("result = %+v %v", res, err)
+	}
+	got := res.Session
+	if got.State != domain.StateReady || got.Confidence != domain.ConfidenceHook || !got.StateSince.Equal(before.StateSince) ||
+		got.LastDetail != "session ended (other)" || !got.EndedAt.IsZero() {
+		t.Fatalf("session = %+v", got)
+	}
+	// terminal sessions keep the detail reconcile wrote ("exit 3")
+	if _, err := st.Sessions().Transition(ctx, sess.ID, domain.StateFailed, domain.ConfidencePane, "exit 3", domain.SourcePane); err != nil {
+		t.Fatal(err)
+	}
+	res, _ = st.Sessions().RecordHook(ctx, HookInput{SessionID: sess.ID, Event: "SessionEnd", Detail: "session ended (other)"})
+	if res.Session.State != domain.StateFailed || res.Session.LastDetail != "exit 3" {
+		t.Fatalf("terminal session = %+v", res.Session)
+	}
+}

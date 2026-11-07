@@ -202,8 +202,10 @@ func TestTaskEnvHookAppliesState(t *testing.T) {
 		{"PostToolUse", []string{"tool_name", "Bash"}, domain.StateWorking},
 		{"SessionStart", []string{"source", "compact"}, domain.StateWorking},
 		{"Stop", nil, domain.StateReady},
-		{"SessionEnd", []string{"reason", "other"}, domain.StateStopped},
-		{"SessionStart", []string{"source", "startup"}, domain.StateStopped},
+		// SessionEnd leaves the terminal state to reconcile (real exit status)
+		{"SessionEnd", []string{"reason", "clear"}, domain.StateReady},
+		{"SessionStart", []string{"source", "clear"}, domain.StateReady},
+		{"SessionEnd", []string{"reason", "other"}, domain.StateReady},
 	} {
 		r := f.run(f.env("demo"), payload(step.event, step.kv...))
 		if r.Err != nil || r.Orphan != "" {
@@ -213,8 +215,21 @@ func TestTaskEnvHookAppliesState(t *testing.T) {
 			t.Fatalf("after %s: state %s, want %s", step.event, got, step.want)
 		}
 	}
+	if s := f.session(); s.LastDetail != "session ended (other)" {
+		t.Fatalf("SessionEnd detail = %q", s.LastDetail)
+	}
+	// terminal states are sticky: a later hook is recorded but changes nothing
+	if _, err := f.st.Sessions().Transition(context.Background(), f.sess.ID, domain.StateFailed, domain.ConfidencePane, "exit 3", domain.SourcePane); err != nil {
+		t.Fatal(err)
+	}
+	if r := f.run(f.env("demo"), payload("SessionStart", "source", "startup")); r.Err != nil || r.Applied {
+		t.Fatalf("hook on failed = %+v", r.Outcome)
+	}
+	if s := f.session(); s.State != domain.StateFailed || s.LastDetail != "exit 3" {
+		t.Fatalf("failed session revived: %+v", s)
+	}
 	if f.errorLog() != "" {
-		t.Fatalf("a refused transition on a stopped session is not an error: %q", f.errorLog())
+		t.Fatalf("a refused transition on a terminal session is not an error: %q", f.errorLog())
 	}
 }
 

@@ -55,7 +55,10 @@ func TestParseHookTable(t *testing.T) {
 		{"notification_auth_success", "Notification", "", "", map[string]string{"notification_type": "auth_success"}},
 		{"permission_request", "PermissionRequest", domain.StateAwaitingInput, "permission request: Bash", map[string]string{"tool_name": "Bash"}},
 		{"stop", "Stop", domain.StateReady, "turn finished", nil},
-		{"session_end", "SessionEnd", domain.StateStopped, "session ended (prompt_input_exit)", map[string]string{"reason": "prompt_input_exit"}},
+		// SessionEnd never sets the sticky terminal state: reconcile reads the pane's
+		// real exit status (exit 3 must read failed), and /clear and /resume fire
+		// SessionEnd in a process that keeps running. Detail only.
+		{"session_end", "SessionEnd", "", "session ended (prompt_input_exit)", map[string]string{"reason": "prompt_input_exit"}},
 		// anything else: recorded, no change
 		{"subagent_stop", "SubagentStop", "", "", nil},
 		{"stop_failure", "StopFailure", "", "", map[string]string{"error": "rate_limit"}},
