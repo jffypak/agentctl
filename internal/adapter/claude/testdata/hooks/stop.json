@@ -1,0 +1,11 @@
+{
+  "session_id": "9f1c2b7e-0a4d-4c55-8e3a-2b6f1d0c9a11",
+  "transcript_path": "/Users/someone/.claude/projects/-repo/9f1c2b7e-0a4d-4c55-8e3a-2b6f1d0c9a11.jsonl",
+  "cwd": "/repos/main-worktrees/demo",
+  "permission_mode": "default",
+  "hook_event_name": "Stop",
+  "stop_hook_active": false,
+  "last_assistant_message": "Done. All tests pass.",
+  "background_tasks": [],
+  "session_crons": []
+}
