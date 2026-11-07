@@ -6,3 +6,10 @@
 .tinkerbell/**/__pycache__/
 .tinkerbell/.pytest_cache/
 .tinkerbell/worktrees/
+
+# --- agentctl build outputs ---
+/bin/
+/agentctl
+*.test
+*.out
+/coverage.*
