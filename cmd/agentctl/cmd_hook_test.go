@@ -190,7 +190,9 @@ func TestHookProcessFailsOpenWithinBudget(t *testing.T) {
 		{name: "empty stdin", stdin: func() io.Reader { return strings.NewReader("") }, wantState: domain.StateStarting, wantLog: "empty hook payload"},
 		{name: "over 1 MiB", stdin: huge, wantState: domain.StateStarting, wantLog: "exceeds"},
 		{name: "missing home", stdin: func() io.Reader { return hookPayload("Stop") },
-			env:       func(h *hookFixture) testenv.Env { return h.env.With("AGENTCTL_HOME=" + filepath.Join(h.p.Home, "missing")) },
+			env: func(h *hookFixture) testenv.Env {
+				return h.env.With("AGENTCTL_HOME=" + filepath.Join(h.p.Home, "missing"))
+			},
 			wantState: domain.StateStarting, wantErr: "does not exist"},
 		{name: "DB write-locked by another process", stdin: func() io.Reader { return hookPayload("Stop") }, hold: true,
 			wantState: domain.StateStarting, wantLog: "task=demo"},
