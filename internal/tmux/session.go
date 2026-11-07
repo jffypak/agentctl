@@ -9,9 +9,10 @@ import (
 	"strings"
 )
 
-// createdFormat is printed by new-session -P. Only fixed-shape fields, so tab
-// separation is unambiguous.
-const createdFormat = "#{session_id}\t#{pane_id}\t#{pane_pid}"
+// createdFormat is printed by new-session -P. It includes the server pid so
+// the whole identity is captured atomically by the call that creates the
+// pane. Only fixed-shape fields, so tab separation is unambiguous.
+const createdFormat = "#{pid}\t#{session_id}\t#{pane_id}\t#{pane_pid}"
 
 // NewSessionSpec describes a detached session running one command.
 type NewSessionSpec struct {
@@ -23,6 +24,7 @@ type NewSessionSpec struct {
 
 // Created is the identity tmux reports for a new session's first pane.
 type Created struct {
+	ServerPID int
 	SessionID string // "$N"
 	PaneID    string // "%N"
 	PanePID   int
@@ -89,14 +91,15 @@ func (c Client) NewSession(ctx context.Context, spec NewSessionSpec) (Created, e
 func parseCreated(out []byte) (Created, error) {
 	line := strings.TrimSpace(string(out))
 	f := strings.Split(line, "\t")
-	if len(f) != 3 || !strings.HasPrefix(f[0], "$") || !strings.HasPrefix(f[1], "%") {
+	if len(f) != 4 || !strings.HasPrefix(f[1], "$") || !strings.HasPrefix(f[2], "%") {
 		return Created{}, fmt.Errorf("tmux: unexpected new-session output %q", line)
 	}
-	pid, err := strconv.Atoi(f[2])
-	if err != nil || pid <= 0 {
-		return Created{}, fmt.Errorf("tmux: unexpected pane pid in %q", line)
+	server, err1 := strconv.Atoi(f[0])
+	pane, err2 := strconv.Atoi(f[3])
+	if err1 != nil || err2 != nil || server <= 0 || pane <= 0 {
+		return Created{}, fmt.Errorf("tmux: unexpected pids in new-session output %q", line)
 	}
-	return Created{SessionID: f[0], PaneID: f[1], PanePID: pid}, nil
+	return Created{ServerPID: server, SessionID: f[1], PaneID: f[2], PanePID: pane}, nil
 }
 
 // HasSessionCommand checks for an exact session name (the '=' prefix disables

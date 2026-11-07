@@ -70,7 +70,7 @@ func TestNewSessionIntegration(t *testing.T) {
 
 	snap := srv.Snapshot(t)
 	p, ok := snap.Find(created.PaneID)
-	if !ok || p.PanePID != created.PanePID || p.SessionID != created.SessionID || snap.ServerPID != srv.PID(t) {
+	if !ok || p.PanePID != created.PanePID || p.SessionID != created.SessionID || snap.ServerPID != srv.PID(t) || created.ServerPID != snap.ServerPID {
 		t.Fatalf("snapshot %+v does not match created %+v", snap, created)
 	}
 	if p.CurrentPath != dir {

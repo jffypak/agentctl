@@ -89,7 +89,7 @@ func TestNewSessionCommands(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := [][]string{
-		{"new-session", "-d", "-P", "-F", "#{session_id}\t#{pane_id}\t#{pane_pid}", "-s", "agentctl-demo",
+		{"new-session", "-d", "-P", "-F", "#{pid}\t#{session_id}\t#{pane_id}\t#{pane_pid}", "-s", "agentctl-demo",
 			"-c", "/w/##demo", "-e", "AGENTCTL_TASK_ID=demo", "-e", "AGENTCTL_HOME=/h",
 			"--", "/bin/claude", "--settings", "/h/hooks/claude-settings.json", "fix it; now"},
 		{"set-option", "-w", "remain-on-exit", "on"},
@@ -118,11 +118,11 @@ func TestNewSessionCommands(t *testing.T) {
 }
 
 func TestParseCreated(t *testing.T) {
-	c, err := parseCreated([]byte("$3\t%7\t4242\n"))
-	if err != nil || c != (Created{SessionID: "$3", PaneID: "%7", PanePID: 4242}) {
+	c, err := parseCreated([]byte("100\t$3\t%7\t4242\n"))
+	if err != nil || c != (Created{ServerPID: 100, SessionID: "$3", PaneID: "%7", PanePID: 4242}) {
 		t.Fatalf("parseCreated = %+v %v", c, err)
 	}
-	for _, in := range []string{"", "\n", "$3\t%7", "$3\t%7\tx", "3\t%7\t1", "$3\t7\t1"} {
+	for _, in := range []string{"", "\n", "$3\t%7\t1", "100\t$3\t%7", "100\t$3\t%7\tx", "x\t$3\t%7\t1", "100\t3\t%7\t1", "100\t$3\t7\t1"} {
 		if _, err := parseCreated([]byte(in)); err == nil {
 			t.Errorf("parseCreated(%q) accepted", in)
 		}
