@@ -1,7 +1,7 @@
 ---
 id: m1-inspect
 title: 'Inspect: diff summary vs base, full diff in pager, recent + full output capture'
-status: in-progress
+status: done
 priority: medium
 milestone: m1-see-agents
 labels:
@@ -10,7 +10,7 @@ labels:
 dependencies:
 - m1-walking-skeleton
 created: '2026-11-06'
-updated: '2026-11-07'
+updated: '2026-11-08'
 acceptance_criteria: '- -z numstat parser handles renames, binaries (-\t-), and paths
   with spaces/newlines (fixtures)
 
@@ -42,6 +42,10 @@ history:
   to: in-progress
   note: 'director: dispatched to worktree /Users/jpark/Code/agent-tui/.tinkerbell/worktrees/m1-inspect
     (tb/m1-inspect)'
+- when: '2026-11-08'
+  from: in-progress
+  to: done
+  note: "director: done \u2014 acceptance pass green; promote to done"
 ---
 
 # Inspect: diff summary vs base, full diff in pager, recent + full output capture
