@@ -1,15 +1,26 @@
 package main
 
-import "context"
+import (
+	"context"
 
-var _ = registerStub("hook", "m1-hook-state")
+	"github.com/jffypak/agentctl/internal/hookingest"
+)
 
-// STUB (m1-walking-skeleton) — owned and rewritten whole by m1-hook-state.
+// cmdHook: agentctl hook — the Claude Code hook entry point.
 //
-// `agentctl hook` is spawned by Claude Code per hook event. It must always exit 0,
-// write nothing to stdout, finish within HookBudget, and log errors to logs/hook-errors.log.
-// It should not call sys.openController (too heavy); it opens the store with
-// store.HookBusyTimeout through internal/hookingest.
-func cmdHook(ctx context.Context, sys *system, args []string) int {
-	return notImplemented(sys, "hook", "m1-hook-state")
+// Claude Code spawns it once per hook event with the payload JSON on stdin.
+// It always exits 0 and never writes to stdout (Claude Code feeds
+// SessionStart / UserPromptSubmit hook stdout into the model's context, so
+// any output would be a prompt injection), finishes within the hook budget,
+// and appends errors to <home>/logs/hook-errors.log (internal/hookingest).
+// Arguments are ignored: no usage text can ever reach stdout.
+func cmdHook(ctx context.Context, sys *system, _ []string) int {
+	hookingest.Run(ctx, hookingest.Config{
+		Getenv:     sys.getenv,
+		Stdin:      sys.stdin,
+		Stderr:     sys.stderr,
+		Executable: sys.executable,
+		Now:        sys.now,
+	})
+	return exitOK
 }
