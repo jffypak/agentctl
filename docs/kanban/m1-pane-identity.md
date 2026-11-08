@@ -2,7 +2,7 @@
 id: m1-pane-identity
 title: Reconcile, adopt, and close by explicit pane identity (disconnected detection,
   restart recovery)
-status: in-progress
+status: done
 priority: medium
 milestone: m1-see-agents
 labels:
@@ -45,6 +45,10 @@ history:
   to: in-progress
   note: 'director: dispatched to worktree /Users/jpark/Code/agent-tui/.tinkerbell/worktrees/m1-pane-identity
     (tb/m1-pane-identity)'
+- when: '2026-11-07'
+  from: in-progress
+  to: done
+  note: "director: done \u2014 acceptance pass green; promote to done"
 ---
 
 # Reconcile, adopt, and close by explicit pane identity (disconnected detection, restart recovery)
