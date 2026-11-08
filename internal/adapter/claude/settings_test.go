@@ -89,7 +89,7 @@ func TestEnsureSettingsGolden(t *testing.T) {
 // hook->state table (every row that can change state).
 func TestEnsureSettingsMappedEvents(t *testing.T) {
 	want := []string{"SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "PreCompact",
-		"Notification", "PermissionRequest", "Stop", "SessionEnd"}
+		"Notification", "PermissionRequest", "Stop", "StopFailure", "SessionEnd"}
 	if got := claude.HookEvents(); strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("HookEvents = %v, want %v", got, want)
 	}

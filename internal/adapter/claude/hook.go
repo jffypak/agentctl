@@ -41,7 +41,7 @@ type hookPayload struct {
 	Message          string `json:"message"`           // Notification
 	Trigger          string `json:"trigger"`           // PreCompact
 	Reason           string `json:"reason"`            // SessionEnd
-	Error            string `json:"error"`             // StopFailure (recorded only)
+	Error            string `json:"error"`             // StopFailure: "turn failed: <error>"
 }
 
 // ParseHook maps one Claude Code hook payload (stdin JSON) to an observation,
@@ -144,6 +144,11 @@ func mapHook(p hookPayload, attrs map[string]string) (domain.AgentState, string)
 		return domain.StateAwaitingInput, withColon("permission request", attrs["tool_name"])
 	case "Stop":
 		return domain.StateReady, "turn finished"
+	case "StopFailure":
+		// Fires instead of Stop when an API error ends the turn. The agent is
+		// stuck: not working, not cleanly idle. awaiting_input puts it in
+		// NEEDS YOU and blocks auto-delivery into a failing session.
+		return domain.StateAwaitingInput, withColon("turn failed", p.Error)
 	case "SessionEnd":
 		// Detail only, never the sticky terminal state: reconcile reads the
 		// dead pane's real exit status (a crash after SessionEnd must read

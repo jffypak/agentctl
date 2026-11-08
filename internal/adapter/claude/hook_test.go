@@ -59,9 +59,12 @@ func TestParseHookTable(t *testing.T) {
 		// real exit status (exit 3 must read failed), and /clear and /resume fire
 		// SessionEnd in a process that keeps running. Detail only.
 		{"session_end", "SessionEnd", "", "session ended (prompt_input_exit)", map[string]string{"reason": "prompt_input_exit"}},
+		// An API error ended the turn: the agent is stuck, not working and not
+		// cleanly idle. NEEDS YOU with the reason, and no auto-delivery into a
+		// failing session (awaiting_input blocks it).
+		{"stop_failure", "StopFailure", domain.StateAwaitingInput, "turn failed: rate_limit", map[string]string{"error": "rate_limit"}},
 		// anything else: recorded, no change
 		{"subagent_stop", "SubagentStop", "", "", nil},
-		{"stop_failure", "StopFailure", "", "", map[string]string{"error": "rate_limit"}},
 	}
 	a := claude.New(claude.Config{})
 	for _, c := range cases {

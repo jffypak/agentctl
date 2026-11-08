@@ -224,6 +224,7 @@ on stdin plus inherited env `AGENTCTL_TASK_ID`, `AGENTCTL_HOME`, `TMUX`, and `TM
 | `Notification` | `idle_prompt` | `ready` |
 | `PermissionRequest` | — | `awaiting_input` |
 | `Stop` | — | `ready` |
+| `StopFailure` | (an API error ended the turn; fires *instead of* `Stop`) | `awaiting_input`, detail `turn failed: <error>` (NEEDS YOU, and no auto-delivery into a failing session) |
 | `SessionEnd` | — | `stopped` |
 | anything else | — | recorded, no change |
 

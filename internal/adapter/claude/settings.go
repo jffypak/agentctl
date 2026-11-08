@@ -18,7 +18,7 @@ const HookTimeoutSeconds = 5
 // of the hook->state table in ARCHITECTURE.md §Agent adapter.
 var hookEvents = []string{
 	"SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "PreCompact",
-	"Notification", "PermissionRequest", "Stop", "SessionEnd",
+	"Notification", "PermissionRequest", "Stop", "StopFailure", "SessionEnd",
 }
 
 // HookEvents lists the subscribed hook events in table order (a copy).
