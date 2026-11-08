@@ -1,6 +1,6 @@
 # Kanban board
 
-_12 issue(s) — auto-generated; do not edit by hand._
+_13 issue(s) — auto-generated; do not edit by hand._
 
 <!-- tb:kanban:board:begin -->
 ## backlog (6)
@@ -16,8 +16,9 @@ _12 issue(s) — auto-generated; do not edit by hand._
 
 - **m3-acceptance-e2e** [Prove every Phase-1 acceptance criterion end-to-end; demo script; README](kanban/m3-acceptance-e2e.md) — _m3-phase1-acceptance_ `spec-derived` `phase-1`
 
-## in-progress (2)
+## in-progress (3)
 
+- **m1-flaky-tests** [Root-cause and fix two load-sensitive flaky tests (SQLite BUSY in store, tmux restart in kill_test)](kanban/m1-flaky-tests.md) — `high` _m1-see-agents_ `spec-derived` `phase-1` `reliability`
 - **m1-hook-state** [Hook-driven agent state: `agentctl hook`, Claude settings generation, fakeagent](kanban/m1-hook-state.md) — _m1-see-agents_ `spec-derived` `phase-1`
 - **m2-tui-inbox** [Attention-first TUI: list, detail, attach/focus, empty/error states, `stats`, `tmux-binding`](kanban/m2-tui-inbox.md) — _m2-direct-agents_ `spec-derived` `phase-1`
 
