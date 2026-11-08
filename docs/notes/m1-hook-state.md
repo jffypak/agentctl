@@ -63,8 +63,9 @@ AskUserQuestion; do `--settings` hooks run alongside user/project hooks; are `TM
   `Result.ReceivedID` is the `cause_id`; `Result.Transition.Changed && Session.State == ready` is the deliver trigger;
   `d.Spawner.SpawnDeliver(id, d.PID)`. No edit to existing hookingest files is needed.
 - **testenv** — `BuildAgentctl(t)`, `BuildFakeAgent(t)`: one `go build` per test binary into
-  `$TMPDIR/agentctl-testbin-<uid>/<checkout hash>/` (temp name + rename). The first exec of a fresh binary pays
-  macOS's ~250 ms code scan; warm it with a hermetic env before timing it (see `TestHookProcessFailsOpenWithinBudget`).
+  `$TMPDIR/agentctl-testbin-<uid>/<checkout hash>/` (temp name + rename), then one warm-up exec (`help` / `-h`, empty
+  env): the first exec of a fresh binary pays macOS's code scan (~250 ms idle, seconds under a loaded `go test ./...`),
+  which otherwise lands inside the first timed hook or launch.
 - **fakeagent** — per ARCHITECTURE.md, plus: `FAKEAGENT_LOG` entries carry `kind` (`paste` | `submit` | `key`) next to
   `{ts, text, state_at_receipt}`; `FAKEAGENT_HOOK_LOG` records every hook run `{ts, event, command, exit, stdout,
   stderr, ms}`; `#ask` fires PreToolUse → PermissionRequest → Notification permission_prompt and Enter in the dialog
@@ -115,6 +116,14 @@ AskUserQuestion; do `--settings` hooks run alongside user/project hooks; are `TM
 8. `cmd/agentctl` imports `hookingest` (allowed) and not `adapter/claude`: `SettingsSnippet` lives in hookingest.
 
 ## Risks / follow-ups
+
+- **Pre-existing flake, not mine (skeleton `internal/store/concurrency_test.go`):** `TestConcurrentWritersNoBusy`
+  fails ~1 in 8 runs, also on a pristine export of `main` (2/15 with `-count=15`): `BEGIN IMMEDIATE` returns
+  `SQLITE_BUSY` at once in a helper process instead of waiting out `busy_timeout` (likely WAL-index recovery or a
+  stale snapshot when many processes open the DB). `scripts/doctor.sh` can therefore go red at random. The hook
+  path guards itself: `hookingest/busy.go` retries a `RecordHook` that failed busy in < 100 ms (≤ 4 retries,
+  25/50/75/100 ms backoff, within the budget); a busy that waited out the timeout is not retried. Suggest the store
+  owner apply the same (or `PRAGMA`-level) mitigation in `withTx` for every writer (TUI, deliver).
 
 - **Workspace trust**: per the hooks reference, interactive sessions hold back *all* settings-file hooks until the
   folder's trust dialog is accepted. A fresh `../<repo>-worktrees/<task>` may prompt for trust: no hooks fire until the
