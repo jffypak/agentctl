@@ -31,7 +31,7 @@ func SanitizeTerminalText(s string) string {
 			i = skipCSI(s, i+size)
 		case r == 0x9d || r == 0x90 || r == 0x98 || r == 0x9e || r == 0x9f: // C1 OSC/DCS/SOS/PM/APC
 			i = skipString(s, i+size)
-		case r < 0x20 && r != '\n' && r != '\t', r == 0x7f, r >= 0x80 && r < 0xa0:
+		case r < 0x20 && r != '\n' && r != '\t', r == 0x7f, r >= 0x80 && r < 0xa0, isBidiControl(r):
 			i += size
 		default:
 			b.WriteString(s[i : i+size])
@@ -39,6 +39,14 @@ func SanitizeTerminalText(s string) string {
 		}
 	}
 	return b.String()
+}
+
+// isBidiControl reports the bidi embedding/override/isolate controls (the
+// "Trojan Source" set, CVE-2021-42574) and directional marks, which let
+// untrusted text reorder what the user sees. Ordinary RTL letters are kept.
+func isBidiControl(r rune) bool {
+	return (r >= 0x202A && r <= 0x202E) || (r >= 0x2066 && r <= 0x2069) ||
+		r == 0x200E || r == 0x200F || r == 0x061C
 }
 
 // skipEscape consumes the sequence after an ESC at s[i-1] and returns the
