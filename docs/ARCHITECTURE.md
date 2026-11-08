@@ -263,6 +263,14 @@ label "attach to deliver" until the user cancels it.
 The hook-spawned `deliver` waits for the hook pid to exit, waits
 `DeliverSettle`, runs `Drain`, then waits up to `AckWindow`. It always exits 0.
 
+**Lost-hook safety.** A hook whose DB write fails (for example SQLITE_BUSY
+past its budget) writes a marker file instead
+(`<home>/hooks/lost/<session-or-pane-key>`). While the marker is newer than the
+session's `state_since`, the session is not deliverable ("state stale —
+attach to deliver"). Reconcile downgrades it to `unknown`/`none`, and the next
+recorded hook clears it. A lost `UserPromptSubmit` therefore can never lead to
+a paste into a working agent.
+
 **Identity and reconciliation.** A session is bound to (tmux socket, server pid,
 pane id, pane pid), captured at launch or adoption. Reconcile runs
 `list-panes -a -F` on the session's socket. A missing pane, a different `pane_pid`,
@@ -413,6 +421,12 @@ rules keep merges trivial:
      kill-server only in testenv.
    - gitx never contains `reset --hard`, `worktree remove`, `branch -D`,
      `--force`, `clean -f`, or `push`.
+   - gitx reads against a worktree use plumbing (`diff-tree`, `diff-index`,
+     `diff-files`) or `status`, never porcelain `git diff`. Porcelain diff
+     rewrites `.git/index` (refresh) even with `GIT_OPTIONAL_LOCKS=0`
+     (m1-inspect finding).
+   - tmux `pane_dead_signal` may be a name (`term`), not a number. Unknown
+     names map to a non-zero sentinel, never 0.
 7. **Environment:** the user's global gitignore ignores **all dotfiles** and any
    `go/` directory. Don't add dotfile config (no `.golangci.yml`), and don't
    name a package directory `go`. Commit all work on the worktree branch before
