@@ -73,9 +73,23 @@ type fixture struct {
 // temp registry with the fixed clock and the recording tmux runner.
 func newFixture(t *testing.T) *fixture {
 	t.Helper()
+	return newFixtureEnv(t, nil, true)
+}
+
+// newFixtureEnv lets a test adjust the environment (e.g. hide tmux) and run
+// the controller without the recording runner (so preflight looks for tmux).
+func newFixtureEnv(t *testing.T, mod func(testenv.Env) testenv.Env, recording bool) *fixture {
+	t.Helper()
 	env := testenv.NewEnv(t)
+	if mod != nil {
+		env = mod(env)
+	}
 	f := &fixture{env: env, repo: testenv.TempRepo(t, env), rec: &recRunner{}}
-	f.ctl = openController(t, env, f.rec)
+	var r tmux.Runner
+	if recording {
+		r = f.rec
+	}
+	f.ctl = openController(t, env, r)
 	p, err := paths.Resolve(env.Getenv)
 	if err != nil {
 		t.Fatal(err)

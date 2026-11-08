@@ -12,9 +12,9 @@ func (m Model) footerLines(width int) []string {
 	var lines []string
 	if m.flash.text != "" {
 		if m.flash.isErr {
-			lines = append(lines, m.st.errText.Render("! "+m.flash.text))
+			lines = append(lines, m.st.errText.Render(truncate("! "+m.flash.text, width)))
 		} else {
-			lines = append(lines, m.st.muted.Render(m.flash.text))
+			lines = append(lines, m.st.muted.Render(truncate(m.flash.text, width)))
 		}
 	}
 	return append(lines, m.st.rule.Render(strings.Repeat("─", width)), m.hintLine(width))

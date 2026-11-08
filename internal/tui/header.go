@@ -60,7 +60,7 @@ func (m Model) body(f frame) string {
 func (m Model) headerLines(width int) []string {
 	lines := []string{m.headerText(), m.st.rule.Render(strings.Repeat("─", width))}
 	if b := m.banner(); b != "" {
-		lines = append(lines, m.st.errText.Render("! "+b))
+		lines = append(lines, m.st.errText.Render(truncate("! "+b, width)))
 	}
 	if m.filter.active() && len(m.views) == 0 && m.mode == modeList {
 		lines = append(lines, m.filterLine(width))
