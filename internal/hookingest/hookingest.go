@@ -221,10 +221,11 @@ func (r *runner) run(ctx context.Context) Outcome {
 	}
 	o.TaskID, o.SessionID = match.session.TaskID, match.session.ID
 	r.note(o)
-	res, err := st.Sessions().RecordHook(ctx, store.HookInput{
+	in := store.HookInput{
 		SessionID: match.session.ID, Event: obs.Event, AgentSessionID: obs.AgentSessionID,
 		State: obs.State, Detail: obs.Detail, Payload: receivedPayload(obs, match.how),
-	})
+	}
+	res, err := retryFastBusy(ctx, func() (store.HookResult, error) { return st.Sessions().RecordHook(ctx, in) })
 	if err != nil {
 		return r.fail(o, err)
 	}

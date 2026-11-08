@@ -165,14 +165,8 @@ func hookPayload(event string, kv ...string) io.Reader {
 func TestHookProcessFailsOpenWithinBudget(t *testing.T) {
 	t.Parallel()
 	bin := testenv.BuildAgentctl(t)
-	// The first exec of a freshly built binary pays macOS's one-time code
-	// scan (~250 ms); an installed agentctl does not. Warm it once (no task
-	// env, no tmux: an unmanaged no-op) so the budget measures the hook.
-	warm := exec.Command(bin, "hook")
-	warm.Env = testenv.NewEnv(t).Strings() // hermetic: no TMUX/TMUX_PANE, private home
-	if out, err := warm.CombinedOutput(); err != nil || len(out) != 0 {
-		t.Fatalf("warm-up hook: %v %q", err, out)
-	}
+	// BuildAgentctl already warmed the binary (macOS first-exec scan), so the
+	// times below are steady-state hook times.
 	huge := func() io.Reader {
 		return io.MultiReader(strings.NewReader(`{"hook_event_name":"Stop","pad":"`), strings.NewReader(strings.Repeat("a", 1<<20)), strings.NewReader(`"}`))
 	}

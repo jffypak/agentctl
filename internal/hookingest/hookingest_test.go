@@ -559,3 +559,42 @@ func TestHookWaitsForALaunchingSession(t *testing.T) {
 		t.Fatalf("outcome = %+v", r.Outcome)
 	}
 }
+
+// TestRetryImmediateBusy: SQLite can return SQLITE_BUSY from BEGIN IMMEDIATE
+// at once (WAL recovery) instead of waiting out busy_timeout; such a fast
+// failure is retried within the budget, a slow one (the timeout itself) is not.
+func TestRetryImmediateBusy(t *testing.T) {
+	busy := errors.New("store: begin: database is locked (5) (SQLITE_BUSY)")
+	calls := 0
+	_, err := retryFastBusy(context.Background(), func() (store.HookResult, error) {
+		calls++
+		if calls < 3 {
+			return store.HookResult{}, busy
+		}
+		return store.HookResult{Applied: true}, nil
+	})
+	if err != nil || calls != 3 {
+		t.Fatalf("calls = %d, err = %v", calls, err)
+	}
+	calls = 0
+	_, err = retryFastBusy(context.Background(), func() (store.HookResult, error) {
+		calls++
+		time.Sleep(fastBusy + 20*time.Millisecond) // waited out a busy timeout
+		return store.HookResult{}, busy
+	})
+	if err == nil || calls != 1 {
+		t.Fatalf("slow busy retried: calls = %d", calls)
+	}
+	calls = 0
+	_, err = retryFastBusy(context.Background(), func() (store.HookResult, error) {
+		calls++
+		return store.HookResult{}, errors.New("store: session 9: not found")
+	})
+	if err == nil || calls != 1 {
+		t.Fatalf("non-busy error retried: calls = %d", calls)
+	}
+	calls = 0
+	if _, err = retryFastBusy(context.Background(), func() (store.HookResult, error) { calls++; return store.HookResult{}, busy }); err == nil || calls != maxBusyRetries+1 {
+		t.Fatalf("retries not bounded: calls = %d", calls)
+	}
+}

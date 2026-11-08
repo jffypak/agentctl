@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -33,7 +34,7 @@ type hookIT struct {
 	paths paths.Paths
 }
 
-const itWorkMS = "1500" // long enough for ls --json polling to see working
+const itWorkMS = "1000" // long enough for ls --json polling to see working
 
 func newHookIT(t *testing.T) *hookIT {
 	t.Helper()
@@ -116,6 +117,30 @@ func (it *hookIT) keys(pane string, literal string, enter bool) {
 	if enter {
 		it.srv.Run(it.t, "send-keys", "-t", pane, "Enter")
 	}
+}
+
+// timeline renders every event of a session with its offset from the first
+// one, for failure messages.
+func (it *hookIT) timeline(sessionID int64) string {
+	it.t.Helper()
+	st, err := store.Open(context.Background(), it.paths.DB, store.Options{})
+	if err != nil {
+		return err.Error()
+	}
+	defer st.Close()
+	evs, _ := st.Events().Since(context.Background(), 0, 0)
+	var b strings.Builder
+	var t0 time.Time
+	for _, e := range evs {
+		if e.SessionID != sessionID {
+			continue
+		}
+		if t0.IsZero() {
+			t0 = e.TS
+		}
+		fmt.Fprintf(&b, "\n  +%5dms %s %s", e.TS.Sub(t0).Milliseconds(), e.Type, e.Payload)
+	}
+	return b.String()
 }
 
 // chain is the session's agent.state_changed history as "from>to".
@@ -205,7 +230,7 @@ func TestHookStateEndToEnd(t *testing.T) {
 	it.waitState("t1", "working", 5*time.Second)
 	tk := it.waitState("t1", "ready", 5*time.Second)
 	if d := time.Since(start); d > 5*time.Second {
-		t.Fatalf("starting -> ready -> working -> ready took %v", d)
+		t.Fatalf("starting -> ready -> working -> ready took %v:%s", d, it.timeline(tk.Session.ID))
 	}
 	if tk.Confidence != "hook" || tk.Session == nil {
 		t.Fatalf("t1 = %+v", tk)

@@ -27,20 +27,31 @@ var agentctlBin, fakeAgentBin built
 // exactly as Claude Code would. Skips when the go tool is missing.
 func BuildAgentctl(t testing.TB) string {
 	t.Helper()
-	return buildOnce(t, &agentctlBin, "agentctl", "./cmd/agentctl")
+	return buildOnce(t, &agentctlBin, "agentctl", "./cmd/agentctl", "help")
 }
 
 // BuildFakeAgent builds ./cmd/fakeagent (the scripted Claude Code stand-in)
 // once per test binary and returns its absolute path.
 func BuildFakeAgent(t testing.TB) string {
 	t.Helper()
-	return buildOnce(t, &fakeAgentBin, "fakeagent", "./cmd/fakeagent")
+	return buildOnce(t, &fakeAgentBin, "fakeagent", "./cmd/fakeagent", "-h")
 }
 
-func buildOnce(t testing.TB, b *built, name, pkg string) string {
+// buildOnce builds pkg, then runs it once with warmArg (a stateless flag that
+// exits at once) and an empty environment: the first exec of a freshly built
+// binary pays macOS's one-time code scan (hundreds of ms, serialized under
+// load), which would otherwise land inside the first timed hook or launch.
+func buildOnce(t testing.TB, b *built, name, pkg, warmArg string) string {
 	t.Helper()
 	goBin := RequireTool(t, "go")
-	b.once.Do(func() { b.path, b.err = goBuild(goBin, name, pkg) })
+	b.once.Do(func() {
+		b.path, b.err = goBuild(goBin, name, pkg)
+		if b.err == nil {
+			warm := exec.Command(b.path, warmArg)
+			warm.Env, warm.Dir = []string{}, filepath.Dir(b.path)
+			_ = warm.Run() // the exit status is irrelevant
+		}
+	})
 	if b.err != nil {
 		t.Fatalf("build %s: %v", pkg, b.err)
 	}
