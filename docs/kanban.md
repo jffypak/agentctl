@@ -10,15 +10,15 @@ _17 issue(s) — auto-generated; do not edit by hand._
 - **m4-task-contracts-checks** [Phase 2: task contracts + controller-executed checks + verified gating](kanban/m4-task-contracts-checks.md) — `low` _m4-verified-tasks_ `spec-derived` `later-phase`
 - **m5-workflow-graph** [Phase 3: declarative workflow DAG, integration checkout, locks, graph view](kanban/m5-workflow-graph.md) — `low` _m5-workflow-graph_ `spec-derived` `later-phase`
 
-## todo (3)
+## todo (0)
+
+_empty_
+
+## in-progress (3)
 
 - **m3-adopt-claude-match** [Adopt picker: recognise real Claude panes (pane_current_command is the version string)](kanban/m3-adopt-claude-match.md) — `high` _m3-phase1-acceptance_ `phase-1` `demo-finding` `adopt`
 - **m3-goal-start-race** [Don't report ready between SessionStart and the goal's first UserPromptSubmit](kanban/m3-goal-start-race.md) — `high` _m3-phase1-acceptance_ `phase-1` `demo-finding` `reliability`
 - **m3-folder-trust-detect** [Surface Claude's folder-trust dialog in NEEDS YOU within seconds (never auto-accept)](kanban/m3-folder-trust-detect.md) — _m3-phase1-acceptance_ `phase-1` `demo-finding` `ux`
-
-## in-progress (0)
-
-_empty_
 
 ## blocked (0)
 
