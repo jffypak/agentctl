@@ -1,0 +1,200 @@
+package testenv
+
+import (
+	"context"
+	"errors"
+	"os"
+	"strconv"
+	"strings"
+	"syscall"
+	"testing"
+	"time"
+
+	"github.com/jffypak/agentctl/internal/tmux"
+)
+
+// TUIWait bounds every TUI wait-for. It is generous on purpose: the waits
+// are on screen content, so a healthy run returns as soon as the frame is
+// drawn, and only a broken one pays the bound (load-sensitivity lesson: an
+// earlier harness that bounded commands at 200ms dropped them under -race).
+const TUIWait = 30 * time.Second
+
+// TUIOptions configures StartTUI.
+type TUIOptions struct {
+	Session string   // tmux session name the TUI runs in (default "ui")
+	Cwd     string   // absolute start directory (the repo the TUI scopes to)
+	Width   int      // pane width (default 120)
+	Height  int      // pane height (default 40)
+	Args    []string // agentctl arguments (default none: bare agentctl = TUI)
+}
+
+// TUI is the real agentctl binary running on a real terminal: a pane of the
+// isolated tmux server. Tests drive it as a user would, with send-keys, and
+// read it with capture-pane wait-fors. The pane keeps remain-on-exit, so the
+// exit status and the final screen stay readable after the TUI exits.
+type TUI struct {
+	srv     *TmuxServer
+	Session string
+	Target  string // "=<session>:" (exact-match session target)
+}
+
+// StartTUI runs bin (agentctl) in a new detached session of s. The pane's
+// environment is exactly env (minus TMUX/TMUX_PANE, which tmux sets itself
+// for the pane, so the TUI knows it runs inside this server) plus
+// AGENTCTL_TMUX_SOCKET pointing at s, each passed with -e.
+func (s *TmuxServer) StartTUI(t testing.TB, bin string, env Env, opts TUIOptions) *TUI {
+	t.Helper()
+	if opts.Session == "" {
+		opts.Session = "ui"
+	}
+	if opts.Width <= 0 {
+		opts.Width = 120
+	}
+	if opts.Height <= 0 {
+		opts.Height = 40
+	}
+	if opts.Cwd == "" {
+		t.Fatal("StartTUI: Cwd is required (the TUI scopes to the cwd's repo)")
+	}
+	newSession := []string{"new-session", "-d", "-s", opts.Session, "-c", opts.Cwd,
+		"-x", strconv.Itoa(opts.Width), "-y", strconv.Itoa(opts.Height)}
+	for _, kv := range env.Without("TMUX", "TMUX_PANE").With(tmux.EnvSocket + "=" + s.Socket).Strings() {
+		newSession = append(newSession, "-e", kv)
+	}
+	newSession = append(newSession, "--", bin)
+	newSession = append(newSession, opts.Args...)
+	if len(opts.Args) == 0 {
+		// tmux runs a single argv element through the shell; a second
+		// element makes it exec bin directly. "tui" is bare agentctl.
+		newSession = append(newSession, "tui")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), tmuxCallTimeout)
+	defer cancel()
+	// One invocation: an agentctl that exits at once (a refused start) must
+	// still leave its pane, status and screen behind.
+	if _, err := s.Runner().Run(ctx, tmux.Request{
+		Socket:   tmux.Socket{Path: s.Socket},
+		Commands: [][]string{newSession, {"set-option", "-w", "remain-on-exit", "on"}},
+	}); err != nil {
+		t.Fatalf("start the TUI in session %s: %v", opts.Session, err)
+	}
+	return &TUI{srv: s, Session: opts.Session, Target: "=" + opts.Session + ":"}
+}
+
+// Screen is the visible screen (capture-pane -p), "" when it cannot be read.
+func (u *TUI) Screen() string {
+	out, _ := u.srv.TryRun("capture-pane", "-p", "-t", u.Target)
+	return out
+}
+
+// WaitScreen waits (TUIWait) until cond holds for the visible screen and
+// returns that screen. On timeout it fails with the last screen.
+func (u *TUI) WaitScreen(t testing.TB, what string, cond func(screen string) bool) string {
+	t.Helper()
+	var last string
+	WaitFor(t, TUIWait, what, func() (bool, string) {
+		last = u.Screen()
+		return cond(last), "\n" + last
+	})
+	return last
+}
+
+// WaitText waits until the screen contains every one of texts.
+func (u *TUI) WaitText(t testing.TB, texts ...string) string {
+	t.Helper()
+	return u.WaitScreen(t, strings.Join(texts, " + "), func(s string) bool {
+		for _, x := range texts {
+			if !strings.Contains(s, x) {
+				return false
+			}
+		}
+		return true
+	})
+}
+
+// Keys sends tmux key names (j, Enter, Escape, C-s, ...) to the TUI.
+func (u *TUI) Keys(t testing.TB, keys ...string) {
+	t.Helper()
+	u.srv.Run(t, append([]string{"send-keys", "-t", u.Target}, keys...)...)
+}
+
+// Type sends text literally (send-keys -l): every character is a key press.
+func (u *TUI) Type(t testing.TB, text string) {
+	t.Helper()
+	u.srv.Run(t, "send-keys", "-t", u.Target, "-l", text)
+}
+
+// SelectedRow is the list row marked with the selection cursor ("> ").
+func SelectedRow(screen string) string {
+	for _, l := range strings.Split(screen, "\n") {
+		if strings.HasPrefix(strings.TrimLeft(l, " "), "> ") {
+			return strings.TrimSpace(l)
+		}
+	}
+	return ""
+}
+
+// Select moves the list cursor with j/k until the selected row's first
+// word is name. Every key press waits for the redraw before the next one.
+func (u *TUI) Select(t testing.TB, name string) {
+	t.Helper()
+	isSelected := func(s string) bool {
+		f := strings.Fields(strings.TrimPrefix(SelectedRow(s), "> "))
+		return len(f) > 0 && f[0] == name
+	}
+	screen := u.WaitScreen(t, "a selected row", func(s string) bool { return SelectedRow(s) != "" })
+	for _, dir := range []string{"j", "k"} {
+		for range 50 {
+			if isSelected(screen) {
+				return
+			}
+			before := SelectedRow(screen)
+			u.Keys(t, dir)
+			screen = u.WaitScreen(t, "the cursor to move ("+dir+")", func(s string) bool {
+				r := SelectedRow(s)
+				return r != "" && r != before || isSelected(s)
+			})
+		}
+	}
+	t.Fatalf("cannot select %q:\n%s", name, screen)
+}
+
+// PanePID is the pid of the TUI process.
+func (u *TUI) PanePID(t testing.TB) int {
+	t.Helper()
+	pid, err := strconv.Atoi(u.srv.Run(t, "display-message", "-p", "-t", u.Target, "#{pane_pid}"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return pid
+}
+
+// Alive reports whether the TUI process is still running.
+func (u *TUI) Alive(t testing.TB) bool {
+	t.Helper()
+	return u.srv.Run(t, "display-message", "-p", "-t", u.Target, "#{pane_dead}") == "0"
+}
+
+// Hangup sends SIGHUP to the TUI, as tmux does when a popup is closed.
+func (u *TUI) Hangup(t testing.TB) {
+	t.Helper()
+	if err := syscall.Kill(u.PanePID(t), syscall.SIGHUP); err != nil && !errors.Is(err, os.ErrProcessDone) {
+		t.Fatal(err)
+	}
+}
+
+// WaitExit waits for the TUI process to end and returns its exit status.
+func (u *TUI) WaitExit(t testing.TB) string {
+	t.Helper()
+	WaitFor(t, TUIWait, "the TUI to exit", func() (bool, string) {
+		out, _ := u.srv.TryRun("display-message", "-p", "-t", u.Target, "#{pane_dead} #{pane_dead_status}")
+		return strings.HasPrefix(out, "1 "), out + "\n" + u.Screen()
+	})
+	return u.srv.Run(t, "display-message", "-p", "-t", u.Target, "#{pane_dead_status}")
+}
+
+// History is the pane's whole scrollback plus screen, wrapped lines joined.
+func (u *TUI) History() string {
+	out, _ := u.srv.TryRun("capture-pane", "-p", "-J", "-S", "-", "-t", u.Target)
+	return out
+}
