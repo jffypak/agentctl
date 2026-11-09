@@ -1,7 +1,7 @@
 ---
 id: m3-folder-trust-detect
 title: Surface Claude's folder-trust dialog in NEEDS YOU within seconds (never auto-accept)
-status: in-progress
+status: done
 priority: medium
 milestone: m3-phase1-acceptance
 labels:
@@ -33,6 +33,10 @@ history:
   from: todo
   to: in-progress
   note: 'director: dispatched in worktree /Users/jpark/Code/agent-tui/.tinkerbell/worktrees/m3-folder-trust-detect'
+- when: '2026-11-09'
+  from: in-progress
+  to: done
+  note: "director: done \u2014 acceptance pass green; promote to done"
 ---
 
 # Surface Claude's folder-trust dialog in NEEDS YOU within seconds (never auto-accept)
