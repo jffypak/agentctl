@@ -69,7 +69,7 @@ func TestComposerSendsQueuesAndTheDetailFollowsLive(t *testing.T) {
 	if !strings.Contains(screenText(m), "will be queued · agent working") {
 		t.Fatalf("composer:\n%s", screenText(m))
 	}
-	m = typeText(t, m, "q j n x")      // keymap letters are text here
+	m = typeText(t, m, "q j n x")     // keymap letters are text here
 	m = update(t, m, keyMsg("enter")) // a new line, not a send
 	m = update(t, m, tea.PasteMsg{Content: "pasted line"})
 	if txt := screenText(m); !strings.Contains(txt, "q j n x") || !strings.Contains(txt, "pasted line") || !strings.Contains(txt, "2 lines") {
