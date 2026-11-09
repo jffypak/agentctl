@@ -1,0 +1,40 @@
+ [1magents / repo[m[38;5;245m · 0 running · [m[38;5;245m0 need you[m
+ [38;5;245m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[m
+ No agents yet — [1mn[m new · [1ma[m adopt a running claude pane
+
+ [38;5;245mOpen this from anywhere in tmux; add to tmux.conf:[m
+ bind-key a display-popup -E -w 80% -h 75% -d '#{pane_current_path}' '/opt/agentctl/bin/agentctl'
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ [38;5;245m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[m
+ [1m↵[m [38;5;245mopen[m  [1mp[m [38;5;245mprompt[m  [1md[m [38;5;245mdiff[m  [1ml[m [38;5;245mlogs[m  [1mn[m [38;5;245mnew[m  [1ma[m [38;5;245madopt[m  [1mx[m [38;5;245mclose[m  [1m/[m [38;5;245mfilter[m  [1mq[m [38;5;245mquit[m  [1m↑↓[m [38;5;245mmove[m
