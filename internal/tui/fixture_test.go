@@ -273,38 +273,32 @@ func keyMsg(k string) tea.KeyPressMsg {
 	return tea.KeyPressMsg{Code: r[0], Text: k}
 }
 
-// run executes cmd (and nested batches) synchronously, feeding results back,
-// skipping commands that do not answer within a short bound (ticks).
+// run executes cmd (and nested batches) synchronously, feeding every result
+// back through Update, until nothing is left to run. Tests drive polling
+// themselves, so the poll and reconcile loop ticks are dropped (see collect).
 func run(t *testing.T, m Model, cmd tea.Cmd) Model {
 	t.Helper()
 	for _, msg := range collect(cmd) {
-		var next tea.Cmd
-		var nm tea.Model
-		nm, next = m.Update(msg)
-		m = nm.(Model)
-		m = run(t, m, next)
+		nm, next := m.Update(msg)
+		m = run(t, nm.(Model), next)
 	}
 	return m
 }
 
-const cmdBound = 200 * time.Millisecond
-
-// collect runs cmd and returns its messages, flattening tea.BatchMsg and
-// dropping commands that block (ticks), quits and execs.
+// collect runs cmd to completion and returns its messages, flattening
+// tea.BatchMsg. It never gives up on a slow command: whether a command's
+// message is delivered must not depend on machine load. (It used to wait
+// 200ms and drop anything slower as "a tick", which dropped real refreshes
+// under -race on a loaded machine; TestRunDeliversSlowCommands pins that.)
+// Ticks are recognized by their message type instead and dropped, so the
+// shell's poll / reconcile loops never run inside a test; quits are dropped
+// too (isQuit checks them).
 func collect(cmd tea.Cmd) []tea.Msg {
 	if cmd == nil {
 		return nil
 	}
-	ch := make(chan tea.Msg, 1)
-	go func() { ch <- cmd() }()
-	var msg tea.Msg
-	select {
-	case msg = <-ch:
-	case <-time.After(cmdBound):
-		return nil
-	}
-	switch msg := msg.(type) {
-	case nil, tea.QuitMsg:
+	switch msg := cmd().(type) {
+	case nil, tea.QuitMsg, pollTickMsg, reconcileTickMsg:
 		return nil
 	case tea.BatchMsg:
 		var out []tea.Msg
@@ -312,30 +306,26 @@ func collect(cmd tea.Cmd) []tea.Msg {
 			out = append(out, collect(c)...)
 		}
 		return out
+	default:
+		return []tea.Msg{msg}
 	}
-	return []tea.Msg{msg}
 }
 
-// isQuit reports whether cmd (possibly a batch) quits.
+// isQuit reports whether cmd (possibly a batch) quits. It runs cmd to
+// completion; call it only on commands that do not tick.
 func isQuit(cmd tea.Cmd) bool {
 	if cmd == nil {
 		return false
 	}
-	ch := make(chan tea.Msg, 1)
-	go func() { ch <- cmd() }()
-	select {
-	case msg := <-ch:
-		if _, ok := msg.(tea.QuitMsg); ok {
-			return true
-		}
-		if b, ok := msg.(tea.BatchMsg); ok {
-			for _, c := range b {
-				if isQuit(c) {
-					return true
-				}
+	switch msg := cmd().(type) {
+	case tea.QuitMsg:
+		return true
+	case tea.BatchMsg:
+		for _, c := range msg {
+			if isQuit(c) {
+				return true
 			}
 		}
-	case <-time.After(cmdBound):
 	}
 	return false
 }
