@@ -40,8 +40,10 @@ This creates the worktree `../myrepo-worktrees/auth-tests` on the branch
 `agentctl/auth-tests`. It starts `claude --settings <agentctl hooks> "<goal>"` in
 the tmux session `agentctl-auth-tests`, and the agent shows as `starting`. You
 can also press `n` in the popup to do this. The first time Claude Code opens a
-new worktree it may ask whether you trust the folder. Attach once and accept it,
-or no hooks will fire.
+new worktree it asks whether you trust the folder, and no hooks fire until you
+answer. agentctl spots the dialog within one poll and lists the agent under
+NEEDS YOU as `folder trust: attach to answer`, but it never answers for you:
+attach, accept it if you trust the folder, and detach.
 
 **4. Open the popup** with `prefix a`, or run `agentctl` for the full-screen TUI:
 
@@ -124,7 +126,8 @@ agent's Claude settings. `agentctl help` lists everything.
 | `tmux session agentctl-<name> already exists` | Pick another name, or close that session. |
 | `task "<name>" already exists` | Names are unique per registry. `agentctl ls --closed` lists every task. |
 | `cannot open registry …` | The banner names the path. Check its permissions, or point `AGENTCTL_HOME` at a writable directory. |
-| Agent stays `starting`, then `silent since launch · attach to check` | No hook arrived within 30 s. Attach (`↵ ↵`): Claude is usually waiting on the folder-trust or login dialog. |
+| `silent since launch · attach to check` with `folder trust: attach to answer` | Claude is showing its folder-trust dialog (each new worktree is a new path). agentctl never answers it: attach (`↵ ↵`), pick "Yes, I trust this folder" if you do, then detach. Prompts sent meanwhile stay queued. |
+| Agent stays `starting`, then `silent since launch · attach to check` | No hook arrived within 30 s and no folder-trust dialog was seen. Attach (`↵ ↵`): Claude is usually waiting on its login dialog. |
 | `unknown` on an adopted agent; prompts say `queued · attach to deliver` | No hooks are installed for that pane. Merge `agentctl hooks-snippet` into its Claude settings, or attach and type the prompt yourself. |
 | `disconnected · pane_missing` / `identity_mismatch` / `server_gone` | The pane was killed, or the tmux server restarted and reused its id. agentctl never re-attributes it to another pane. You can still inspect it with `d`, or close it with `x`. Start a new task to continue. |
 | `message unconfirmed · attach to check` | A prompt was pasted but Claude Code never confirmed it within 15 s. Attach and look. It is never pasted again automatically. |

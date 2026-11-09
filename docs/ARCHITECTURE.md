@@ -229,7 +229,18 @@ on stdin plus inherited env `AGENTCTL_TASK_ID`, `AGENTCTL_HOME`, `TMUX`, and `TM
 | anything else | — | recorded, no change |
 
 `starting` with no hook within `StartingTimeout` → `unknown` / confidence
-`none`. `stopped`, `failed`, and `disconnected` are sticky: a later hook never
+`none`. Sooner than that, reconcile reads the screen of every `starting`
+session that has no hook yet (confidence `none`): the last 40 non-blank lines
+of the visible screen, once per poll, through the identity-checked capture
+path and `SanitizeTerminalText`. If it shows Claude's folder-trust dialog
+(`domain.ShowsFolderTrustDialog`, phrase list in `domain/foldertrust.go`), the
+session goes to `unknown` / `none` with detail `folder trust: attach to
+answer` and source `pane_text` on that poll. This is the same state as the
+timeout verdict, so it lands in NEEDS YOU, is never deliverable (sends
+queue), the timeout (guarded on `starting`) can't overwrite it, and the first
+hook leaves it through the normal mapping. agentctl **never** answers the
+dialog; declining it exits Claude, which reconcile records from the dead pane.
+A failed capture is not a match. `stopped`, `failed`, and `disconnected` are sticky: a later hook never
 revives them. Every state write, from hooks or reconcile, goes through
 `store.Sessions.Transition(id, to, confidence, detail, source)`. That is a
 conditional UPDATE guarded by `domain.CanTransition`, and it appends
@@ -299,7 +310,9 @@ prompt. On submit it fires `UserPromptSubmit`, "works" for `FAKEAGENT_WORK_MS`
 fires `Stop`. Directives inside a prompt: `#ask` fires `Notification
 permission_prompt` and waits for `y`; `#exit N` exits with code N; `#sleep MS`.
 With `FAKEAGENT_PASTE_PLACEHOLDER=1`, pasted input is reported to
-`UserPromptSubmit` as `[Pasted text #1]`, which exercises timing acks. It flips
+`UserPromptSubmit` as `[Pasted text #1]`, which exercises timing acks. With
+`FAKEAGENT_TRUST_DIALOG=1` it first prints a Claude-style folder-trust dialog
+and fires no hook until a test answers it (`1`/Enter accepts, `2`/`n` exits 1). It flips
 to `ready` only after the `Stop` hook command returns, and fires `SessionEnd` on exit.
 Every received input is appended as JSONL to `$FAKEAGENT_LOG`: `{ts, text,
 state_at_receipt}`. Tests use this to assert that **nothing arrived while
@@ -342,7 +355,7 @@ These are used by the acceptance pass. A violation is a failing review.
 | **NEEDS YOU** | `awaiting_input`, `disconnected`, `failed`, or any message `unconfirmed`/`failed`, or a queued message on an `unknown` agent |
 | **IDLE** | `ready`: turn finished, waiting for the next instruction or review. Also `stopped`, labelled **exited** (never worded as success) |
 | **RUNNING** | `starting`, `working` |
-| **NEEDS YOU** (also) | `unknown` on a **launched** agent → "silent since launch · attach to check": it never sent a hook (Claude's folder-trust or login prompt, early hang) |
+| **NEEDS YOU** (also) | `unknown` on a **launched** agent → "silent since launch · attach to check": it never sent a hook (Claude's folder-trust or login prompt, early hang). Detail `folder trust: attach to answer` when the trust dialog was seen on screen |
 | **UNKNOWN** | `unknown` (adopted without hooks): muted |
 | *(hidden)* | tasks in state `closed`; shown with the `/` filter `closed` |
 
@@ -468,9 +481,11 @@ tmux 3.5a, `DEMO_AGENT=claude scripts/demo.sh`, two runs):
   adopt filter (`DefaultAdoptCommands = ["claude"]`) therefore matches no real
   Claude pane. Tracked in `m3-adopt-claude-match`.
 - **Folder trust blocks every first run.** Each worktree is a new path, so
-  Claude shows its trust dialog before any hook fires. The agent sits in
-  `starting` and surfaces as `unknown` only after `StartingTimeout` (30 s). We
-  still never auto-accept; tracked in `m3-folder-trust-detect`.
+  Claude shows its trust dialog before any hook fires. We never auto-accept.
+  Since `m3-folder-trust-detect`, reconcile reads the dialog off the screen
+  and surfaces the agent in NEEDS YOU (`folder trust: attach to answer`) on
+  the next poll instead of after `StartingTimeout` (30 s). An opt-in to trust
+  `<repo>-worktrees/*` is a separate, undecided question.
 - **Session-start race.** With a goal on argv, `SessionStart` (→ `ready`)
   arrives ~230 ms before the goal's `UserPromptSubmit` (→ `working`). In that
   window the agent looks deliverable, so a `send` right after `new` could paste

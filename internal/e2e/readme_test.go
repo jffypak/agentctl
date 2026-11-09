@@ -51,6 +51,7 @@ func TestREADMEQuickstartAndTroubleshooting(t *testing.T) {
 		"no commits":       "has no commits yet",
 		"registry":         "cannot open registry",
 		"silent launch":    "silent since launch · attach to check",
+		"folder trust":     "folder trust: attach to answer",
 		"unknown adopted":  "queued · attach to deliver",
 		"disconnected":     "disconnected · pane_missing",
 		"unconfirmed":      "message unconfirmed · attach to check",
