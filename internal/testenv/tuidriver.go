@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -113,8 +114,13 @@ func (u *TUI) WaitText(t testing.TB, texts ...string) string {
 }
 
 // Keys sends tmux key names (j, Enter, Escape, C-s, ...) to the TUI.
+// Escape must be sent alone: an ESC that arrives in the same read as the
+// next key is an alt+key to the terminal parser, not escape.
 func (u *TUI) Keys(t testing.TB, keys ...string) {
 	t.Helper()
+	if len(keys) > 1 && slices.Contains(keys, "Escape") {
+		t.Fatalf("Keys(%q): send Escape alone and wait for the redraw before the next key", keys)
+	}
 	u.srv.Run(t, append([]string{"send-keys", "-t", u.Target}, keys...)...)
 }
 
@@ -134,29 +140,53 @@ func SelectedRow(screen string) string {
 	return ""
 }
 
-// Select moves the list cursor with j/k until the selected row's first
-// word is name. Every key press waits for the redraw before the next one.
+// listRows returns the task names of the list rows, top to bottom, and the
+// index of the selected one (-1 if none). A row is " > name ..." (selected)
+// or "   name ..."; section titles are indented by one space only.
+func listRows(screen string) (names []string, selected int) {
+	selected = -1
+	for _, l := range strings.Split(screen, "\n") {
+		var rest string
+		switch {
+		case strings.HasPrefix(l, " > "):
+			rest, selected = l[3:], len(names)
+		case strings.HasPrefix(l, "   ") && len(l) > 3 && l[3] != ' ':
+			rest = l[3:]
+		default:
+			continue
+		}
+		names = append(names, strings.Fields(rest)[0])
+	}
+	return names, selected
+}
+
+// Select moves the list cursor with j/k, one key at a time and waiting for
+// each redraw, until the selected row is the task name.
 func (u *TUI) Select(t testing.TB, name string) {
 	t.Helper()
-	isSelected := func(s string) bool {
-		f := strings.Fields(strings.TrimPrefix(SelectedRow(s), "> "))
-		return len(f) > 0 && f[0] == name
-	}
-	screen := u.WaitScreen(t, "a selected row", func(s string) bool { return SelectedRow(s) != "" })
-	for _, dir := range []string{"j", "k"} {
-		for range 50 {
-			if isSelected(screen) {
-				return
-			}
-			before := SelectedRow(screen)
-			u.Keys(t, dir)
-			screen = u.WaitScreen(t, "the cursor to move ("+dir+")", func(s string) bool {
-				r := SelectedRow(s)
-				return r != "" && r != before || isSelected(s)
-			})
+	for range 50 {
+		var names []string
+		var sel, want int
+		u.WaitScreen(t, "a selected row and "+name, func(s string) bool {
+			names, sel = listRows(s)
+			want = slices.Index(names, name)
+			return sel >= 0 && want >= 0
+		})
+		if sel == want {
+			return
 		}
+		key := "j"
+		if want < sel {
+			key = "k"
+		}
+		from := names[sel]
+		u.Keys(t, key)
+		u.WaitScreen(t, "the cursor to leave "+from, func(s string) bool {
+			n, i := listRows(s)
+			return i >= 0 && n[i] != from
+		})
 	}
-	t.Fatalf("cannot select %q:\n%s", name, screen)
+	t.Fatalf("cannot select %q:\n%s", name, u.Screen())
 }
 
 // PanePID is the pid of the TUI process.
