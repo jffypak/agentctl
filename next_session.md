@@ -23,14 +23,25 @@ updated: 2026-11-09
 
 - main: ~35k lines of Go, every Phase-1 acceptance criterion + all 10 invariants
   proven by named tests (`docs/notes/m3-acceptance-e2e.md` has the maps).
-- Board: 10 done, 4 backlog (m4-*/m5-*: Phases 2–3, re-spec before dispatch).
+- Board: 13 done, 4 backlog (m4-*/m5-*: Phases 2–3, re-spec before dispatch).
 
 ## Next session TODO
 
 - [x] **Real two-Claude demo** ran 2026-11-09; results are in ARCHITECTURE.md
-      §Open questions. Three follow-up cards are `todo`: `m3-goal-start-race`
-      (high), `m3-adopt-claude-match` (high), `m3-folder-trust-detect` (medium).
-- [ ] Dispatch the three demo-finding cards (`/tb:orchestrate` or one at a time).
+      §Open questions.
+- [x] Demo-finding cards shipped 2026-11-09 via `/tb:orchestrate` (3 parallel
+      worktrees, all acceptance-green, merged, uncached doctor green on main):
+      `m3-goal-start-race` (goal launch stays `starting` "submitting goal" until
+      the goal's Stop), `m3-adopt-claude-match` (one `ps` per listing; argv
+      basename `claude` or a `claude/versions/` path), `m3-folder-trust-detect`
+      (pane-text detection → `unknown` "folder trust: attach to answer" within
+      one poll; never sends keys).
+- [ ] **Re-run the real two-Claude demo** to confirm all three against real
+      Claude: trust dialog surfaces in ~2 s, `agentctl adopt` lists Claude panes
+      with `AGENTCTL_ADOPT_COMMANDS` unset, step-1 wait sees the goal's Stop.
+      Also check real Claude's exit code when declining folder trust (unobserved).
+- [ ] Product decision, not yet made: documented opt-in to trust
+      `<repo>-worktrees/*` paths (folder trust is still never auto-accepted).
 - [ ] Still unproven with real Claude: permission prompt → NEEDS YOU. Rerun the
       demo with a goal that triggers a prompt. The demo server's prefix is
       `C-b` (the server ignores your tmux.conf), not your own prefix.
@@ -56,4 +67,4 @@ updated: 2026-11-09
 
 ## Last known good
 
-- main @ `chore(kanban): m3-acceptance-e2e done` — `scripts/doctor.sh` green.
+- main @ `chore(kanban): m3-folder-trust-detect done` — `scripts/doctor.sh` green (uncached).
