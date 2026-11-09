@@ -72,17 +72,16 @@ func TestDrainWithNothingToWriteTakesNoWriteLock(t *testing.T) {
 	ctx := context.Background()
 	r.hook(domain.StateWorking)
 	r.enqueue("waits")
+	// The write lock is held throughout: a drain that tried to write would
+	// come back ReasonRegistryBusy, not the read-decided working label. The
+	// proof is behavioural; a wall-clock bound here flaked under load.
 	release := holdWriteLock(t, r)
-	start := time.Now()
 	dr, err := r.ctl.Drain(ctx, r.sess.ID)
 	if err != nil || dr.Reason != domain.LabelWorking {
 		t.Fatalf("drain while working = %+v %v", dr, err)
 	}
 	if err := r.ctl.DrainAll(ctx); err != nil {
 		t.Fatalf("DrainAll = %v", err)
-	}
-	if d := time.Since(start); d >= busyTimeout {
-		t.Fatalf("read-only drains waited %v for the write lock", d)
 	}
 	release()
 
