@@ -29,6 +29,7 @@ const (
 	ReasonOnePerTurn    = "one message per turn — waits for the next Stop"
 	ReasonStateChanged  = "state changed before the paste"
 	ReasonTaskClosed    = "task closed"
+	ReasonRegistryBusy  = "registry busy — retried on the next turn or tick"
 )
 
 // DrainStage names a fault seam inside Drain (tests simulate a crash there).
@@ -67,6 +68,14 @@ func (c *Controller) fault(stage DrainStage, id int64) error {
 //
 //  1. sweep this session's stale delivering / sent messages to unconfirmed
 //     (a crashed deliverer; never redelivered, invariant 4);
+//
+// Steps 1-3 only read until there is something to write: a drain that cannot
+// deliver never takes the registry's write lock, which hooks (1.5 s budget)
+// and every other drainer contend for. When the write lock stays busy past
+// the busy timeout (a long writer queue on a loaded machine), the sweep is
+// skipped and the claim reported as ReasonRegistryBusy: nothing changed, the
+// message stays queued, and the next tick or Stop tries again.
+//
 //  2. stored state must allow a delivery (domain.QueueLabel, including the
 //     lost-hook marker check), else report why and touch nothing;
 //  3. claim the oldest queued message with one conditional UPDATE
@@ -81,7 +90,7 @@ func (c *Controller) fault(stage DrainStage, id int64) error {
 //     acknowledge at once if the UserPromptSubmit already raced ahead.
 func (c *Controller) Drain(ctx context.Context, sessionID int64) (DrainResult, error) {
 	msgs := c.store.Messages()
-	if _, err := msgs.SweepStale(ctx, sessionID, c.tun.AckWindow); err != nil {
+	if _, err := msgs.SweepStale(ctx, sessionID, c.tun.AckWindow); err != nil && !store.IsBusy(err) {
 		return DrainResult{}, err
 	}
 	sess, err := c.store.Sessions().Get(ctx, sessionID)
@@ -96,6 +105,13 @@ func (c *Controller) Drain(ctx context.Context, sessionID int64) (DrainResult, e
 	if label := domain.QueueLabel(sess.State, sess.Confidence, c.staleHook(sess)); label != "" {
 		return DrainResult{Reason: label}, nil
 	}
+	claimable, err := msgs.Claimable(ctx, sessionID)
+	if err != nil {
+		return DrainResult{}, err
+	}
+	if !claimable {
+		return c.notClaimed(ctx, sessionID)
+	}
 	cause, err := msgs.ReadyCause(ctx, sessionID)
 	if err != nil {
 		return DrainResult{}, err
@@ -105,18 +121,13 @@ func (c *Controller) Drain(ctx context.Context, sessionID int64) (DrainResult, e
 		return DrainResult{}, err
 	}
 	claim, ok, err := msgs.Claim(ctx, sessionID, cause)
-	if err != nil {
+	switch {
+	case store.IsBusy(err):
+		return DrainResult{Reason: ReasonRegistryBusy}, nil
+	case err != nil:
 		return DrainResult{}, err
-	}
-	if !ok {
-		queued, err := msgs.HasQueued(ctx, sessionID)
-		if err != nil {
-			return DrainResult{}, err
-		}
-		if queued {
-			return DrainResult{Reason: ReasonOnePerTurn}, nil
-		}
-		return DrainResult{Reason: ReasonNothingQueued}, nil
+	case !ok:
+		return c.notClaimed(ctx, sessionID)
 	}
 	m := claim.Message
 	res := DrainResult{MessageID: m.ID}
@@ -164,6 +175,19 @@ func (c *Controller) Drain(ctx context.Context, sessionID int64) (DrainResult, e
 	return res, nil
 }
 
+// notClaimed says why a ready session got nothing: its turn's delivery has
+// happened (or another drainer holds the claim), or nothing is queued.
+func (c *Controller) notClaimed(ctx context.Context, sessionID int64) (DrainResult, error) {
+	queued, err := c.store.Messages().HasQueued(ctx, sessionID)
+	switch {
+	case err != nil:
+		return DrainResult{}, err
+	case queued:
+		return DrainResult{Reason: ReasonOnePerTurn}, nil
+	}
+	return DrainResult{Reason: ReasonNothingQueued}, nil
+}
+
 // revert returns a claimed message to the queue (nothing was pasted).
 func (c *Controller) revert(ctx context.Context, id int64) error {
 	return c.store.Messages().Revert(context.WithoutCancel(ctx), id)
@@ -192,7 +216,7 @@ func (c *Controller) ackFromSubmits(ctx context.Context, sessionID, afterID int6
 // session with queued messages (the TUI's reconcile tick).
 func (c *Controller) DrainAll(ctx context.Context) error {
 	msgs := c.store.Messages()
-	if _, err := msgs.SweepStale(ctx, 0, c.tun.AckWindow); err != nil {
+	if _, err := msgs.SweepStale(ctx, 0, c.tun.AckWindow); err != nil && !store.IsBusy(err) {
 		return err
 	}
 	ids, err := msgs.QueuedSessions(ctx)

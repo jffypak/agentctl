@@ -32,6 +32,14 @@ type DeliverReport struct {
 // Drain re-verifies everything anyway).
 const hookExitWait = 10 * time.Second
 
+// A drain whose claim found the registry busy (nothing written) is retried
+// this many times, busyRetryPause apart: deliver is the only drainer a
+// session gets per Stop when no TUI is open.
+const (
+	busyRetries    = 3
+	busyRetryPause = 250 * time.Millisecond
+)
+
 // ackPoll is how often the ack wait re-reads the message.
 const ackPoll = 50 * time.Millisecond
 
@@ -67,6 +75,12 @@ func (c *Controller) DeliverAfterHook(ctx context.Context, req DeliverRequest) D
 		return rep
 	}
 	rep.Drain, err = c.Drain(ctx, req.SessionID)
+	for try := 1; err == nil && rep.Drain.Reason == ReasonRegistryBusy && try <= busyRetries; try++ {
+		logf("registry busy; drain retry %d/%d", try, busyRetries)
+		if err = sleepCtx(ctx, busyRetryPause); err == nil {
+			rep.Drain, err = c.Drain(ctx, req.SessionID)
+		}
+	}
 	if err != nil {
 		rep.Err = err
 		logf("drain error (message %d): %v", rep.Drain.MessageID, err)

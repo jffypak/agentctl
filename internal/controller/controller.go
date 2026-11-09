@@ -39,6 +39,9 @@ type Config struct {
 	TmuxRunner tmux.Runner
 	// AgentctlPath is the agentctl binary hooks invoke (default os.Executable()).
 	AgentctlPath string
+	// BusyTimeout bounds every registry write's wait for the SQLite write
+	// lock (default store.DefaultBusyTimeout). Tests shorten it.
+	BusyTimeout time.Duration
 }
 
 // Controller is safe for concurrent use.
@@ -77,7 +80,7 @@ func Open(ctx context.Context, cfg Config) (*Controller, error) {
 	if err := paths.EnsureHome(c.paths); err != nil {
 		return nil, fmt.Errorf("cannot create agentctl home: %w", err)
 	}
-	st, err := store.Open(ctx, c.paths.DB, store.Options{Now: c.now})
+	st, err := store.Open(ctx, c.paths.DB, store.Options{Now: c.now, BusyTimeout: cfg.BusyTimeout})
 	if err != nil {
 		return nil, fmt.Errorf("cannot open registry %s: %w", c.paths.DB, err)
 	}
