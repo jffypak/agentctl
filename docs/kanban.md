@@ -14,9 +14,8 @@ _14 issue(s) — auto-generated; do not edit by hand._
 
 - **m3-acceptance-e2e** [Prove every Phase-1 acceptance criterion end-to-end; demo script; README](kanban/m3-acceptance-e2e.md) — _m3-phase1-acceptance_ `spec-derived` `phase-1`
 
-## in-progress (2)
+## in-progress (1)
 
-- **m2-hardening-followups** [Hardening follow-ups from m1-flaky-tests (testenv restart race, dying-server handling, Repos.Upsert via withTx)](kanban/m2-hardening-followups.md) — _m2-direct-agents_ `phase-1` `reliability`
 - **m2-prompt-queue** [Safe deliver-or-queue prompts with acks: `send`, hook-triggered `deliver`, TUI composer](kanban/m2-prompt-queue.md) — _m2-direct-agents_ `spec-derived` `phase-1`
 
 ## blocked (0)
@@ -27,13 +26,14 @@ _empty_
 
 _empty_
 
-## done (7)
+## done (8)
 
 - **m1-flaky-tests** [Root-cause and fix two load-sensitive flaky tests (SQLite BUSY in store, tmux restart in kill_test)](kanban/m1-flaky-tests.md) — `high` _m1-see-agents_ `spec-derived` `phase-1` `reliability`
 - **m1-walking-skeleton** [Walking skeleton: `agentctl new` launches an agent in worktree+tmux; `agentctl ls` lists it](kanban/m1-walking-skeleton.md) — `high` _m1-see-agents_ `spec-derived` `phase-1`
 - **m1-hook-state** [Hook-driven agent state: `agentctl hook`, Claude settings generation, fakeagent](kanban/m1-hook-state.md) — _m1-see-agents_ `spec-derived` `phase-1`
 - **m1-inspect** [Inspect: diff summary vs base, full diff in pager, recent + full output capture](kanban/m1-inspect.md) — _m1-see-agents_ `spec-derived` `phase-1`
 - **m1-pane-identity** [Reconcile, adopt, and close by explicit pane identity (disconnected detection, restart recovery)](kanban/m1-pane-identity.md) — _m1-see-agents_ `spec-derived` `phase-1`
+- **m2-hardening-followups** [Hardening follow-ups from m1-flaky-tests (testenv restart race, dying-server handling, Repos.Upsert via withTx)](kanban/m2-hardening-followups.md) — _m2-direct-agents_ `phase-1` `reliability`
 - **m2-tui-inbox** [Attention-first TUI: list, detail, attach/focus, empty/error states, `stats`, `tmux-binding`](kanban/m2-tui-inbox.md) — _m2-direct-agents_ `spec-derived` `phase-1`
 - **m2-tui-manage** [TUI manage views: diff, logs, new task, adopt, close, configurable keymap](kanban/m2-tui-manage.md) — _m2-direct-agents_ `spec-derived` `phase-1`
 

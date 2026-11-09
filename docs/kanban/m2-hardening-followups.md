@@ -2,7 +2,7 @@
 id: m2-hardening-followups
 title: Hardening follow-ups from m1-flaky-tests (testenv restart race, dying-server
   handling, Repos.Upsert via withTx)
-status: in-progress
+status: done
 priority: medium
 milestone: m2-direct-agents
 labels:
@@ -32,6 +32,10 @@ history:
   to: in-progress
   note: 'director: dispatched to worktree /Users/jpark/Code/agent-tui/.tinkerbell/worktrees/m2-hardening-followups
     (tb/m2-hardening-followups)'
+- when: '2026-11-09'
+  from: in-progress
+  to: done
+  note: "director: done \u2014 acceptance pass green; promote to done"
 ---
 
 # Hardening follow-ups from m1-flaky-tests (testenv restart race, dying-server handling, Repos.Upsert via withTx)
