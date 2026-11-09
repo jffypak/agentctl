@@ -770,10 +770,17 @@ func TestDetailInspectRetriesALostResult(t *testing.T) {
 	f := newManageFixture(t)
 	res := f.newTask(t, "auth-tests", "goal")
 	f.tm.setOutput(res.Identity.PaneID, "hello from the pane\n")
+	// an answer that lands while another view is open still reaches the
+	// detail (Model.forward hands non-input messages to it, m2-prompt-queue)
 	m, inspect := pressCmd(t, f.managed(t, 120, 40, Options{}), "enter")
 	m = press(t, m, "d")
-	m = runLong(t, m, inspect) // lands in the diff view
+	m = runLong(t, m, inspect) // lands while the diff view is on top
 	m = press(t, m, "esc")
+	if !strings.Contains(screenText(m), "hello from the pane") {
+		t.Fatalf("the result was lost behind the diff view:\n%s", screenText(m))
+	}
+	// a request whose answer never comes is retried on a later refresh
+	m, _ = pressCmd(t, press(t, m, "esc"), "enter") // drop the new Inspect
 	if !strings.Contains(screenText(m), "output     loading…") {
 		t.Fatalf("expected the lost result:\n%s", screenText(m))
 	}

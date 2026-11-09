@@ -19,6 +19,8 @@ import (
 //   - dead pane -> stopped ("exit 0") or failed ("exit N" / "signal N");
 //     missing pane, other server pid or other pane pid -> disconnected with
 //     session.disconnected{reason}; all with source pane, confidence pane;
+//   - a live session with a lost-hook marker newer than its state -> unknown
+//     / none, source lost_hook (m2-prompt-queue: downgradeLostHooks);
 //   - starting with no hook for Tunables.StartingTimeout -> unknown / none,
 //     source timeout (guarded: a hook that arrives first wins);
 //   - LivenessUnverified (probe failed) is never treated as a pane verdict;
@@ -40,6 +42,7 @@ func (c *Controller) Reconcile(ctx context.Context) error {
 		bySocket = map[string][]store.Session{}
 		errs     []error
 	)
+	errs = append(errs, c.downgradeLostHooks(ctx, active)) // lost-hook safety (m2-prompt-queue, drain.go)
 	for _, sess := range active {
 		if sess.Identity.IsZero() {
 			l, _ := livenessFrom(sess.Identity, tmux.Snapshot{}, nil)

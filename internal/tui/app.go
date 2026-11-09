@@ -313,15 +313,16 @@ func (m Model) applyAttach(a attachMsg) (tea.Model, tea.Cmd) {
 }
 
 // forward hands msg to the top view, else to the detail (and its sections).
-// refreshedMsg reaches both the top view and the detail underneath.
+// Input (keys, pastes) goes to the top view only; everything else, such as
+// refreshedMsg and async results, also reaches the detail underneath, so an
+// answer meant for a detail section is not lost while a view is open.
 func (m Model) forward(msg tea.Msg) (Model, tea.Cmd) {
 	var cmds []tea.Cmd
-	_, isRefresh := msg.(refreshedMsg)
 	if len(m.views) > 0 {
 		var c tea.Cmd
 		m, c = m.updateTop(msg)
 		cmds = append(cmds, c)
-		if !isRefresh {
+		if isInput(msg) {
 			return m, tea.Batch(cmds...)
 		}
 	}
@@ -331,6 +332,16 @@ func (m Model) forward(msg tea.Msg) (Model, tea.Cmd) {
 		cmds = append(cmds, c)
 	}
 	return m, tea.Batch(cmds...)
+}
+
+// isInput reports whether msg is user input, which only the top view gets.
+func isInput(msg tea.Msg) bool {
+	switch msg.(type) {
+	case tea.KeyPressMsg, tea.KeyReleaseMsg, tea.PasteMsg, tea.PasteStartMsg, tea.PasteEndMsg,
+		tea.MouseClickMsg, tea.MouseReleaseMsg, tea.MouseWheelMsg, tea.MouseMotionMsg:
+		return true
+	}
+	return false
 }
 
 // updateTop updates the top view, popping it when it returns nil.
