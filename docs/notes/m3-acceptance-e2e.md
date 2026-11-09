@@ -130,8 +130,13 @@ DEMO_AGENT=claude scripts/demo.sh           # from this checkout, in or outside 
 
 ## Results
 
-See the final report for the exact numbers of the last runs (`-race -count=10
-./internal/e2e` and `scripts/doctor.sh`).
+- `go test -race -count=10 ./internal/e2e` passed twice on the final code: 108.6 s
+  outside tmux and 108.4 s inside the user's tmux (`$TMUX` set, never touched). That
+  is 10 iterations × 10 tests each, all parallel.
+- `scripts/doctor.sh` is green: gofmt, vet, `go test -race ./...` (e2e 18 s), and
+  `go mod tidy -diff`.
+- `DEMO_AGENT=fakeagent scripts/demo.sh` passes standalone on its own `-L` socket and
+  leaves no socket file or temp dir behind.
 
 ## For the director
 
