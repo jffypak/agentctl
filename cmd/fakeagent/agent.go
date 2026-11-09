@@ -29,6 +29,7 @@ type config struct {
 	logPath          string        // FAKEAGENT_LOG: JSONL of every received input
 	hookLogPath      string        // FAKEAGENT_HOOK_LOG: JSONL of every hook run (stdout, exit, ms)
 	pastePlaceholder bool          // FAKEAGENT_PASTE_PLACEHOLDER=1
+	goalDelay        time.Duration // FAKEAGENT_GOAL_DELAY_MS: SessionStart -> initial-prompt submit gap (goal.go)
 	cwd              string
 	env              []string // hooks inherit this environment
 	transcriptDir    string   // transcript_path dir (never created; agentctl must not open it)
@@ -100,8 +101,10 @@ func (a *agent) run() int {
 	a.term.write("\x1b[?2004h") // bracketed paste on
 	a.term.write("fakeagent " + a.sessionID + "\n")
 	a.fire("SessionStart", map[string]any{"source": "startup", "model": "fakeagent"})
-	a.setState(stReady)
-	if a.cfg.initialPrompt != "" {
+	if a.cfg.initialPrompt == "" {
+		a.setState(stReady)
+	} else {
+		a.awaitGoalSubmit() // goal.go: still starting until the goal turn begins
 		if code, done := a.turn(a.cfg.initialPrompt, a.cfg.initialPrompt); done {
 			return code
 		}
