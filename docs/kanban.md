@@ -14,9 +14,8 @@ _17 issue(s) — auto-generated; do not edit by hand._
 
 _empty_
 
-## in-progress (2)
+## in-progress (1)
 
-- **m3-adopt-claude-match** [Adopt picker: recognise real Claude panes (pane_current_command is the version string)](kanban/m3-adopt-claude-match.md) — `high` _m3-phase1-acceptance_ `phase-1` `demo-finding` `adopt`
 - **m3-folder-trust-detect** [Surface Claude's folder-trust dialog in NEEDS YOU within seconds (never auto-accept)](kanban/m3-folder-trust-detect.md) — _m3-phase1-acceptance_ `phase-1` `demo-finding` `ux`
 
 ## blocked (0)
@@ -27,10 +26,11 @@ _empty_
 
 _empty_
 
-## done (11)
+## done (12)
 
 - **m1-flaky-tests** [Root-cause and fix two load-sensitive flaky tests (SQLite BUSY in store, tmux restart in kill_test)](kanban/m1-flaky-tests.md) — `high` _m1-see-agents_ `spec-derived` `phase-1` `reliability`
 - **m1-walking-skeleton** [Walking skeleton: `agentctl new` launches an agent in worktree+tmux; `agentctl ls` lists it](kanban/m1-walking-skeleton.md) — `high` _m1-see-agents_ `spec-derived` `phase-1`
+- **m3-adopt-claude-match** [Adopt picker: recognise real Claude panes (pane_current_command is the version string)](kanban/m3-adopt-claude-match.md) — `high` _m3-phase1-acceptance_ `phase-1` `demo-finding` `adopt`
 - **m3-goal-start-race** [Don't report ready between SessionStart and the goal's first UserPromptSubmit](kanban/m3-goal-start-race.md) — `high` _m3-phase1-acceptance_ `phase-1` `demo-finding` `reliability`
 - **m1-hook-state** [Hook-driven agent state: `agentctl hook`, Claude settings generation, fakeagent](kanban/m1-hook-state.md) — _m1-see-agents_ `spec-derived` `phase-1`
 - **m1-inspect** [Inspect: diff summary vs base, full diff in pager, recent + full output capture](kanban/m1-inspect.md) — _m1-see-agents_ `spec-derived` `phase-1`

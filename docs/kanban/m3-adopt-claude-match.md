@@ -2,7 +2,7 @@
 id: m3-adopt-claude-match
 title: 'Adopt picker: recognise real Claude panes (pane_current_command is the version
   string)'
-status: in-progress
+status: done
 priority: high
 milestone: m3-phase1-acceptance
 labels:
@@ -30,6 +30,10 @@ history:
   from: todo
   to: in-progress
   note: 'director: dispatched in worktree /Users/jpark/Code/agent-tui/.tinkerbell/worktrees/m3-adopt-claude-match'
+- when: '2026-11-09'
+  from: in-progress
+  to: done
+  note: "director: done \u2014 acceptance pass green; promote to done"
 ---
 
 # Adopt picker: recognise real Claude panes (pane_current_command is the version string)
