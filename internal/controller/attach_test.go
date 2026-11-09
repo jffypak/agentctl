@@ -16,16 +16,16 @@ import (
 	"github.com/jffypak/agentctl/internal/tmux"
 )
 
-// snapRunner answers snapshot probes with a canned server and records every
+// atSnapRunner answers snapshot probes with a canned server and records every
 // request; any other command succeeds silently.
-type snapRunner struct {
+type atSnapRunner struct {
 	mu        sync.Mutex
 	serverPID int
 	panes     []tmux.Pane
 	reqs      []tmux.Request
 }
 
-func (r *snapRunner) Run(_ context.Context, req tmux.Request) (tmux.Result, error) {
+func (r *atSnapRunner) Run(_ context.Context, req tmux.Request) (tmux.Result, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.reqs = append(r.reqs, req)
@@ -40,7 +40,7 @@ func (r *snapRunner) Run(_ context.Context, req tmux.Request) (tmux.Result, erro
 	return tmux.Result{}, nil
 }
 
-func (r *snapRunner) commands() []string {
+func (r *atSnapRunner) commands() []string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	var out []string
@@ -52,7 +52,7 @@ func (r *snapRunner) commands() []string {
 	return out
 }
 
-func openWithRunner(t *testing.T, env testenv.Env, r tmux.Runner) *Controller {
+func atOpenWithRunner(t *testing.T, env testenv.Env, r tmux.Runner) *Controller {
 	t.Helper()
 	c, err := Open(context.Background(), Config{Environ: env.Strings(), TmuxRunner: r, AgentctlPath: "/opt/agentctl/bin/agentctl"})
 	if err != nil {
@@ -64,7 +64,7 @@ func openWithRunner(t *testing.T, env testenv.Env, r tmux.Runner) *Controller {
 
 // seedSession reserves task id with one session on socket /s, server 100,
 // pane %7 (pid 700), then walks it through states.
-func seedSession(t *testing.T, ctl *Controller, id string, identity domain.Identity, initial domain.AgentState, path ...domain.AgentState) {
+func atSeedSession(t *testing.T, ctl *Controller, id string, identity domain.Identity, initial domain.AgentState, path ...domain.AgentState) {
 	t.Helper()
 	ctx := context.Background()
 	repo, err := ctl.store.Repos().Upsert(ctx, "/r/main", "main")
@@ -90,7 +90,7 @@ func seedSession(t *testing.T, ctl *Controller, id string, identity domain.Ident
 	}
 }
 
-var fakeIdentity = domain.Identity{Socket: "/s", ServerPID: 100, SessionID: "$1", PaneID: "%7", PanePID: 700}
+var atIdentity = domain.Identity{Socket: "/s", ServerPID: 100, SessionID: "$1", PaneID: "%7", PanePID: 700}
 
 func TestAttachRefusalsAreOneLineAndNeverSwitch(t *testing.T) {
 	t.Parallel()
@@ -115,36 +115,36 @@ func TestAttachRefusalsAreOneLineAndNeverSwitch(t *testing.T) {
 			}},
 		{name: "stored disconnected", task: "gone", kind: ErrAttachRefused, want: "attach refused: gone is disconnected (pane_missing)", noTmux: true,
 			seed: func(t *testing.T, ctl *Controller) {
-				seedSession(t, ctl, "gone", fakeIdentity, domain.StateStarting, domain.StateDisconnected)
+				atSeedSession(t, ctl, "gone", atIdentity, domain.StateStarting, domain.StateDisconnected)
 			}},
 		{name: "launch failed, no identity", task: "broken", kind: ErrAttachRefused, want: "attach refused: broken has no recorded tmux pane", noTmux: true,
 			seed: func(t *testing.T, ctl *Controller) {
-				seedSession(t, ctl, "broken", domain.Identity{}, domain.StateFailed)
+				atSeedSession(t, ctl, "broken", domain.Identity{}, domain.StateFailed)
 			}},
 		{name: "server restarted, %N reused", task: "reused", kind: ErrAttachRefused, probeOnly: true,
 			want: "attach refused: reused's pane is gone or was reused (identity_mismatch)", snapPID: 999,
 			panes: []tmux.Pane{{SessionID: "$1", PaneID: "%7", PanePID: 700, SessionName: "intruder"}},
 			seed: func(t *testing.T, ctl *Controller) {
-				seedSession(t, ctl, "reused", fakeIdentity, domain.StateStarting, domain.StateWorking)
+				atSeedSession(t, ctl, "reused", atIdentity, domain.StateStarting, domain.StateWorking)
 			}},
 		{name: "pane pid differs", task: "swapped", kind: ErrAttachRefused, probeOnly: true,
 			want: "attach refused: swapped's pane is gone or was reused (identity_mismatch)", snapPID: 100,
 			panes: []tmux.Pane{{SessionID: "$1", PaneID: "%7", PanePID: 701, SessionName: "intruder"}},
 			seed: func(t *testing.T, ctl *Controller) {
-				seedSession(t, ctl, "swapped", fakeIdentity, domain.StateStarting, domain.StateWorking)
+				atSeedSession(t, ctl, "swapped", atIdentity, domain.StateStarting, domain.StateWorking)
 			}},
 		{name: "pane missing", task: "missing", kind: ErrAttachRefused, probeOnly: true,
 			want: "attach refused: missing's pane is gone or was reused (pane_missing)", snapPID: 100,
 			seed: func(t *testing.T, ctl *Controller) {
-				seedSession(t, ctl, "missing", fakeIdentity, domain.StateStarting, domain.StateWorking)
+				atSeedSession(t, ctl, "missing", atIdentity, domain.StateStarting, domain.StateWorking)
 			}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
-			rec := &snapRunner{serverPID: c.snapPID, panes: c.panes}
+			rec := &atSnapRunner{serverPID: c.snapPID, panes: c.panes}
 			env := testenv.NewEnv(t).With("TMUX=/s,100,0")
-			ctl := openWithRunner(t, env, rec)
+			ctl := atOpenWithRunner(t, env, rec)
 			c.seed(t, ctl)
 			res, err := ctl.Attach(context.Background(), c.task)
 			if !errors.Is(err, c.kind) || err.Error() != c.want || strings.Contains(err.Error(), "\n") {
@@ -163,8 +163,8 @@ func TestAttachRefusalsAreOneLineAndNeverSwitch(t *testing.T) {
 
 func TestAttachUnverifiedProbeIsRefused(t *testing.T) {
 	t.Parallel()
-	ctl := openWithRunner(t, testenv.NewEnv(t), failingRunner{})
-	seedSession(t, ctl, "flaky", fakeIdentity, domain.StateStarting, domain.StateWorking)
+	ctl := atOpenWithRunner(t, testenv.NewEnv(t), failingRunner{})
+	atSeedSession(t, ctl, "flaky", atIdentity, domain.StateStarting, domain.StateWorking)
 	_, err := ctl.Attach(context.Background(), "flaky")
 	if !errors.Is(err, ErrAttachRefused) || !strings.HasPrefix(err.Error(), "attach refused: cannot verify flaky's pane (") {
 		t.Fatalf("Attach = %v", err)
@@ -173,9 +173,9 @@ func TestAttachUnverifiedProbeIsRefused(t *testing.T) {
 
 func TestAttachSameServerSwitchesClientToThePane(t *testing.T) {
 	t.Parallel()
-	rec := &snapRunner{serverPID: 100, panes: []tmux.Pane{{SessionID: "$1", PaneID: "%7", PanePID: 700, SessionName: "agentctl-live"}}}
-	ctl := openWithRunner(t, testenv.NewEnv(t).With("TMUX=/s,100,0", "TMUX_PANE=%2"), rec)
-	seedSession(t, ctl, "live", fakeIdentity, domain.StateStarting, domain.StateAwaitingInput)
+	rec := &atSnapRunner{serverPID: 100, panes: []tmux.Pane{{SessionID: "$1", PaneID: "%7", PanePID: 700, SessionName: "agentctl-live"}}}
+	ctl := atOpenWithRunner(t, testenv.NewEnv(t).With("TMUX=/s,100,0", "TMUX_PANE=%2"), rec)
+	atSeedSession(t, ctl, "live", atIdentity, domain.StateStarting, domain.StateAwaitingInput)
 	res, err := ctl.Attach(context.Background(), "live")
 	if err != nil {
 		t.Fatal(err)
@@ -191,10 +191,10 @@ func TestAttachSameServerSwitchesClientToThePane(t *testing.T) {
 
 func TestAttachOutsideTmuxBuildsAnInteractiveAttachWithoutTMUX(t *testing.T) {
 	t.Parallel()
-	rec := &snapRunner{serverPID: 100, panes: []tmux.Pane{{SessionID: "$1", PaneID: "%7", PanePID: 700, SessionName: "agentctl-live"}}}
+	rec := &atSnapRunner{serverPID: 100, panes: []tmux.Pane{{SessionID: "$1", PaneID: "%7", PanePID: 700, SessionName: "agentctl-live"}}}
 	// A different server in $TMUX (nested use) takes the exec path too.
-	ctl := openWithRunner(t, testenv.NewEnv(t).With("TMUX=/other,5,0", "TMUX_PANE=%9"), rec)
-	seedSession(t, ctl, "live", fakeIdentity, domain.StateStarting, domain.StateStopped) // dead but verified panes may be read
+	ctl := atOpenWithRunner(t, testenv.NewEnv(t).With("TMUX=/other,5,0", "TMUX_PANE=%9"), rec)
+	atSeedSession(t, ctl, "live", atIdentity, domain.StateStarting, domain.StateStopped) // dead but verified panes may be read
 	res, err := ctl.Attach(context.Background(), "live")
 	if err != nil {
 		t.Fatal(err)
@@ -214,8 +214,8 @@ func TestAttachOutsideTmuxBuildsAnInteractiveAttachWithoutTMUX(t *testing.T) {
 		t.Fatalf("exec path ran tmux commands itself: %v", rec.commands())
 	}
 
-	noTmux := openWithRunner(t, testenv.NewEnv(t).With("PATH="+testenv.BinDir(t, "git")), rec)
-	seedSession(t, noTmux, "live", fakeIdentity, domain.StateStarting, domain.StateWorking)
+	noTmux := atOpenWithRunner(t, testenv.NewEnv(t).With("PATH="+testenv.BinDir(t, "git")), rec)
+	atSeedSession(t, noTmux, "live", atIdentity, domain.StateStarting, domain.StateWorking)
 	if _, err := noTmux.Attach(context.Background(), "live"); !errors.Is(err, ErrTmuxMissing) {
 		t.Fatalf("attach without tmux = %v", err)
 	}

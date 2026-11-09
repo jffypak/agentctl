@@ -66,7 +66,7 @@ type probe struct {
 	Model
 	latest *atomic.Value
 	watch  func(screen string) bool // optional: when it first holds, hit records the time
-	hit    *atomic.Int64             // unix nanos of the first render satisfying watch
+	hit    *atomic.Int64            // unix nanos of the first render satisfying watch
 }
 
 func (p probe) Update(msg tea.Msg) (tea.Model, tea.Cmd) {

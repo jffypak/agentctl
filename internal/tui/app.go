@@ -8,7 +8,9 @@ package tui
 import (
 	"context"
 	"errors"
+	"io"
 	"slices"
+	"strings"
 	"time"
 
 	"charm.land/bubbles/v2/key"
@@ -38,6 +40,13 @@ type Options struct {
 	// RunID is the ui_run_id actions are recorded under. Run sets it from
 	// Controller.UIOpened; it stays empty in tests that do not record.
 	RunID string
+	// Input, Output and Environ are the terminal and environment Run uses
+	// (nil: the process's). TMUX and TMUX_PANE are removed from the
+	// environment Bubble Tea sees, so its color detection never runs
+	// `tmux info` against an unqualified server.
+	Input   io.Reader
+	Output  io.Writer
+	Environ []string
 }
 
 type mode int
@@ -99,9 +108,14 @@ func New(ctx context.Context, opts Options) Model {
 	return m
 }
 
-// Run records ui.opened, runs the program until the user quits (or ctx is
-// cancelled, e.g. by SIGHUP), then records ui.closed. A cancelled context is
-// a clean exit, not an error.
+// Run records ui.opened, runs the program until the user quits or ctx is
+// cancelled (cmd_tui cancels it on SIGHUP), then records ui.closed. A
+// cancelled context is a clean exit, not an error.
+//
+// Cancellation is turned into a graceful Quit rather than handed to Bubble
+// Tea with tea.WithContext: v2.1.1's kill path closes the input
+// cancelreader while its reader goroutine is still using the file
+// descriptor (a data race the race detector reports), the quit path does not.
 func Run(ctx context.Context, opts Options, progOpts ...tea.ProgramOption) error {
 	ctl := opts.Controller
 	if ctl != nil && opts.RunID == "" {
@@ -111,21 +125,48 @@ func Run(ctx context.Context, opts Options, progOpts ...tea.ProgramOption) error
 		}
 		opts.RunID = run
 	}
-	p := tea.NewProgram(New(ctx, opts), append([]tea.ProgramOption{tea.WithContext(ctx)}, progOpts...)...)
+	var base []tea.ProgramOption
+	if opts.Input != nil {
+		base = append(base, tea.WithInput(opts.Input))
+	}
+	if opts.Output != nil {
+		base = append(base, tea.WithOutput(opts.Output))
+	}
+	if opts.Environ != nil {
+		base = append(base, tea.WithEnvironment(withoutTmux(opts.Environ)))
+	}
+	p := tea.NewProgram(New(ctx, opts), append(base, progOpts...)...)
+	finished := make(chan struct{})
+	go func() {
+		select {
+		case <-ctx.Done():
+			p.Quit()
+		case <-finished:
+		}
+	}()
 	_, err := p.Run()
+	close(finished)
 	if ctl != nil && opts.RunID != "" {
 		closeErr := ctl.UIClosed(context.WithoutCancel(ctx), opts.RunID)
 		if err == nil {
 			err = closeErr
 		}
 	}
-	if errors.Is(err, tea.ErrProgramKilled) && ctx.Err() != nil {
-		return nil
-	}
 	if errors.Is(err, tea.ErrInterrupted) {
 		return nil // SIGINT on a non-tty: same as ctrl+c
 	}
 	return err
+}
+
+// withoutTmux drops TMUX and TMUX_PANE from env.
+func withoutTmux(env []string) []string {
+	out := make([]string, 0, len(env))
+	for _, kv := range env {
+		if !strings.HasPrefix(kv, "TMUX=") && !strings.HasPrefix(kv, "TMUX_PANE=") {
+			out = append(out, kv)
+		}
+	}
+	return out
 }
 
 // Init starts the first load, the pane reconcile loop, the preflight check
