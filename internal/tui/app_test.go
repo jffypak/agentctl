@@ -273,30 +273,22 @@ type whiteBG struct{}
 
 func (whiteBG) RGBA() (r, g, b, a uint32) { return 0xffff, 0xffff, 0xffff, 0xffff }
 
-func TestStubKeysSayComingIn(t *testing.T) {
+// TestNoStubKeysLeft: every Phase-1 key is a real view now (d l n a x:
+// m2-tui-manage; p: m2-prompt-queue, compose_test.go); none flashes
+// "coming in", and opening a view records no ui.action by itself.
+func TestNoStubKeysLeft(t *testing.T) {
 	t.Parallel()
 	f := newFixture(t)
 	f.seed(t, everyState)
-	cases := map[string]string{ // d l n a x are real views now (m2-tui-manage, manage_test.go)
-		"p": "prompt: coming in m2-prompt-queue",
-	}
-	for k, want := range cases {
-		for _, inDetail := range []bool{false, true} {
-			m := f.model(t, 80, 24, Options{})
-			if inDetail {
-				if k == "n" || k == "a" {
-					continue
-				}
-				m = press(t, m, "enter")
-			}
-			m, cmd := pressCmd(t, m, k)
-			m = run(t, m, cmd)
-			if !strings.Contains(screenText(m), want) || len(m.views) != 0 {
-				t.Errorf("%s (detail=%v): flash missing %q\n%s", k, inDetail, want, screenText(m))
-			}
-			if m = press(t, m, "j"); strings.Contains(screenText(m), want) && !inDetail {
-				t.Errorf("%s: flash not cleared by the next key", k)
-			}
+	for _, inDetail := range []bool{false, true} {
+		m := f.model(t, 80, 24, Options{})
+		if inDetail {
+			m = press(t, m, "enter")
+		}
+		m, cmd := pressCmd(t, m, "p")
+		m = run(t, m, cmd)
+		if strings.Contains(screenText(m), "coming in") || len(m.views) != 1 {
+			t.Errorf("p (detail=%v) did not open the composer:\n%s", inDetail, screenText(m))
 		}
 	}
 	evs, err := f.ctl.EventsSince(context.Background(), 0, 0)
@@ -305,7 +297,7 @@ func TestStubKeysSayComingIn(t *testing.T) {
 	}
 	for _, e := range evs {
 		if e.Type == domain.EventUIAction {
-			t.Fatalf("a stub recorded %s", e.Payload)
+			t.Fatalf("opening a view recorded %s", e.Payload)
 		}
 	}
 }
