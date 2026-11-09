@@ -1,7 +1,7 @@
 ---
 id: m2-tui-manage
 title: 'TUI manage views: diff, logs, new task, adopt, close, configurable keymap'
-status: backlog
+status: in-progress
 priority: medium
 milestone: m2-direct-agents
 labels:
@@ -12,7 +12,7 @@ dependencies:
 - m1-inspect
 - m1-pane-identity
 created: '2026-11-06'
-updated: '2026-11-06'
+updated: '2026-11-08'
 acceptance_criteria: "- Detail shows diff summary + last ~10 output lines loaded async\
   \ ('loading\u2026' placeholder; Update never blocks >50ms)\n- d -> file list; enter\
   \ opens the pager via ExecProcess and returns to the same view; works for disconnected\
@@ -30,6 +30,11 @@ history:
 - when: '2026-11-06'
   from: null
   to: backlog
+- when: '2026-11-08'
+  from: backlog
+  to: in-progress
+  note: 'director: dispatched to worktree /Users/jpark/Code/agent-tui/.tinkerbell/worktrees/m2-tui-manage
+    (tb/m2-tui-manage)'
 ---
 
 # TUI manage views: diff, logs, new task, adopt, close, configurable keymap
