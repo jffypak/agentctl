@@ -1,7 +1,7 @@
 ---
 id: m3-acceptance-e2e
 title: Prove every Phase-1 acceptance criterion end-to-end; demo script; README
-status: in-progress
+status: done
 priority: medium
 milestone: m3-phase1-acceptance
 labels:
@@ -46,6 +46,10 @@ history:
   to: in-progress
   note: 'director: dispatched to worktree /Users/jpark/Code/agent-tui/.tinkerbell/worktrees/m3-acceptance-e2e
     (tb/m3-acceptance-e2e)'
+- when: '2026-11-09'
+  from: in-progress
+  to: done
+  note: "director: done \u2014 acceptance pass green; promote to done"
 ---
 
 # Prove every Phase-1 acceptance criterion end-to-end; demo script; README
