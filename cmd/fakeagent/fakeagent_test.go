@@ -392,3 +392,70 @@ func TestSleepDirectiveOverridesWork(t *testing.T) {
 		t.Fatal("#sleep did not override FAKEAGENT_WORK_MS")
 	}
 }
+
+func TestParseConfigTrustDialog(t *testing.T) {
+	for v, want := range map[string]bool{"1": true, "": false, "0": false} {
+		cfg, err := parseConfig(nil, func(k string) string { return map[string]string{"FAKEAGENT_TRUST_DIALOG": v}[k] })
+		if err != nil || cfg.trustDialog != want {
+			t.Fatalf("FAKEAGENT_TRUST_DIALOG=%q: trustDialog = %v %v", v, cfg.trustDialog, err)
+		}
+	}
+}
+
+// trustKeys returns the input-log entries received while the dialog was up.
+func (h *harness) trustKeys() []map[string]any {
+	var out []map[string]any
+	for _, e := range readJSONL(h.t, filepath.Join(h.dir, "input.jsonl")) {
+		if e["state_at_receipt"] == stTrust {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
+// TestTrustDialogHoldsHooksUntilAccepted: with the trust dialog on, nothing
+// fires until the dialog is answered (as Claude Code holds back settings
+// hooks); "1" accepts and the normal SessionStart + initial turn follow.
+func TestTrustDialogHoldsHooksUntilAccepted(t *testing.T) {
+	h := startAgent(t, "hello", func(c *config) { c.trustDialog = true })
+	testenv.WaitFor(t, 0, "trust dialog", func() (bool, string) {
+		return strings.Contains(h.out.String(), "Is this a project you created or one you trust?"), h.out.String()
+	})
+	time.Sleep(100 * time.Millisecond) // a hook fired now would be a contract violation
+	if ev := h.events(); len(ev) != 0 {
+		t.Fatalf("hooks fired before the dialog was answered: %v", ev)
+	}
+	h.send("1")
+	h.waitEvents("SessionStart:startup UserPromptSubmit PreToolUse:Bash PostToolUse:Bash Stop")
+	h.waitReady()
+	if keys := h.trustKeys(); len(keys) != 1 || keys[0]["text"] != "1" || keys[0]["kind"] != "key" {
+		t.Fatalf("dialog keys = %v", keys)
+	}
+}
+
+// TestTrustDialogEnterAcceptsDefault: Enter picks the highlighted "Yes".
+func TestTrustDialogEnterAcceptsDefault(t *testing.T) {
+	h := startAgent(t, "", func(c *config) { c.trustDialog = true })
+	testenv.WaitFor(t, 0, "trust dialog", func() (bool, string) {
+		return strings.Contains(h.out.String(), "Yes, I trust this folder"), h.out.String()
+	})
+	h.send("\r")
+	h.waitEvents("SessionStart:startup")
+	h.waitReady()
+}
+
+// TestTrustDialogDeclineExits: "2" (No, exit) exits 1 without firing any
+// hook, like Claude Code declining an untrusted folder.
+func TestTrustDialogDeclineExits(t *testing.T) {
+	h := startAgent(t, "hello", func(c *config) { c.trustDialog = true })
+	testenv.WaitFor(t, 0, "trust dialog", func() (bool, string) {
+		return strings.Contains(h.out.String(), "No, exit"), h.out.String()
+	})
+	h.send("2")
+	if code := h.exit(); code != 1 {
+		t.Fatalf("exit code %d, want 1", code)
+	}
+	if ev := h.events(); len(ev) != 0 {
+		t.Fatalf("hooks fired on decline: %v", ev)
+	}
+}
