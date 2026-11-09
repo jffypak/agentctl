@@ -308,6 +308,7 @@ func nextViewID() int64 { return viewIDs.Add(1) }
 // viewTitle: bold kind, the task name, then a muted suffix.
 func viewTitle(f frame, kind, name, suffix string) string {
 	st := f.st
+	name, suffix = safeLine(name), safeLine(suffix)
 	s := st.scope.Render(kind) + strings.Repeat(" ", gap) + st.nameSelected.Render(truncate(name, maxNameWidth))
 	if suffix == "" {
 		return s

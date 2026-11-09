@@ -137,9 +137,9 @@ func (v newTaskView) done(msg newTaskDoneMsg) (view, tea.Cmd) {
 	switch {
 	case msg.err == nil:
 		return nil, tea.Batch(v.sh.actionCmd(controller.UIActionNew, id), selectTask(id),
-			flashInfo("started "+id+" · branch "+msg.res.Branch+" · "+msg.res.Worktree))
+			flashInfo(safeLine("started "+id+" · branch "+msg.res.Branch+" · "+msg.res.Worktree)))
 	case id != "": // created, but the agent failed to start: the row shows it as failed
-		return nil, tea.Batch(v.sh.actionCmd(controller.UIActionNew, id), selectTask(id), flashError(msg.err))
+		return nil, tea.Batch(v.sh.actionCmd(controller.UIActionNew, id), selectTask(id), flashErr(msg.err))
 	}
 	v.err = controller.OneLine(msg.err.Error())
 	switch {
@@ -240,7 +240,7 @@ const maxErrorLines = 3
 
 // errorLines renders "! msg" wrapped to the width, at most maxErrorLines.
 func errorLines(f frame, msg string) []string {
-	ls := wrapWords("! "+msg, max(f.width, 1))
+	ls := wrapWords("! "+safeLine(msg), max(f.width, 1))
 	if len(ls) > maxErrorLines {
 		tail := truncate(strings.Join(ls[maxErrorLines-1:], " "), f.width)
 		ls = append(ls[:maxErrorLines-1:maxErrorLines-1], tail)
@@ -249,4 +249,14 @@ func errorLines(f frame, msg string) []string {
 		ls[i] = f.st.errText.Render(l)
 	}
 	return ls
+}
+
+// safeLine is text from outside the TUI (errors with paths, tmux names,
+// config snippets) made safe for one terminal line: escape sequences and
+// control characters stripped, whitespace collapsed.
+func safeLine(s string) string { return controller.OneLine(domain.SanitizeTerminalText(s)) }
+
+// flashErr is flashError with the text sanitized.
+func flashErr(err error) tea.Cmd {
+	return func() tea.Msg { return flashMsg{text: safeLine(err.Error()), isErr: true} }
 }

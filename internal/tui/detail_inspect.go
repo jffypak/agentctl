@@ -126,17 +126,17 @@ func (s inspectSection) View(f frame) string {
 		return labeled(f, "diff", "loading…", st.muted) + "\n" + labeled(f, "output", "loading…", st.muted)
 	}
 	if s.err != "" {
-		return labeled(f, "inspect", "! "+s.err, st.errText)
+		return labeled(f, "inspect", "! "+safeLine(s.err), st.errText)
 	}
 	lines := []string{s.diffRow(f)}
 	in := s.in
 	switch {
 	case !in.Pane.Available:
-		lines = append(lines, labeled(f, "output", in.Pane.Note, st.unknown))
+		lines = append(lines, labeled(f, "output", safeLine(in.Pane.Note), st.unknown))
 	case len(in.Output) == 0:
-		lines = append(lines, labeled(f, "output", in.Pane.Note+" · no output yet", st.muted))
+		lines = append(lines, labeled(f, "output", safeLine(in.Pane.Note)+" · no output yet", st.muted))
 	default:
-		lines = append(lines, labeled(f, "output", in.Pane.Note, st.muted))
+		lines = append(lines, labeled(f, "output", safeLine(in.Pane.Note), st.muted))
 		n := min(len(in.Output), inspectLines, max(f.height-detailFieldRows-2, minOutputRows))
 		for _, l := range in.Output[len(in.Output)-n:] {
 			lines = append(lines, labeled(f, "", displayLine(l), st.text))
@@ -147,7 +147,7 @@ func (s inspectSection) View(f frame) string {
 
 func (s inspectSection) diffRow(f frame) string {
 	if s.in.DiffErr != "" {
-		return labeled(f, "diff", "! "+s.in.DiffErr, f.st.errText)
+		return labeled(f, "diff", "! "+safeLine(s.in.DiffErr), f.st.errText)
 	}
 	return labeled(f, "diff", diffHeadline(s.in.Diff), f.st.text)
 }

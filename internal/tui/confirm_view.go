@@ -54,6 +54,9 @@ type (
 )
 
 func newCloseConfirmView(sh *shared, task controller.TaskView) (view, tea.Cmd) {
+	if task.TaskState == domain.TaskClosed {
+		return nil, flashInfo(task.Name + " is already closed")
+	}
 	v := confirmView{id: nextViewID(), sh: sh, task: task}
 	id, name := v.id, task.ID
 	return v, func() tea.Msg {
@@ -70,14 +73,14 @@ func (v confirmView) Update(msg tea.Msg) (view, tea.Cmd) {
 		}
 		v.planned, v.stopOK, v.stop, v.stopErr = true, msg.stopErr == nil, msg.stop, ""
 		if msg.stopErr != nil {
-			v.stopErr = controller.OneLine(msg.stopErr.Error())
+			v.stopErr = safeLine(msg.stopErr.Error())
 		}
 	case closeDoneMsg:
 		if msg.id != v.id {
 			return v, nil
 		}
 		if msg.err != nil {
-			return nil, flashError(msg.err)
+			return nil, flashErr(msg.err)
 		}
 		done := "closed " + v.task.ID + " · its worktree, branch and agent are untouched (/closed lists it)"
 		if msg.res.Stopped {
@@ -125,7 +128,7 @@ func (v confirmView) Body(f frame) string {
 	lines := []string{st.sectionNeed.Render(truncate("close "+t.Name+"? y/N", f.width)), ""}
 	lines = append(lines, bullet(f, "hides it from the list (/closed shows it again); nothing is deleted")...)
 	lines = append(lines, bullet(f, "keeps worktree "+domain.SanitizeTerminalText(t.Worktree))...)
-	lines = append(lines, bullet(f, "keeps branch "+t.Branch)...)
+	lines = append(lines, bullet(f, "keeps branch "+safeLine(t.Branch))...)
 	if t.HasSession && t.SessionName != "" {
 		session := controller.DisplayPath(t.SessionName)
 		if t.AgentState.IsTerminal() {
@@ -151,7 +154,7 @@ func (v confirmView) stopBody(f frame) string {
 	session := controller.DisplayPath(p.SessionName)
 	lines := []string{st.sectionNeed.Render(truncate("stop and close "+t.Name+"? y/N", f.width)), ""}
 	lines = append(lines, bullet(f, "kills tmux session "+session+" (pane "+p.Identity.PaneID+", pid "+strconv.Itoa(p.Identity.PanePID)+"): the agent stops now")...)
-	lines = append(lines, bullet(f, "then closes the task; worktree and branch "+t.Branch+" are kept")...)
+	lines = append(lines, bullet(f, "then closes the task; worktree and branch "+safeLine(t.Branch)+" are kept")...)
 	if v.busy {
 		lines = append(lines, "", st.muted.Render("stopping…"))
 	}

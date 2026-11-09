@@ -24,6 +24,7 @@ type adoptView struct {
 	id      int64
 	sh      *shared
 	all     bool // every unregistered pane, not only agent commands
+	listSeq int  // the newest list request; older answers are dropped
 	loading bool
 	loaded  bool
 	cands   controller.AdoptCandidates
@@ -40,7 +41,7 @@ type adoptView struct {
 type (
 	adoptListedMsg struct {
 		id    int64
-		all   bool
+		seq   int
 		cands controller.AdoptCandidates
 		err   error
 	}
@@ -62,11 +63,12 @@ func newAdoptView(sh *shared) (view, tea.Cmd) {
 
 // list (re)loads the candidates.
 func (v adoptView) list(all bool) (adoptView, tea.Cmd) {
+	v.listSeq++
 	v.all, v.loading, v.listErr = all, true, ""
-	sh, id := v.sh, v.id
+	sh, id, seq := v.sh, v.id, v.listSeq
 	return v, func() tea.Msg {
 		c, err := sh.ctl.ListAdoptCandidates(sh.ctx, controller.CandidateQuery{All: all})
-		return adoptListedMsg{id: id, all: all, cands: c, err: err}
+		return adoptListedMsg{id: id, seq: seq, cands: c, err: err}
 	}
 }
 
@@ -75,7 +77,7 @@ func (v adoptView) Update(msg tea.Msg) (view, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		v.height = msg.Height - viewChrome
 	case adoptListedMsg:
-		if msg.id != v.id || msg.all != v.all {
+		if msg.id != v.id || msg.seq != v.listSeq {
 			return v, nil
 		}
 		v.loading, v.loaded, v.cands, v.listErr = false, true, msg.cands, ""
@@ -94,7 +96,7 @@ func (v adoptView) Update(msg tea.Msg) (view, tea.Cmd) {
 		}
 		id, p := msg.res.TaskID, v.cands.Panes[v.sel]
 		return nil, tea.Batch(v.sh.actionCmd(controller.UIActionAdopt, id), selectTask(id),
-			flashInfo("adopted "+p.PaneID+" as "+id+" · state unknown until its hooks are set up (agentctl hooks-snippet)"))
+			flashInfo(safeLine("adopted "+p.PaneID+" as "+id+" · state unknown until its hooks are set up (agentctl hooks-snippet)")))
 	case tea.PasteMsg:
 		if v.naming && !v.busy {
 			v.name, _ = v.name.Update(msg)
@@ -166,8 +168,9 @@ func (v adoptView) Body(f frame) string {
 		return v.nameBody(f)
 	}
 	st := f.st
-	what := strings.Join(v.cands.Commands, "/") + " panes"
-	title := "adopt a running " + strings.Join(v.cands.Commands, "/") + " pane"
+	cmds := safeLine(strings.Join(v.cands.Commands, "/"))
+	what := cmds + " panes"
+	title := "adopt a running " + cmds + " pane"
 	if v.all || len(v.cands.Commands) == 0 {
 		what, title = "every unregistered pane", "adopt a running pane"
 	}
@@ -188,7 +191,7 @@ func (v adoptView) Body(f frame) string {
 	if len(v.cands.Panes) == 0 {
 		none := "No unregistered " + what + " on " + socket
 		if !v.all && len(v.cands.Commands) > 0 {
-			none = "No unregistered " + strings.Join(v.cands.Commands, "/") + " panes on " + socket
+			none = "No unregistered " + cmds + " panes on " + socket
 		}
 		lines = append(lines, st.text.Render(truncate(none, f.width)))
 		if !v.all {

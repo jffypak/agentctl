@@ -684,3 +684,106 @@ func TestManageKeysNeverBlockUpdate(t *testing.T) {
 		}
 	}
 }
+
+// --- hardening ---------------------------------------------------------------
+
+// TestManageViewsNeverPrintRawEscapes: text from git, tmux, the registry or
+// config.yaml is shown sanitized in every manage view (a terminal reset or a
+// DCS string would otherwise act on the user's terminal).
+func TestManageViewsNeverPrintRawEscapes(t *testing.T) {
+	t.Parallel()
+	const evil = "x\x1bc\x1bP1$r\x1b\\y"
+	f := newFixture(t)
+	f.seed(t, everyState)
+	base := f.model(t, 120, 40, Options{})
+	authTests := []string{"j", "j", "j"}
+	screens := map[string]Model{}
+	m := press(t, base, append(authTests, "d")...)
+	screens["diff error"] = update(t, m, diffLoadedMsg{id: topView(m).(diffView).id, err: fmt.Errorf("worktree /src/%s is missing", evil)})
+	m = press(t, base, append(authTests, "d")...)
+	screens["diff paths"] = update(t, m, diffLoadedMsg{id: topView(m).(diffView).id, sum: controller.DiffSummary{BaseRef: evil,
+		Total: []controller.FileChange{{Path: evil, Added: 1}}, Untracked: []controller.FileChange{{Path: evil}}, Conflicts: []string{evil}}})
+	m = press(t, base, append(authTests, "l")...)
+	screens["logs"] = update(t, m, logsLoadedMsg{id: topView(m).(logsView).id, in: controller.Inspection{
+		Pane: controller.PaneStatus{Available: true, Note: "alive"}, Output: []string{evil, "\t" + evil}}})
+	m = press(t, base, append(authTests, "l")...)
+	screens["logs error"] = update(t, m, logsLoadedMsg{id: topView(m).(logsView).id, err: fmt.Errorf("%s", evil)})
+	m = press(t, base, "a")
+	screens["adopt"] = update(t, m, adoptListedMsg{id: topView(m).(adoptView).id, seq: topView(m).(adoptView).listSeq,
+		cands: controller.AdoptCandidates{Socket: evil, Commands: []string{"claude"}, Panes: []controller.AdoptCandidate{
+			{PaneID: "%3", PanePID: 1, SessionName: evil, Command: evil, Cwd: "/src/" + evil}}}})
+	screens["adopt name"] = press(t, screens["adopt"], "enter")
+	m = typeText(t, press(t, base, "n"), "ok")
+	m = press(t, m, "enter", "enter")
+	screens["new error"] = update(t, m, newTaskDoneMsg{id: topView(m).(newTaskView).id, err: fmt.Errorf("%s", evil)})
+	m = press(t, base, append(authTests, "x")...)
+	screens["confirm"] = update(t, m, closePlanMsg{id: topView(m).(confirmView).id, stopErr: fmt.Errorf("%s", evil)})
+	km, warn := ConfigKeyMap(configEnv(t, "keys:\n  \""+strings.ReplaceAll(evil, "\x1b", `\e`)+"\": d\n").Getenv, "")
+	screens["config banner"] = f.model(t, 120, 40, Options{Keys: km, Warning: warn})
+	for name, s := range screens {
+		if out := plain(s.View().Content); strings.ContainsRune(out, '\x1b') {
+			t.Errorf("%s: a raw escape reached the screen: %q", name, out)
+		}
+	}
+}
+
+func TestCloseOnAClosedTaskSaysSo(t *testing.T) {
+	t.Parallel()
+	f := newFixture(t)
+	f.seed(t, everyState)
+	m := press(t, f.model(t, 80, 24, Options{}), "/", "c", "l", "o", "s", "e", "d", "enter") // archived
+	m = pressRun(t, m, "x")
+	if topView(m) != nil || !strings.Contains(screenText(m), "archived is already closed") {
+		t.Fatalf("x on a closed task:\n%s", screenText(m))
+	}
+}
+
+// TestAdoptPickerDropsStaleLists: toggling quickly sends several list
+// requests; only the newest may fill the picker (the name step must keep the
+// pane it was opened for).
+func TestAdoptPickerDropsStaleLists(t *testing.T) {
+	t.Parallel()
+	f := newFixture(t)
+	m := press(t, f.model(t, 80, 24, Options{}), "a", "a", "a") // requests 1 (claude), 2 (all), 3 (claude)
+	v := topView(m).(adoptView)
+	pane := func(id string) controller.AdoptCandidates {
+		return controller.AdoptCandidates{Socket: "/s", Commands: []string{"claude"}, Panes: []controller.AdoptCandidate{{PaneID: id, PanePID: 1, Command: "claude", Cwd: "/w"}}}
+	}
+	m = update(t, m, adoptListedMsg{id: v.id, seq: v.listSeq - 2, cands: pane("%1")}) // stale, same filter
+	if strings.Contains(screenText(m), "%1") {
+		t.Fatalf("a stale list was shown:\n%s", screenText(m))
+	}
+	m = update(t, m, adoptListedMsg{id: v.id, seq: v.listSeq, cands: pane("%2")})
+	m = press(t, m, "enter")
+	m = update(t, m, adoptListedMsg{id: v.id, seq: v.listSeq - 2, cands: pane("%1")}) // late, while naming
+	if txt := screenText(m); !strings.Contains(txt, "adopt %2") {
+		t.Fatalf("the name step lost its pane:\n%s", txt)
+	}
+}
+
+// TestDetailInspectRetriesALostResult: the shell hands results to the view on
+// top, so an Inspect answer that arrives while the diff view is open never
+// reaches the detail; the section asks again on a later refresh instead of
+// showing "loading…" forever.
+func TestDetailInspectRetriesALostResult(t *testing.T) {
+	t.Parallel()
+	f := newManageFixture(t)
+	res := f.newTask(t, "auth-tests", "goal")
+	f.tm.setOutput(res.Identity.PaneID, "hello from the pane\n")
+	m, inspect := pressCmd(t, f.managed(t, 120, 40, Options{}), "enter")
+	m = press(t, m, "d")
+	m = runLong(t, m, inspect) // lands in the diff view
+	m = press(t, m, "esc")
+	if !strings.Contains(screenText(m), "output     loading…") {
+		t.Fatalf("expected the lost result:\n%s", screenText(m))
+	}
+	m = runLong(t, m, pollCmd(m.sh, m.lastID, true)) // a refresh soon after: not yet retried
+	if !strings.Contains(screenText(m), "output     loading…") {
+		t.Fatalf("retried too early:\n%s", screenText(m))
+	}
+	m.detail.inspect.sentAt = time.Now().Add(-inspectRetry - time.Second)
+	m = runLong(t, m, pollCmd(m.sh, m.lastID, true))
+	if !strings.Contains(screenText(m), "hello from the pane") {
+		t.Fatalf("no retry after %v:\n%s", inspectRetry, screenText(m))
+	}
+}

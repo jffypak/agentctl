@@ -40,14 +40,14 @@ func ConfigKeyMap(getenv func(string) string, warning string) (*KeyMap, string) 
 		if !errors.Is(err, config.ErrMalformed) {
 			msg = oneLine(err.Error())
 		}
-		return nil, joinWarnings(warning, "config.yaml: "+msg+"; using default keys ("+path+")")
+		return nil, joinWarnings(warning, safeLine("config.yaml: "+msg+"; using default keys ("+path+")"))
 	}
 	if len(cfg.Keys) == 0 {
 		return nil, warning
 	}
 	km, err := KeyMapFromConfig(cfg.Keys)
 	if err != nil {
-		return nil, joinWarnings(warning, err.Error()+"; using default keys ("+path+")")
+		return nil, joinWarnings(warning, safeLine(err.Error()+"; using default keys ("+path+")"))
 	}
 	return &km, warning
 }

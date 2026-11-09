@@ -109,12 +109,14 @@ func TestManageGolden(t *testing.T) {
 		}},
 		{"adopt", func(t *testing.T, w, h int) Model {
 			m := press(t, seeded(t, w, h), "a")
-			m = update(t, m, adoptListedMsg{id: topView(m).(adoptView).id, cands: goldenCandidates})
+			v := topView(m).(adoptView)
+			m = update(t, m, adoptListedMsg{id: v.id, seq: v.listSeq, cands: goldenCandidates})
 			return press(t, m, "j")
 		}},
 		{"adopt_name", func(t *testing.T, w, h int) Model {
 			m := press(t, seeded(t, w, h), "a")
-			m = update(t, m, adoptListedMsg{id: topView(m).(adoptView).id, cands: goldenCandidates})
+			v := topView(m).(adoptView)
+			m = update(t, m, adoptListedMsg{id: v.id, seq: v.listSeq, cands: goldenCandidates})
 			return press(t, m, "enter")
 		}},
 		{"confirm", func(t *testing.T, w, h int) Model {

@@ -157,7 +157,7 @@ func (v logsView) Body(f frame) string {
 	case v.err != "":
 		return strings.Join(append([]string{viewTitle(f, "logs", v.task.Name, "")}, errorLines(f, v.err)...), "\n")
 	case !in.Pane.Available:
-		lines := []string{viewTitle(f, "logs", v.task.Name, ""), st.unknown.Render(truncate(in.Pane.Note, f.width)),
+		lines := []string{viewTitle(f, "logs", v.task.Name, ""), st.unknown.Render(truncate(safeLine(in.Pane.Note), f.width)),
 			st.muted.Render(truncate("nothing is captured from a pane whose identity cannot be verified", f.width))}
 		if v.note != "" {
 			lines = append(lines, "", v.noteLine(f))
@@ -191,10 +191,10 @@ func (v logsView) noteLine(f frame) string {
 		return strings.Join(errorLines(f, v.note), "\n")
 	}
 	if v.savedTo == "" {
-		return f.st.muted.Render(truncate(v.note, f.width))
+		return f.st.muted.Render(truncate(safeLine(v.note), f.width))
 	}
 	// a long path keeps its end (the task directory and the file name)
-	return f.st.muted.Render(savedPrefix + truncateLeft(v.savedTo, max(f.width-len(savedPrefix), 1)))
+	return f.st.muted.Render(savedPrefix + truncateLeft(safeLine(v.savedTo), max(f.width-len(savedPrefix), 1)))
 }
 
 func (v logsView) Hints() []key.Binding {
