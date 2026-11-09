@@ -459,9 +459,10 @@ func (mr *Messages) SweepStale(ctx context.Context, sessionID int64, window time
 			if s.state == string(domain.MsgDelivering) {
 				reason, evType = "delivery interrupted (claimed, never marked sent)", domain.EventMessageClaimed
 			}
-			var cause int64
-			_ = tx.QueryRowContext(ctx, `SELECT COALESCE(MAX(id), 0) FROM events WHERE type = ? AND json_extract(payload, '$.message_id') = ?`,
-				evType, s.id).Scan(&cause)
+			cause, err := messageEventID(ctx, tx, evType, s.id)
+			if err != nil {
+				return err
+			}
 			_, ok, err := mr.apply(ctx, tx, change{id: s.id, from: []domain.MessageState{domain.MsgDelivering, domain.MsgSent},
 				to: domain.MsgUnconfirmed, set: "error = ?, ", args: []any{reason}, event: domain.EventMessageUnconfirmed,
 				cause: cause, payload: map[string]any{"reason": reason}})
@@ -475,4 +476,71 @@ func (mr *Messages) SweepStale(ctx context.Context, sessionID int64, window time
 		return nil
 	})
 	return swept, err
+}
+
+// MessageEventID is the newest event of type typ about message id (0 if
+// none), used as the cause_id of a later event in the same chain.
+func (mr *Messages) MessageEventID(ctx context.Context, typ string, id int64) (int64, error) {
+	return messageEventID(ctx, mr.s.db, typ, id)
+}
+
+func messageEventID(ctx context.Context, q querier, typ string, id int64) (int64, error) {
+	var ev int64
+	err := q.QueryRowContext(ctx, `SELECT COALESCE(MAX(id), 0) FROM events WHERE type = ? AND json_extract(payload, '$.message_id') = ?`,
+		typ, id).Scan(&ev)
+	if err != nil {
+		return 0, fmt.Errorf("store: %s event of message %d: %w", typ, id, err)
+	}
+	return ev, nil
+}
+
+// ReadyCause is the event that made the session ready most recently: the
+// hook.received cause of its newest agent.state_changed{to: ready} (or that
+// event itself when it has no cause). 0 when the session never became ready.
+// Drain uses it as the cause_id of message.claimed / message.sent.
+func (mr *Messages) ReadyCause(ctx context.Context, sessionID int64) (int64, error) {
+	var id int64
+	err := mr.s.db.QueryRowContext(ctx, `SELECT COALESCE(cause_id, id) FROM events
+		WHERE session_id = ? AND type = ? AND json_extract(payload, '$.to') = 'ready'
+		ORDER BY id DESC LIMIT 1`, sessionID, domain.EventAgentStateChanged).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, fmt.Errorf("store: ready cause of session %d: %w", sessionID, err)
+	}
+	return id, nil
+}
+
+// Submit is one recorded UserPromptSubmit hook.
+type Submit struct {
+	EventID      int64
+	TS           time.Time
+	PromptSHA256 string
+}
+
+// SubmitsSince returns the session's UserPromptSubmit hook.received events
+// with id > afterID, oldest first. The deliverer acks from them when the
+// submit's own hook raced the paste's MarkSent.
+func (mr *Messages) SubmitsSince(ctx context.Context, sessionID, afterID int64) ([]Submit, error) {
+	rows, err := mr.s.db.QueryContext(ctx, `SELECT id, ts, COALESCE(json_extract(payload, '$.prompt_sha256'), '') FROM events
+		WHERE session_id = ? AND id > ? AND type = ? AND json_extract(payload, '$.event') = 'UserPromptSubmit'
+		ORDER BY id`, sessionID, afterID, domain.EventHookReceived)
+	if err != nil {
+		return nil, fmt.Errorf("store: submits of session %d: %w", sessionID, err)
+	}
+	defer rows.Close()
+	var out []Submit
+	for rows.Next() {
+		var (
+			s  Submit
+			ts int64
+		)
+		if err := rows.Scan(&s.EventID, &ts, &s.PromptSHA256); err != nil {
+			return nil, err
+		}
+		s.TS = fromMS(ts)
+		out = append(out, s)
+	}
+	return out, rows.Err()
 }
