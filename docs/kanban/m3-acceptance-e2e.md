@@ -1,7 +1,7 @@
 ---
 id: m3-acceptance-e2e
 title: Prove every Phase-1 acceptance criterion end-to-end; demo script; README
-status: todo
+status: in-progress
 priority: medium
 milestone: m3-phase1-acceptance
 labels:
@@ -11,7 +11,7 @@ dependencies:
 - m2-prompt-queue
 - m2-tui-manage
 created: '2026-11-06'
-updated: '2026-11-06'
+updated: '2026-11-09'
 acceptance_criteria: '- TestAC1_TwoAgentsSwitchFromTUI: two fakeagents, TUI navigation,
   control-mode client confirms each switch
 
@@ -41,6 +41,11 @@ history:
 - when: '2026-11-06'
   from: null
   to: todo
+- when: '2026-11-09'
+  from: todo
+  to: in-progress
+  note: 'director: dispatched to worktree /Users/jpark/Code/agent-tui/.tinkerbell/worktrees/m3-acceptance-e2e
+    (tb/m3-acceptance-e2e)'
 ---
 
 # Prove every Phase-1 acceptance criterion end-to-end; demo script; README
