@@ -2,7 +2,7 @@
 id: m2-tui-inbox
 title: 'Attention-first TUI: list, detail, attach/focus, empty/error states, `stats`,
   `tmux-binding`'
-status: in-progress
+status: done
 priority: medium
 milestone: m2-direct-agents
 labels:
@@ -11,7 +11,7 @@ labels:
 dependencies:
 - m1-walking-skeleton
 created: '2026-11-06'
-updated: '2026-11-07'
+updated: '2026-11-08'
 acceptance_criteria: "- Header `agents / <repo> \xB7 N running \xB7 M need you` (`all\
   \ repos` outside a repo); sections NEEDS YOU / IDLE / RUNNING / UNKNOWN in order,\
   \ oldest state_since first; closed hidden, `/closed` shows them\n- Keys: j/k + arrows\
@@ -42,6 +42,10 @@ history:
   to: in-progress
   note: 'director: dispatched to worktree /Users/jpark/Code/agent-tui/.tinkerbell/worktrees/m2-tui-inbox
     (tb/m2-tui-inbox)'
+- when: '2026-11-08'
+  from: in-progress
+  to: done
+  note: "director: done \u2014 acceptance pass green; promote to done"
 ---
 
 # Attention-first TUI: list, detail, attach/focus, empty/error states, `stats`, `tmux-binding`
