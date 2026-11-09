@@ -1,6 +1,6 @@
 # Kanban board
 
-_17 issue(s) — auto-generated; do not edit by hand._
+_18 issue(s) — auto-generated; do not edit by hand._
 
 <!-- tb:kanban:board:begin -->
 ## backlog (4)
@@ -22,9 +22,9 @@ _empty_
 
 _empty_
 
-## in-review (0)
+## in-review (1)
 
-_empty_
+- **m3-repo-scope** [List every repo by default (r = this repo) and pick the repo for a new agent](kanban/m3-repo-scope.md) — _m3-phase1-acceptance_ `phase-1` `ux` `user-request`
 
 ## done (13)
 
