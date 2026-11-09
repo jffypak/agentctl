@@ -10,13 +10,13 @@ _14 issue(s) — auto-generated; do not edit by hand._
 - **m4-task-contracts-checks** [Phase 2: task contracts + controller-executed checks + verified gating](kanban/m4-task-contracts-checks.md) — `low` _m4-verified-tasks_ `spec-derived` `later-phase`
 - **m5-workflow-graph** [Phase 3: declarative workflow DAG, integration checkout, locks, graph view](kanban/m5-workflow-graph.md) — `low` _m5-workflow-graph_ `spec-derived` `later-phase`
 
-## todo (2)
+## todo (1)
 
-- **m2-hardening-followups** [Hardening follow-ups from m1-flaky-tests (testenv restart race, dying-server handling, Repos.Upsert via withTx)](kanban/m2-hardening-followups.md) — _m2-direct-agents_ `phase-1` `reliability`
 - **m3-acceptance-e2e** [Prove every Phase-1 acceptance criterion end-to-end; demo script; README](kanban/m3-acceptance-e2e.md) — _m3-phase1-acceptance_ `spec-derived` `phase-1`
 
-## in-progress (1)
+## in-progress (2)
 
+- **m2-hardening-followups** [Hardening follow-ups from m1-flaky-tests (testenv restart race, dying-server handling, Repos.Upsert via withTx)](kanban/m2-hardening-followups.md) — _m2-direct-agents_ `phase-1` `reliability`
 - **m2-prompt-queue** [Safe deliver-or-queue prompts with acks: `send`, hook-triggered `deliver`, TUI composer](kanban/m2-prompt-queue.md) — _m2-direct-agents_ `spec-derived` `phase-1`
 
 ## blocked (0)
