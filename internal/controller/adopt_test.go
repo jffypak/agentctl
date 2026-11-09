@@ -3,11 +3,14 @@ package controller
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/jffypak/agentctl/internal/domain"
 	"github.com/jffypak/agentctl/internal/testenv"
@@ -262,5 +265,111 @@ func TestAdoptAfterRestartTreatsReusedPaneAsNew(t *testing.T) {
 	}
 	if s := piSession(t, f.ctl, "demo"); s.State != domain.StateDisconnected || s.Identity != old.Identity {
 		t.Fatalf("old task re-attributed: %+v", s)
+	}
+}
+
+// versionedClaude lays out a Claude Code install the way the real launcher
+// does: <dir>/claude/versions/9.9.9 is the binary (a copy of fakeagent, so
+// tmux reports pane_current_command "9.9.9" on macOS) and <dir>/bin/claude is
+// a symlink to it. It also returns an unrelated version-named binary
+// <dir>/other/8.8.8. Returns (launcher symlink, unrelated binary).
+func versionedClaude(t *testing.T) (string, string) {
+	t.Helper()
+	fake, err := os.ReadFile(testenv.BuildFakeAgent(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := realDir(t)
+	bin, other := filepath.Join(dir, "claude", "versions", "9.9.9"), filepath.Join(dir, "other", "8.8.8")
+	launcher := filepath.Join(dir, "bin", "claude")
+	for _, p := range []string{bin, other, launcher} {
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, p := range []string{bin, other} {
+		if err := os.WriteFile(p, fake, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Symlink(bin, launcher); err != nil {
+		t.Fatal(err)
+	}
+	return launcher, other
+}
+
+// waitCommands waits until every pane reports its expected command set
+// (tmux sees the exec only once the child has run it).
+func waitCommands(t *testing.T, srv *testenv.TmuxServer, want map[string][]string) {
+	t.Helper()
+	testenv.WaitFor(t, 10*time.Second, "panes exec'd", func() (bool, string) {
+		snap := srv.Snapshot(t)
+		for id, names := range want {
+			p, ok := snap.Find(id)
+			if !ok || !containsString(names, p.CurrentCommand) {
+				return false, fmt.Sprintf("%s: %+v", id, p)
+			}
+		}
+		return true, ""
+	})
+}
+
+func TestAdoptCandidatesRecogniseVersionNamedClaude(t *testing.T) {
+	t.Parallel()
+	testenv.RequireTool(t, "ps")
+	f := newFixture(t, sleepAgent)
+	piNewTask(t, f.ctl, f.repo, "demo")
+	ctx := context.Background()
+	launcher, other := versionedClaude(t)
+	af := &adoptFixture{fixture: f, ctl: f.ctl}
+	// "--settings=" is fakeagent's no-op flag (tmux needs argv >= 2 elements)
+	claudePane := af.userPane(t, "real", f.repo.Root, launcher, "--settings=")
+	af.userPane(t, "unrelated", f.repo.Root, other, "--settings=")
+	af.userPane(t, "shell", f.repo.Root, "/bin/sh", "-i")
+	// Linux names the process after the symlink ("claude"); macOS after the
+	// binary ("9.9.9"), which is the case the process table must resolve.
+	waitCommands(t, f.srv, map[string][]string{claudePane.PaneID: {"9.9.9", "claude"}})
+
+	var calls atomic.Int32
+	realProcs := f.ctl.procs
+	f.ctl.procs = func(ctx context.Context) ([]proc, error) { calls.Add(1); return realProcs(ctx) }
+	list, err := f.ctl.ListAdoptCandidates(ctx, CandidateQuery{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list.Panes) != 1 || list.Panes[0].PaneID != claudePane.PaneID || list.Warning != "" {
+		t.Fatalf("candidates = %+v, want only the claude pane %s", list, claudePane.PaneID)
+	}
+	if n := calls.Load(); n != 1 {
+		t.Fatalf("process table read %d times for one listing, want 1", n)
+	}
+
+	// the env override keeps exact pane_current_command matching: no ps
+	calls.Store(0)
+	exact := openController(t, f.env.With(EnvAdoptCommands+"=8.8.8"))
+	exact.procs = func(context.Context) ([]proc, error) { calls.Add(1); return nil, nil }
+	if l, err := exact.ListAdoptCandidates(ctx, CandidateQuery{}); err != nil || len(l.Panes) != 1 || l.Panes[0].SessionName != "unrelated" || calls.Load() != 0 {
+		t.Fatalf("override list = %+v %v (ps calls %d), want only the 8.8.8 pane", l, err, calls.Load())
+	}
+
+	// a failing process table degrades to the exact match, with a warning
+	f.ctl.procs = func(context.Context) ([]proc, error) { return nil, errors.New("ps: boom") }
+	degraded, err := f.ctl.ListAdoptCandidates(ctx, CandidateQuery{})
+	if err != nil || !strings.Contains(degraded.Warning, "ps: boom") {
+		t.Fatalf("degraded = %+v %v, want a warning naming the ps failure", degraded, err)
+	}
+	for _, p := range degraded.Panes { // exact pane_current_command matches only
+		if p.Command != "claude" {
+			t.Fatalf("degraded listing offered %+v without the process table", p)
+		}
+	}
+	f.ctl.procs = realProcs
+
+	// once adopted, the pane is registered and no longer offered
+	if _, err := f.ctl.Adopt(ctx, AdoptRequest{PaneID: claudePane.PaneID, Name: "real"}); err != nil {
+		t.Fatal(err)
+	}
+	if l, err := f.ctl.ListAdoptCandidates(ctx, CandidateQuery{}); err != nil || len(l.Panes) != 0 {
+		t.Fatalf("after adopt = %+v %v", l.Panes, err)
 	}
 }

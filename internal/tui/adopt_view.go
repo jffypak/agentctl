@@ -182,9 +182,12 @@ func (v adoptView) Body(f frame) string {
 		return strings.Join(append(lines, errorLines(f, v.listErr)...), "\n")
 	}
 	socket := controller.DisplayPath(v.cands.Socket)
-	if v.loading {
+	switch {
+	case v.loading:
 		lines = append(lines, st.muted.Render("loading…"))
-	} else {
+	case v.cands.Warning != "": // degraded listing: one line, in place of the socket line
+		lines = append(lines, st.errText.Render(truncate("! "+safeLine(v.cands.Warning), f.width)))
+	default:
 		lines = append(lines, st.muted.Render(truncate(what+" on "+socket, f.width)))
 	}
 	lines = append(lines, "")

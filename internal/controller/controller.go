@@ -55,6 +55,7 @@ type Controller struct {
 	tmuxInjected bool
 	git          gitx.Git
 	agent        adapter.AgentAdapter
+	procs        procLister // process table for adopt matching (adopt_match.go)
 	uid          int
 }
 
@@ -104,6 +105,7 @@ func Open(ctx context.Context, cfg Config) (*Controller, error) {
 	if exe == "" {
 		exe, _ = os.Executable()
 	}
+	c.procs = c.psProcs
 	c.agent = claude.New(claude.Config{Runner: c.tmuxRunner, AgentctlPath: exe, Now: c.now})
 	return c, nil
 }
