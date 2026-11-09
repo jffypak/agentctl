@@ -19,9 +19,9 @@ var allMessageStates = []MessageState{
 func TestAgentStateTransitions(t *testing.T) {
 	allowed := map[AgentState][]AgentState{
 		StateStarting:      {StateReady, StateWorking, StateAwaitingInput, StateUnknown, StateStopped, StateFailed, StateDisconnected},
-		StateReady:         {StateWorking, StateAwaitingInput, StateStopped, StateFailed, StateDisconnected},
-		StateWorking:       {StateReady, StateAwaitingInput, StateStopped, StateFailed, StateDisconnected},
-		StateAwaitingInput: {StateReady, StateWorking, StateStopped, StateFailed, StateDisconnected},
+		StateReady:         {StateWorking, StateAwaitingInput, StateUnknown, StateStopped, StateFailed, StateDisconnected},
+		StateWorking:       {StateReady, StateAwaitingInput, StateUnknown, StateStopped, StateFailed, StateDisconnected},
+		StateAwaitingInput: {StateReady, StateWorking, StateUnknown, StateStopped, StateFailed, StateDisconnected},
 		StateUnknown:       {StateReady, StateWorking, StateAwaitingInput, StateStopped, StateFailed, StateDisconnected},
 		StateStopped:       {},
 		StateFailed:        {},
@@ -66,8 +66,12 @@ func TestUnknownAcceptsHookStates(t *testing.T) {
 			t.Errorf("unknown -> %s must be allowed (hook evidence)", to)
 		}
 	}
-	if CanTransition(StateReady, StateUnknown) {
-		t.Error("ready -> unknown must not be allowed (only starting times out to unknown)")
+	// lost-hook safety (m2-prompt-queue): reconcile downgrades a live state
+	// whose hook was lost; terminal states stay sticky.
+	for _, from := range []AgentState{StateReady, StateWorking, StateAwaitingInput} {
+		if !CanTransition(from, StateUnknown) {
+			t.Errorf("%s -> unknown must be allowed (lost-hook downgrade)", from)
+		}
 	}
 }
 

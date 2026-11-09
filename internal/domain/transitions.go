@@ -5,9 +5,9 @@ package domain
 // outgoing moves: a later hook or observation never revives them.
 var agentTransitions = map[AgentState][]AgentState{
 	StateStarting:      {StateReady, StateWorking, StateAwaitingInput, StateUnknown, StateStopped, StateFailed, StateDisconnected},
-	StateReady:         {StateWorking, StateAwaitingInput, StateStopped, StateFailed, StateDisconnected},
-	StateWorking:       {StateReady, StateAwaitingInput, StateStopped, StateFailed, StateDisconnected},
-	StateAwaitingInput: {StateReady, StateWorking, StateStopped, StateFailed, StateDisconnected},
+	StateReady:         {StateWorking, StateAwaitingInput, StateUnknown, StateStopped, StateFailed, StateDisconnected},
+	StateWorking:       {StateReady, StateAwaitingInput, StateUnknown, StateStopped, StateFailed, StateDisconnected},
+	StateAwaitingInput: {StateReady, StateWorking, StateUnknown, StateStopped, StateFailed, StateDisconnected},
 	StateUnknown:       {StateReady, StateWorking, StateAwaitingInput, StateStopped, StateFailed, StateDisconnected},
 	StateStopped:       nil,
 	StateFailed:        nil,
@@ -17,7 +17,10 @@ var agentTransitions = map[AgentState][]AgentState{
 // CanTransition reports whether a session may move from one agent state to
 // another. from == to is an allowed no-op for valid states (store.Transition
 // does not reset state_since or append an event for it). Nothing ever moves
-// back to starting; only starting may become unknown (StartingTimeout).
+// back to starting. Starting becomes unknown on StartingTimeout; a live
+// state becomes unknown only when reconcile finds a lost-hook marker newer
+// than it (m2-prompt-queue, ARCHITECTURE.md §Lost-hook safety): the recorded
+// state can no longer be trusted. Hooks never produce unknown.
 func CanTransition(from, to AgentState) bool {
 	if !from.Valid() || !to.Valid() {
 		return false
