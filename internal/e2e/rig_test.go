@@ -373,3 +373,27 @@ func (r *rig) waitDeliversDone() {
 		return strings.TrimSpace(string(out)) == "", string(out)
 	})
 }
+
+// stateChanges is task's agent.state_changed history as "from>to".
+func (r *rig) stateChanges(task string) []string {
+	r.t.Helper()
+	st, err := store.Open(context.Background(), r.paths.DB, store.Options{})
+	if err != nil {
+		r.t.Fatal(err)
+	}
+	defer st.Close()
+	evs, err := st.Events().ForTask(context.Background(), task)
+	if err != nil {
+		r.t.Fatal(err)
+	}
+	var out []string
+	for _, e := range evs {
+		if e.Type != domain.EventAgentStateChanged {
+			continue
+		}
+		var p struct{ From, To string }
+		_ = json.Unmarshal(e.Payload, &p)
+		out = append(out, p.From+">"+p.To)
+	}
+	return out
+}
