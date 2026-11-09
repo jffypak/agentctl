@@ -89,6 +89,7 @@ type AttentionInput struct {
 	AgentState AgentState
 	Confidence Confidence
 	Messages   MessageSummary
+	Origin     Origin // launched agents that fall silent need the user; adopted ones are expected to be unknown
 }
 
 // Attention is the classification result: a section plus a short label that
@@ -108,7 +109,9 @@ type Attention struct {
 //     (it can never be delivered; honest rather than silently stuck)
 //   - ready -> IDLE "ready"; stopped -> IDLE "exited" (never worded as success)
 //   - starting, working -> RUNNING
-//   - unknown, or no session yet -> UNKNOWN
+//   - unknown on a *launched* agent -> NEEDS YOU "silent since launch": it only
+//     gets there by never sending a hook (trust prompt, login, early hang)
+//   - unknown (adopted / no origin), or no session yet -> UNKNOWN
 //
 // Agent-state reasons outrank message reasons in the label.
 func ClassifyAttention(in AttentionInput) Attention {
@@ -146,6 +149,10 @@ func ClassifyAttention(in AttentionInput) Attention {
 		return Attention{SectionRunning, "starting"}
 	case StateWorking:
 		return Attention{SectionRunning, "working"}
+	case StateUnknown:
+		if in.Origin == OriginLaunched {
+			return Attention{SectionNeedsYou, "silent since launch · attach to check"}
+		}
 	}
 	return Attention{SectionUnknown, "unknown"}
 }

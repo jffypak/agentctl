@@ -342,6 +342,7 @@ These are used by the acceptance pass. A violation is a failing review.
 | **NEEDS YOU** | `awaiting_input`, `disconnected`, `failed`, or any message `unconfirmed`/`failed`, or a queued message on an `unknown` agent |
 | **IDLE** | `ready`: turn finished, waiting for the next instruction or review. Also `stopped`, labelled **exited** (never worded as success) |
 | **RUNNING** | `starting`, `working` |
+| **NEEDS YOU** (also) | `unknown` on a **launched** agent → "silent since launch · attach to check": it never sent a hook (Claude's folder-trust or login prompt, early hang) |
 | **UNKNOWN** | `unknown` (adopted without hooks): muted |
 | *(hidden)* | tasks in state `closed`; shown with the `/` filter `closed` |
 
