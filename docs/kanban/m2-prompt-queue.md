@@ -2,7 +2,7 @@
 id: m2-prompt-queue
 title: 'Safe deliver-or-queue prompts with acks: `send`, hook-triggered `deliver`,
   TUI composer'
-status: backlog
+status: in-progress
 priority: medium
 milestone: m2-direct-agents
 labels:
@@ -13,7 +13,7 @@ dependencies:
 - m2-tui-inbox
 - m1-flaky-tests
 created: '2026-11-06'
-updated: '2026-11-08'
+updated: '2026-11-09'
 acceptance_criteria: "- CanDeliver table: only ready + hook confidence + alive passes;\
   \ every other combination returns its label ('agent working', 'awaiting input',\
   \ 'attach to deliver', 'disconnected')\n- 20 concurrent Drain calls (goroutines\
@@ -49,6 +49,11 @@ history:
   to: backlog
   note: 'director: added lost-hook safety rule + dependency on m1-flaky-tests before
     dispatch'
+- when: '2026-11-09'
+  from: backlog
+  to: in-progress
+  note: 'director: dispatched to worktree /Users/jpark/Code/agent-tui/.tinkerbell/worktrees/m2-prompt-queue
+    (tb/m2-prompt-queue)'
 ---
 
 # Safe deliver-or-queue prompts with acks: `send`, hook-triggered `deliver`, TUI composer
