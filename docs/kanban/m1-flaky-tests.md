@@ -2,7 +2,7 @@
 id: m1-flaky-tests
 title: Root-cause and fix two load-sensitive flaky tests (SQLite BUSY in store, tmux
   restart in kill_test)
-status: in-progress
+status: done
 priority: high
 milestone: m1-see-agents
 labels:
@@ -10,7 +10,7 @@ labels:
 - phase-1
 - reliability
 created: '2026-11-08'
-updated: '2026-11-08'
+updated: '2026-11-09'
 acceptance_criteria: '- Root cause of each flake identified and written up in docs/notes/m1-flaky-tests.md,
   with the evidence (extended error codes, reproduction)
 
@@ -34,6 +34,10 @@ history:
   to: in-progress
   note: 'director: dispatched to worktree /Users/jpark/Code/agent-tui/.tinkerbell/worktrees/m1-flaky-tests
     (tb/m1-flaky-tests)'
+- when: '2026-11-09'
+  from: in-progress
+  to: done
+  note: "director: done \u2014 acceptance pass green; promote to done"
 ---
 
 # Root-cause and fix two load-sensitive flaky tests (SQLite BUSY in store, tmux restart in kill_test)
