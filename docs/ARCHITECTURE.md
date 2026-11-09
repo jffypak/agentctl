@@ -465,8 +465,12 @@ tmux 3.5a, `DEMO_AGENT=claude scripts/demo.sh`, two runs):
   the NEEDS YOU permission path is still only proven against fakeagent.
 - **Claude `pane_current_command` is the version string** (`2.1.319`), not
   `claude`: the binary is a symlink into a versions directory. The default
-  adopt filter (`DefaultAdoptCommands = ["claude"]`) therefore matches no real
-  Claude pane. Tracked in `m3-adopt-claude-match`.
+  adopt filter (`DefaultAdoptCommands = ["claude"]`) therefore matched no real
+  Claude pane. *Resolved (`m3-adopt-claude-match`):* when `claude` is an adopt
+  command, panes that fail the exact match are resolved with one `ps` per
+  listing; a pane matches when its tty's foreground process group has argv[0]
+  `claude` (basename) or under a `claude/versions/` directory. Other names in
+  `AGENTCTL_ADOPT_COMMANDS` stay exact `pane_current_command` matches.
 - **Folder trust blocks every first run.** Each worktree is a new path, so
   Claude shows its trust dialog before any hook fires. The agent sits in
   `starting` and surfaces as `unknown` only after `StartingTimeout` (30 s). We
