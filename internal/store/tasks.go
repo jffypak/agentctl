@@ -66,16 +66,23 @@ func (t *Tasks) Reserve(ctx context.Context, task Task) (Task, error) {
 	}
 	now := t.s.now()
 	task.State, task.CreatedAt, task.UpdatedAt, task.ClosedAt = domain.TaskRunning, now, now, time.Time{}
-	_, err := t.s.db.ExecContext(ctx, `INSERT INTO tasks (`+taskCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
-		task.ID, task.RepoID, task.Name, task.Goal, task.State, task.WorktreePath, task.Branch,
-		task.BaseRef, task.BaseSHA, ms(now), ms(now))
-	if isConstraint(err) {
-		if ok, _ := t.Exists(ctx, task.ID); ok {
-			return Task{}, fmt.Errorf("store: task %s: %w", task.ID, ErrTaskExists)
+	err := t.s.withTx(ctx, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, `INSERT INTO tasks (`+taskCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
+			task.ID, task.RepoID, task.Name, task.Goal, task.State, task.WorktreePath, task.Branch,
+			task.BaseRef, task.BaseSHA, ms(now), ms(now))
+		if isConstraint(err) {
+			var n int
+			if qerr := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM tasks WHERE id = ?`, task.ID).Scan(&n); qerr == nil && n > 0 {
+				return fmt.Errorf("store: task %s: %w", task.ID, ErrTaskExists)
+			}
 		}
-	}
+		if err != nil {
+			return fmt.Errorf("store: reserve task %s: %w", task.ID, err)
+		}
+		return nil
+	})
 	if err != nil {
-		return Task{}, fmt.Errorf("store: reserve task %s: %w", task.ID, err)
+		return Task{}, err
 	}
 	return task, nil
 }

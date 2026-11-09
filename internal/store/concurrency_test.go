@@ -46,7 +46,9 @@ func writerLoop(ctx context.Context, st *Store, own, shared int64, tag string) e
 	return nil
 }
 
-func isBusy(err error) bool {
+// isBusyOrLocked counts any lock failure, including one only visible in a
+// helper process's output text.
+func isBusyOrLocked(err error) bool {
 	var se *sqlite.Error
 	if errors.As(err, &se) {
 		return se.Code()&0xff == sqlite3.SQLITE_BUSY || se.Code()&0xff == sqlite3.SQLITE_LOCKED
@@ -66,12 +68,12 @@ func TestHelperStoreWriter(t *testing.T) {
 	// Hook processes open with the shorter hook busy timeout.
 	st, err := Open(context.Background(), dbPath, Options{BusyTimeout: 1500 * time.Millisecond})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "HELPER-ERROR open: %v busy=%v\n", err, isBusy(err))
+		fmt.Fprintf(os.Stderr, "HELPER-ERROR open: %v busy=%v\n", err, isBusyOrLocked(err))
 		os.Exit(3)
 	}
 	defer st.Close()
 	if err := writerLoop(context.Background(), st, own, shared, "proc"+os.Getenv(helperEnvSession)); err != nil {
-		fmt.Fprintf(os.Stderr, "HELPER-ERROR %v busy=%v\n", err, isBusy(err))
+		fmt.Fprintf(os.Stderr, "HELPER-ERROR %v busy=%v\n", err, isBusyOrLocked(err))
 		os.Exit(4)
 	}
 	fmt.Println("HELPER-OK")
@@ -135,7 +137,7 @@ func TestConcurrentWritersNoBusy(t *testing.T) {
 	close(errs)
 	busy := 0
 	for err := range errs {
-		if isBusy(err) {
+		if isBusyOrLocked(err) {
 			busy++
 		}
 		t.Errorf("goroutine writer: %v", err)
