@@ -349,7 +349,9 @@ func TestSendRejectsTerminalAgentsAndStoresNothing(t *testing.T) {
 	}
 	// the pane died since the last reconcile: the send probes, records it and refuses
 	r := newPQRig(t, pqTunables())
-	r.srv.Run(t, "kill-pane", "-t", r.sess.Identity.PaneID)
+	if err := r.srv.Client().KillVerifiedSession(ctx, r.sess.Identity); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := r.ctl.Send(ctx, SendRequest{TaskID: "demo", Body: "hello"}); !errors.Is(err, ErrSendRejected) {
 		t.Fatalf("send to a killed pane = %v", err)
 	}
