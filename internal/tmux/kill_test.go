@@ -2,7 +2,6 @@ package tmux_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -22,29 +21,9 @@ import (
 // client returns as soon as its own exit handshake is done, while the server
 // stays alive, still owning the socket, until its event loop sees every client
 // gone. A client that connects in that window is dropped with "server exited
-// unexpectedly". Under load the window is long enough that restarting right
-// after the kill reached the dying server (docs/notes/m1-flaky-tests.md), so
-// these tests restart only once the old server process has exited.
-
-// waitServerExit waits until the tmux server process pid has exited. The
-// server daemonizes, so it is never a zombie of this process.
-func waitServerExit(t *testing.T, pid int) {
-	t.Helper()
-	testenv.WaitFor(t, 0, fmt.Sprintf("tmux server %d to exit", pid), func() (bool, string) {
-		err := syscall.Kill(pid, 0)
-		return errors.Is(err, syscall.ESRCH), fmt.Sprintf("signal 0: %v", err)
-	})
-}
-
-// restartAfterExit kills srv's server, waits for its process to exit, then
-// starts a fresh server on the same socket (whose $N/%N ids start over).
-func restartAfterExit(t *testing.T, srv *testenv.TmuxServer) {
-	t.Helper()
-	pid := srv.PID(t)
-	srv.Kill(t)
-	waitServerExit(t, pid)
-	srv.Restart(t) // its own kill finds no server and is a no-op
-}
+// unexpectedly". testenv's Kill and Restart therefore wait for the old server
+// process to exit (docs/notes/m1-flaky-tests.md,
+// docs/notes/m2-hardening-followups.md).
 
 // holdDyingServer attaches a control-mode client to session and stops it
 // (SIGSTOP). A stopped client cannot finish the exit handshake, so once the
@@ -176,7 +155,7 @@ func TestKillVerifiedSessionNeverHitsAReusedPaneAfterRestart(t *testing.T) {
 	srv := testenv.NewTmuxServer(t, env)
 	ctx := context.Background()
 	old := identityOf(srv, sleepSession(t, srv, "agentctl-demo"))
-	restartAfterExit(t, srv)
+	srv.Restart(t)
 	intruder := sleepSession(t, srv, "agentctl-demo") // same name, same $N and %N, new pids
 	if intruder.PaneID != old.PaneID || intruder.SessionID != old.SessionID {
 		t.Fatalf("expected id reuse: old %+v new %+v", old, intruder)
@@ -202,7 +181,9 @@ func TestRestartAfterKillReachesTheDyingServer(t *testing.T) {
 	old := identityOf(srv, sleepSession(t, srv, "agentctl-demo"))
 	release := holdDyingServer(t, srv, "agentctl-demo")
 
-	srv.Kill(t)
+	if pid := srv.KillNoWait(t); pid != old.ServerPID {
+		t.Fatalf("kill reached server %d, want %d", pid, old.ServerPID)
+	}
 	if err := syscall.Kill(old.ServerPID, 0); err != nil {
 		t.Fatalf("killed server %d already gone (%v); the hold did not keep it in the dying state", old.ServerPID, err)
 	}
@@ -211,7 +192,7 @@ func TestRestartAfterKillReachesTheDyingServer(t *testing.T) {
 	}
 
 	release()
-	waitServerExit(t, old.ServerPID)
+	srv.WaitExit(t, old.ServerPID)
 	srv.Restart(t)
 	fresh := sleepSession(t, srv, "agentctl-demo")
 	if fresh.ServerPID == old.ServerPID || fresh.PaneID != old.PaneID || fresh.SessionID != old.SessionID {

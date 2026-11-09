@@ -37,15 +37,20 @@ func scanRepo(r rowScanner) (Repo, error) {
 	return repo, nil
 }
 
-// Upsert registers rootPath (absolute) or returns the existing row.
+// Upsert registers rootPath (absolute) or returns the existing row. Like
+// every store write it runs in withTx, so it takes the write lock fairly.
 func (r *Repos) Upsert(ctx context.Context, rootPath, name string) (Repo, error) {
 	if !filepath.IsAbs(rootPath) {
 		return Repo{}, fmt.Errorf("store: repo root %q is not absolute", rootPath)
 	}
-	row := r.s.db.QueryRowContext(ctx, `INSERT INTO repos (root_path, name, created_at) VALUES (?, ?, ?)
-		ON CONFLICT (root_path) DO UPDATE SET name = excluded.name
-		RETURNING `+repoCols, rootPath, name, ms(r.s.now()))
-	repo, err := scanRepo(row)
+	var repo Repo
+	err := r.s.withTx(ctx, func(tx *sql.Tx) error {
+		var err error
+		repo, err = scanRepo(tx.QueryRowContext(ctx, `INSERT INTO repos (root_path, name, created_at) VALUES (?, ?, ?)
+			ON CONFLICT (root_path) DO UPDATE SET name = excluded.name
+			RETURNING `+repoCols, rootPath, name, ms(r.s.now())))
+		return err
+	})
 	if err != nil {
 		return Repo{}, fmt.Errorf("store: upsert repo %s: %w", rootPath, err)
 	}

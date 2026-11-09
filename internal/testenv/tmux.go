@@ -5,9 +5,13 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 
@@ -25,6 +29,10 @@ type TmuxServer struct {
 	Socket string // canonical absolute socket path (what sessions store)
 	Env    Env    // the env it was started with + AGENTCTL_TMUX_SOCKET=Socket; no TMUX/TMUX_PANE
 	base   Env
+	pid    atomic.Int64 // pid of the server start launched; 0 once it has exited
+
+	mu       sync.Mutex
+	panePIDs []int // pane processes of every server this TmuxServer killed
 }
 
 // NewTmuxServer starts an isolated server. Skips when tmux is missing.
@@ -38,6 +46,7 @@ func NewTmuxServer(t testing.TB, env Env) *TmuxServer {
 	s := &TmuxServer{Name: "agentctl-test-" + hex.EncodeToString(b[:]), base: env.Without("TMUX", "TMUX_PANE")}
 	t.Cleanup(func() {
 		_ = s.kill()
+		s.waitPanesExit()
 		s.removeSocketFile()
 	})
 	s.start(t)
@@ -70,6 +79,11 @@ func (s *TmuxServer) start(t testing.TB) {
 	if err != nil {
 		t.Fatalf("tmux server %s socket path: %v", s.Name, err)
 	}
+	pid, err := tmux.NewClient(r, tmux.Socket{Name: s.Name}).ServerPID(ctx)
+	if err != nil {
+		t.Fatalf("tmux server %s pid: %v", s.Name, err)
+	}
+	s.pid.Store(int64(pid))
 	s.Socket = sock
 	s.Env = s.base.With(tmux.EnvSocket + "=" + sock)
 }
@@ -126,9 +140,16 @@ func (s *TmuxServer) Snapshot(t testing.TB) tmux.Snapshot {
 	return snap
 }
 
-// Kill stops the server (simulating a crash or a user's kill-server). The
-// socket path stays the same, so Restart can bring up a new server whose pane
-// ids (%0, %1, ...) collide with the old ones.
+// Kill stops the server (simulating a crash or a user's kill-server) and
+// returns only once the old server process has exited. The socket path stays
+// the same, so Restart can bring up a new server whose pane ids (%0, %1, ...)
+// collide with the old ones.
+//
+// The wait matters: kill-server's client returns as soon as its own exit
+// handshake is done, while the server lives on, still owning the socket and
+// dropping new clients ("server exited unexpectedly"), until every client is
+// gone. A start or probe in that window reaches the dying server
+// (docs/notes/m1-flaky-tests.md, docs/notes/m2-hardening-followups.md).
 func (s *TmuxServer) Kill(t testing.TB) {
 	t.Helper()
 	if err := s.kill(); err != nil {
@@ -136,20 +157,111 @@ func (s *TmuxServer) Kill(t testing.TB) {
 	}
 }
 
-// Restart kills the server and starts a fresh one on the same socket.
+// Restart kills the server, waits for the old process to exit, and starts a
+// fresh one on the same socket.
 func (s *TmuxServer) Restart(t testing.TB) {
 	t.Helper()
 	s.Kill(t)
 	s.start(t)
 }
 
+// KillNoWait tells the server to exit and returns its pid without waiting
+// for the process to go away, for tests that observe the dying server. Pair
+// it with WaitExit before restarting; Kill and Restart also wait for it.
+func (s *TmuxServer) KillNoWait(t testing.TB) (pid int) {
+	t.Helper()
+	pid, err := s.sendKill()
+	if err != nil {
+		t.Fatalf("kill tmux server: %v", err)
+	}
+	return pid
+}
+
+// WaitExit waits until the tmux server process pid has exited.
+func (s *TmuxServer) WaitExit(t testing.TB, pid int) {
+	t.Helper()
+	if err := s.waitExit(pid); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// kill is sendKill then waitExit.
 func (s *TmuxServer) kill() error {
+	pid, err := s.sendKill()
+	if err != nil {
+		return err
+	}
+	return s.waitExit(pid)
+}
+
+// sendKill runs kill-server and returns the pid of the server it was sent to
+// (0 when none is running). A server that no longer answers may be dying
+// already, so the pid falls back to the one this TmuxServer last started.
+// The server's pane pids are recorded for waitPanesExit.
+func (s *TmuxServer) sendKill() (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), tmuxCallTimeout)
 	defer cancel()
 	r := tmux.ExecRunner{Env: s.base.Strings()}
+	var pid int
+	switch snap, err := tmux.NewClient(r, tmux.Socket{Name: s.Name}).Snapshot(ctx); {
+	case err == nil:
+		pid = snap.ServerPID
+		s.recordPanes(snap)
+	case errors.Is(err, tmux.ErrNoServer):
+		pid = int(s.pid.Load())
+	default:
+		return 0, fmt.Errorf("server pid: %w", err)
+	}
 	_, err := r.Run(ctx, tmux.Request{Socket: tmux.Socket{Name: s.Name}, Commands: [][]string{{"kill-server"}}})
-	if err != nil && errors.Is(err, tmux.ErrNoServer) {
+	if err != nil && !errors.Is(err, tmux.ErrNoServer) {
+		return 0, err
+	}
+	return pid, nil
+}
+
+// waitExit polls until pid has exited (signal 0 reports ESRCH). The server
+// daemonizes, so it is never a zombie of this process. It is bounded by
+// tmuxCallTimeout.
+func (s *TmuxServer) waitExit(pid int) error {
+	if pid <= 0 {
 		return nil
 	}
-	return err
+	var last error
+	if !Eventually(tmuxCallTimeout, func() (bool, string) {
+		last = syscall.Kill(pid, 0)
+		return errors.Is(last, syscall.ESRCH), ""
+	}) {
+		return fmt.Errorf("tmux server %d still running %v after kill-server (signal 0: %v)", pid, tmuxCallTimeout, last)
+	}
+	s.pid.CompareAndSwap(int64(pid), 0)
+	return nil
+}
+
+func (s *TmuxServer) recordPanes(snap tmux.Snapshot) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, p := range snap.Panes {
+		if p.PanePID > 0 {
+			s.panePIDs = append(s.panePIDs, p.PanePID)
+		}
+	}
+}
+
+// waitPanesExit waits (best effort, bounded by tmuxCallTimeout) until the
+// pane processes of every killed server have exited. A pane's agent outlives
+// its server for a moment: fakeagent answers the SIGHUP by running its
+// SessionEnd hook, which writes into the test's AGENTCTL_HOME. t.Cleanup must
+// not remove the temp dirs under it while it does.
+func (s *TmuxServer) waitPanesExit() {
+	s.mu.Lock()
+	pids := append([]int(nil), s.panePIDs...)
+	s.mu.Unlock()
+	Eventually(tmuxCallTimeout, func() (bool, string) {
+		for _, pid := range pids {
+			if !errors.Is(syscall.Kill(pid, 0), syscall.ESRCH) {
+				return false, ""
+			}
+		}
+		return true, ""
+	})
 }

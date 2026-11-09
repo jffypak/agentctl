@@ -189,8 +189,25 @@ func (e *Error) Unwrap() []error {
 	return errs
 }
 
+// noServerPrefixes are the stderr lines of a client that found no server to
+// talk to. The last two come from a server that is shutting down: it still
+// owns the socket but drops each new client ("lost server" in older tmux).
+// That server is going away, so a probe that reaches it reports "no server"
+// (reconcile: server_gone), not a probe failure.
+var noServerPrefixes = []string{
+	"no server running on",
+	"error connecting to",
+	"server exited unexpectedly",
+	"lost server",
+}
+
 func isNoServer(stderr string) bool {
-	return strings.HasPrefix(stderr, "no server running on") || strings.HasPrefix(stderr, "error connecting to")
+	for _, p := range noServerPrefixes {
+		if strings.HasPrefix(stderr, p) {
+			return true
+		}
+	}
+	return false
 }
 
 func firstLine(s string) string {
