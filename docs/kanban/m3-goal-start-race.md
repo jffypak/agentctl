@@ -1,7 +1,7 @@
 ---
 id: m3-goal-start-race
 title: Don't report ready between SessionStart and the goal's first UserPromptSubmit
-status: todo
+status: done
 priority: high
 milestone: m3-phase1-acceptance
 labels:
@@ -27,6 +27,14 @@ history:
 - when: '2026-11-09'
   from: null
   to: todo
+- when: '2026-11-09'
+  from: todo
+  to: in-progress
+  note: 'director: dispatched in worktree /Users/jpark/Code/agent-tui/.tinkerbell/worktrees/m3-goal-start-race'
+- when: '2026-11-09'
+  from: in-progress
+  to: done
+  note: "director: done \u2014 acceptance pass green; promote to done"
 ---
 
 # Don't report ready between SessionStart and the goal's first UserPromptSubmit

@@ -38,27 +38,29 @@ timeout can never overwrite the trust detail. If the user declines the
 dialog ("No, exit"), Claude exits. Reconcile then records the dead pane as
 `failed` (fakeagent exits 1) or `stopped`. The e2e test covers this.
 
-## Merge note for m3-goal-start-race (director, please read)
+## Merged with m3-goal-start-race (main f5c4da3)
 
-My trust state is the **same** state as the existing timeout verdict
-(`unknown` / `none`), so whatever SessionStart mapping the sibling card ends
-up with applies to both paths in the same way. I did not hardcode
-`unknown→ready`. One gap to check at merge time:
+The trust state is the **same** state as the timeout verdict (`unknown` /
+`none`), so the sibling's mapping applies to both paths in the same way.
+Nothing here hardcodes `unknown→ready`. After the merge:
 
-- `domain.CanTransition(unknown, starting)` is **false**. A test,
-  `TestNothingReturnsToStarting`, pins that rule. If m3-goal-start-race maps
-  `SessionStart(startup)` for a goal launch to a *state write* of `starting`,
-  that write is refused from `unknown`. The refusal is recorded and is not an
-  error. The session then stays `unknown` (with my detail, or the timeout's)
-  until the goal's `UserPromptSubmit` moves it to `working` (allowed), and
-  then `Stop` moves it to `ready`. That is safe because nothing is deliverable
-  in that window, but for ~230 ms the detail is stale. If the sibling wants
-  `unknown → starting("submitting goal")` instead, it has to add that move to
-  the transition table and relax `TestNothingReturnsToStarting`. That
-  decision belongs to the transition-table owner, so I did not make it here.
-- The e2e test (`TestFolderTrustDialogSurfacesAndSessionStartClearsIt`) only
-  asserts `starting>unknown unknown>…`, then ready, then that the queued
-  prompt is delivered while ready. It should hold under either mapping.
+- The post-SessionStart "submitting goal" window is `starting` with
+  confidence `hook`. `awaitingFirstHook` requires confidence `none`, so that
+  window is never captured or flagged
+  (`TestReconcileFolderTrustOnlyBeforeFirstHook` writes exactly that state).
+- From `unknown`, the goal-hold `SessionStart → starting` is refused and
+  recorded. That matches the sibling's notes and
+  `TestSessionStartWithGoalAfterTimeoutStaysUnknown`, and
+  `TestNothingReturnsToStarting` still holds. The goal's `UserPromptSubmit`
+  moves the session to `working`, and `Stop` then moves it to `ready`. For
+  those ~230 ms the detail still reads "folder trust". That is harmless
+  because nothing is deliverable in that window.
+- The sibling's `startingTimeoutDetail` keeps the folder-trust/login hint for
+  hookless agents. Trust detection runs before the timeout, so a visible
+  dialog always gets the specific detail.
+- The e2e test asserts only `starting>unknown unknown>…`, followed by ready
+  and delivery of the queued prompt while ready, so it holds under either
+  mapping.
 
 ## fakeagent
 

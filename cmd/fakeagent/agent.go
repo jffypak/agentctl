@@ -30,6 +30,7 @@ type config struct {
 	hookLogPath      string        // FAKEAGENT_HOOK_LOG: JSONL of every hook run (stdout, exit, ms)
 	pastePlaceholder bool          // FAKEAGENT_PASTE_PLACEHOLDER=1
 	trustDialog      bool          // FAKEAGENT_TRUST_DIALOG=1: folder-trust dialog before SessionStart (trust.go)
+	goalDelay        time.Duration // FAKEAGENT_GOAL_DELAY_MS: SessionStart -> initial-prompt submit gap (goal.go)
 	cwd              string
 	env              []string // hooks inherit this environment
 	transcriptDir    string   // transcript_path dir (never created; agentctl must not open it)
@@ -104,8 +105,10 @@ func (a *agent) run() int {
 	}
 	a.term.write("fakeagent " + a.sessionID + "\n")
 	a.fire("SessionStart", map[string]any{"source": "startup", "model": "fakeagent"})
-	a.setState(stReady)
-	if a.cfg.initialPrompt != "" {
+	if a.cfg.initialPrompt == "" {
+		a.setState(stReady)
+	} else {
+		a.awaitGoalSubmit() // goal.go: still starting until the goal turn begins
 		if code, done := a.turn(a.cfg.initialPrompt, a.cfg.initialPrompt); done {
 			return code
 		}

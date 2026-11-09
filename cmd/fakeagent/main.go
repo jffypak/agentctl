@@ -23,6 +23,8 @@
 //	FAKEAGENT_PASTE_PLACEHOLDER=1    report pastes to UserPromptSubmit as [Pasted text #N]
 //	FAKEAGENT_TRUST_DIALOG=1         show a Claude-style folder-trust dialog before SessionStart and
 //	                                 fire no hook until it is answered: 1/Enter accepts, 2/n exits 1
+//	FAKEAGENT_GOAL_DELAY_MS=0        gap between SessionStart and submitting the initial prompt
+//	                                 (input in the gap is received while starting)
 package main
 
 import (
@@ -109,6 +111,9 @@ func parseConfig(args []string, getenv func(string) string) (config, error) {
 			return config{}, fmt.Errorf("FAKEAGENT_WORK_MS=%q is not a non-negative integer", v)
 		}
 		cfg.work = time.Duration(ms) * time.Millisecond
+	}
+	if cfg.goalDelay, err = parseGoalDelay(getenv); err != nil {
+		return config{}, err
 	}
 	return cfg, nil
 }

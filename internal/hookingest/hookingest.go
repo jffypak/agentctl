@@ -224,6 +224,9 @@ func (r *runner) run(ctx context.Context) Outcome {
 	}
 	o.TaskID, o.SessionID = match.session.TaskID, match.session.ID
 	r.note(o)
+	if obs, err = withGoalHold(ctx, st, match.session, obs); err != nil { // goal.go: SessionStart before the goal turn
+		return r.failLost(o, err)
+	}
 	in := store.HookInput{
 		SessionID: match.session.ID, Event: obs.Event, AgentSessionID: obs.AgentSessionID,
 		State: obs.State, Detail: obs.Detail, Payload: receivedPayload(obs, match.how),

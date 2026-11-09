@@ -215,7 +215,8 @@ on stdin plus inherited env `AGENTCTL_TASK_ID`, `AGENTCTL_HOME`, `TMUX`, and `TM
 
 | `hook_event_name` | condition | → `agent_state` |
 |---|---|---|
-| `SessionStart` | `source` ≠ `compact` | `ready` |
+| `SessionStart` | `source == "startup"` on a session agentctl launched with a goal (the task row's `goal` ≠ `""`) | stays `starting`, detail `submitting goal` (the goal's `UserPromptSubmit` follows ~230 ms later; `ready` here would allow a paste into an agent about to work) |
+| `SessionStart` | otherwise, `source` ≠ `compact` (no goal, adopted, `resume`, `clear`) | `ready` |
 | `SessionStart` | `source == "compact"` | no change (auto-compact fires mid-turn; `ready` here would allow a paste into a working agent) |
 | `UserPromptSubmit` | — | `working` (+ ack matching) |
 | `PreToolUse` | `tool_name == "AskUserQuestion"` | `awaiting_input` |
@@ -229,18 +230,31 @@ on stdin plus inherited env `AGENTCTL_TASK_ID`, `AGENTCTL_HOME`, `TMUX`, and `TM
 | anything else | — | recorded, no change |
 
 `starting` with no hook within `StartingTimeout` → `unknown` / confidence
-`none`. Sooner than that, reconcile reads the screen of every `starting`
-session that has no hook yet (confidence `none`): the last 40 non-blank lines
-of the visible screen, once per poll, through the identity-checked capture
-path and `SanitizeTerminalText`. If it shows Claude's folder-trust dialog
-(`domain.ShowsFolderTrustDialog`, phrase list in `domain/foldertrust.go`), the
-session goes to `unknown` / `none` with detail `folder trust: attach to
-answer` and source `pane_text` on that poll. This is the same state as the
-timeout verdict, so it lands in NEEDS YOU, is never deliverable (sends
-queue), the timeout (guarded on `starting`) can't overwrite it, and the first
-hook leaves it through the normal mapping. agentctl **never** answers the
+`none`. The same timeout covers a goal that is never submitted: a
+goal-launched agent is still `starting` (confidence `hook`) after its
+`SessionStart`, so it surfaces as `unknown` with detail `goal never
+submitted: …`, not the folder-trust hint (a trust dialog comes before any
+hook). The goal-hold is decided per hook from the persisted task row, so it
+survives restarts; `starting` → `ready` therefore happens only on the goal
+turn's `Stop`.
+
+Sooner than `StartingTimeout`, reconcile reads the screen of every `starting`
+session that has no hook yet (confidence `none`; the post-`SessionStart`
+"submitting goal" window has confidence `hook` and is never captured): the
+last 40 non-blank lines of the visible screen, once per poll, through the
+identity-checked capture path and `SanitizeTerminalText`. If it shows
+Claude's folder-trust dialog (`domain.ShowsFolderTrustDialog`, phrase list in
+`domain/foldertrust.go`), the session goes to `unknown` / `none` with detail
+`folder trust: attach to answer` and source `pane_text` on that poll. This is
+the same state as the timeout verdict, so it lands in NEEDS YOU, is never
+deliverable (sends queue), the timeout (guarded on `starting`) can't
+overwrite it, and hooks leave it through the normal mapping (a goal launch's
+held `SessionStart` → `starting` is refused from `unknown`; the goal's
+`UserPromptSubmit` → `working` then moves it). agentctl **never** answers the
 dialog; declining it exits Claude, which reconcile records from the dead pane.
-A failed capture is not a match. `stopped`, `failed`, and `disconnected` are sticky: a later hook never
+A failed capture is not a match.
+
+`stopped`, `failed`, and `disconnected` are sticky: a later hook never
 revives them. Every state write, from hooks or reconcile, goes through
 `store.Sessions.Transition(id, to, confidence, detail, source)`. That is a
 conditional UPDATE guarded by `domain.CanTransition`, and it appends
@@ -314,6 +328,8 @@ With `FAKEAGENT_PASTE_PLACEHOLDER=1`, pasted input is reported to
 `FAKEAGENT_TRUST_DIALOG=1` it first prints a Claude-style folder-trust dialog
 and fires no hook until a test answers it (`1`/Enter accepts, `2`/`n` exits 1). It flips
 to `ready` only after the `Stop` hook command returns, and fires `SessionEnd` on exit.
+`FAKEAGENT_GOAL_DELAY_MS` waits that long between `SessionStart` and submitting
+the initial prompt (real Claude: ~230 ms), staying `starting` meanwhile.
 Every received input is appended as JSONL to `$FAKEAGENT_LOG`: `{ts, text,
 state_at_receipt}`. Tests use this to assert that **nothing arrived while
 `working`**.
@@ -486,11 +502,11 @@ tmux 3.5a, `DEMO_AGENT=claude scripts/demo.sh`, two runs):
   and surfaces the agent in NEEDS YOU (`folder trust: attach to answer`) on
   the next poll instead of after `StartingTimeout` (30 s). An opt-in to trust
   `<repo>-worktrees/*` is a separate, undecided question.
-- **Session-start race.** With a goal on argv, `SessionStart` (→ `ready`)
-  arrives ~230 ms before the goal's `UserPromptSubmit` (→ `working`). In that
-  window the agent looks deliverable, so a `send` right after `new` could paste
-  into an agent that is about to start working (invariant: never paste into a
-  working agent). Tracked in `m3-goal-start-race`.
+- **Session-start race.** With a goal on argv, `SessionStart` arrived ~230 ms
+  before the goal's `UserPromptSubmit`, and mapping it to `ready` made the
+  agent look deliverable in that window. Fixed in `m3-goal-start-race`: on a
+  goal-launched session `SessionStart(startup)` keeps `starting` ("submitting
+  goal"); the goal turn's `Stop` is the first `ready` (see the hook table).
 
 Still open:
 

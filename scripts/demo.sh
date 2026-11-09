@@ -233,8 +233,12 @@ fi
 log "1. new alpha and beta"
 ac new alpha --goal "${goal_alpha}"
 ac new beta --goal "${goal_beta}"
+# ready from SessionStart would be premature (the goal is not submitted yet);
+# agentctl keeps a goal-launched agent starting until then, and this wait
+# insists on a ready that is not SessionStart's (m3-goal-start-race)
+first_turn_done() { settled "$1" && [[ $(show_field "$1" detail) != "session started"* ]]; }
 for a in alpha beta; do
-	if wait_for "${DEMO_TIMEOUT}" "${a} ready" settled "${a}"; then
+	if wait_for "${DEMO_TIMEOUT}" "${a} ready" first_turn_done "${a}"; then
 		log "${a}: ready after its first turn"
 	else
 		check_failed "${a} did not finish its first turn within ${DEMO_TIMEOUT}s (state $(state_of "${a}"))"

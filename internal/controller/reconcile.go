@@ -27,7 +27,9 @@ import (
 //     guarded like the timeout). Only these sessions are captured: the
 //     bottom of the visible screen, once per poll;
 //   - starting with no hook for Tunables.StartingTimeout -> unknown / none,
-//     source timeout (guarded: a hook that arrives first wins);
+//     source timeout (guarded: a hook that arrives first wins); a
+//     launched-with-goal agent stays starting after SessionStart until its
+//     goal is submitted, so the same timeout covers a goal that never is;
 //   - LivenessUnverified (probe failed) is never treated as a pane verdict;
 //     the probe error is returned so `ls` can warn. The starting timeout is
 //     about missing hooks, not the pane, so it still applies (unknown is the
@@ -89,11 +91,21 @@ func (c *Controller) reconcileSession(ctx context.Context, sess store.Session, l
 	if sess.State == domain.StateStarting && !c.now().Before(sess.StateSince.Add(c.tun.StartingTimeout)) {
 		_, err := c.store.Sessions().ReconcileTransition(ctx, store.ReconcileInput{
 			SessionID: sess.ID, From: domain.StateStarting, To: domain.StateUnknown, Confidence: domain.ConfidenceNone,
-			Detail: "no hook within " + c.tun.StartingTimeout.Round(time.Millisecond).String() +
-				" — Claude may be showing its folder-trust or login prompt; attach to check",
-			Source: domain.SourceTimeout,
+			Detail: startingTimeoutDetail(sess, c.tun.StartingTimeout), Source: domain.SourceTimeout,
 		})
 		return err
 	}
 	return nil
+}
+
+// startingTimeoutDetail says why a starting agent timed out. Still starting
+// with hook confidence means SessionStart arrived but the goal's
+// UserPromptSubmit never did (m3-goal-start-race); a folder-trust or login
+// dialog comes before any hook, so that hint is only for a silent agent.
+func startingTimeoutDetail(sess store.Session, timeout time.Duration) string {
+	d := timeout.Round(time.Millisecond).String()
+	if sess.Confidence == domain.ConfidenceHook {
+		return "goal never submitted: no prompt hook within " + d + " of launch; attach to check"
+	}
+	return "no hook within " + d + " — Claude may be showing its folder-trust or login prompt; attach to check"
 }
