@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -14,8 +15,11 @@ import (
 )
 
 // EnvAdoptCommands lists the pane_current_command names `agentctl adopt`
-// offers as candidates (comma-separated; default "claude"). The list is only
-// a convenience: `adopt %N --name <name>` accepts any live pane.
+// offers as candidates (comma-separated; default "claude"). Names match
+// pane_current_command exactly; "claude" additionally matches a pane whose
+// foreground process is Claude Code (see adopt_match.go), because tmux names
+// a real Claude pane after its version. The list is only a convenience:
+// `adopt %N --name <name>` accepts any live pane.
 const EnvAdoptCommands = "AGENTCTL_ADOPT_COMMANDS"
 
 // DefaultAdoptCommands is used when EnvAdoptCommands is unset or empty.
@@ -44,6 +48,9 @@ type AdoptCandidates struct {
 	Socket   string
 	Commands []string // the names matched (nil when All)
 	Panes    []AdoptCandidate
+	// Warning is set when the listing degraded (the process table could not
+	// be read, so only exact pane_current_command matches are listed).
+	Warning string
 }
 
 // CandidateQuery filters the candidate list.
@@ -79,16 +86,59 @@ func (c *Controller) ListAdoptCandidates(ctx context.Context, q CandidateQuery) 
 	if err != nil {
 		return out, err
 	}
+	var open []tmux.Pane
 	for _, p := range snap.Panes {
-		if p.Dead || registered[paneKey(p.PaneID, p.PanePID)] || (!q.All && !containsString(out.Commands, p.CurrentCommand)) {
-			continue
+		if !p.Dead && !registered[paneKey(p.PaneID, p.PanePID)] {
+			open = append(open, p)
 		}
+	}
+	matched := open
+	if !q.All {
+		matched, out.Warning = c.matchAdoptPanes(ctx, open, out.Commands)
+	}
+	for _, p := range matched {
 		out.Panes = append(out.Panes, AdoptCandidate{
 			PaneID: p.PaneID, PanePID: p.PanePID, SessionID: p.SessionID, SessionName: p.SessionName,
 			WindowIndex: p.WindowIndex, Command: p.CurrentCommand, Cwd: p.CurrentPath,
 		})
 	}
 	return out, nil
+}
+
+// matchAdoptPanes keeps the panes (in order) whose pane_current_command is
+// one of names, plus — when names includes "claude" — those whose foreground
+// process is Claude Code. The process table is read at most once, and only
+// when some pane fails the exact match. A ps failure degrades to the exact
+// match and is returned as a warning, never as an error.
+func (c *Controller) matchAdoptPanes(ctx context.Context, panes []tmux.Pane, names []string) ([]tmux.Pane, string) {
+	var unmatched []tmux.Pane
+	for _, p := range panes {
+		if !containsString(names, p.CurrentCommand) {
+			unmatched = append(unmatched, p)
+		}
+	}
+	if len(unmatched) == 0 || !containsString(names, claudeAdoptCommand) {
+		return filterPanes(panes, func(p tmux.Pane) bool { return containsString(names, p.CurrentCommand) }), ""
+	}
+	procs, err := c.procs(ctx)
+	if err != nil {
+		exact := filterPanes(panes, func(p tmux.Pane) bool { return containsString(names, p.CurrentCommand) })
+		return exact, fmt.Sprintf("cannot read the process table (%v); Claude panes tmux names by version are not listed", err)
+	}
+	table := newProcTable(procs)
+	return filterPanes(panes, func(p tmux.Pane) bool {
+		return containsString(names, p.CurrentCommand) || paneRunsClaude(table, p.PanePID)
+	}), ""
+}
+
+func filterPanes(panes []tmux.Pane, keep func(tmux.Pane) bool) []tmux.Pane {
+	var out []tmux.Pane
+	for _, p := range panes {
+		if keep(p) {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 // AdoptRequest is `agentctl adopt %N --name <name>`.

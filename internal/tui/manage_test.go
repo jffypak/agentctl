@@ -761,6 +761,20 @@ func TestAdoptPickerDropsStaleLists(t *testing.T) {
 	}
 }
 
+// TestAdoptPickerShowsListingWarning: a degraded listing (no process table)
+// says so in place of the socket line, so the header height is unchanged.
+func TestAdoptPickerShowsListingWarning(t *testing.T) {
+	t.Parallel()
+	f := newFixture(t)
+	m := press(t, f.model(t, 80, 24, Options{}), "a")
+	v := topView(m).(adoptView)
+	cands := controller.AdoptCandidates{Socket: "/s", Commands: []string{"claude"}, Warning: "cannot read the process table (ps: boom)"}
+	m = update(t, m, adoptListedMsg{id: v.id, seq: v.listSeq, cands: cands})
+	if txt := screenText(m); !strings.Contains(txt, "cannot read the process table (ps: boom)") {
+		t.Fatalf("warning not shown:\n%s", txt)
+	}
+}
+
 // TestDetailInspectRetriesALostResult: the shell hands results to the view on
 // top, so an Inspect answer that arrives while the diff view is open never
 // reaches the detail; the section asks again on a later refresh instead of

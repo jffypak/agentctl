@@ -51,6 +51,9 @@ func adoptList(ctx context.Context, sys *system, ctl *controller.Controller, all
 	if err != nil {
 		return sys.fail(err)
 	}
+	if list.Warning != "" {
+		fmt.Fprintf(sys.stderr, "agentctl: warning: %s\n", controller.OneLine(list.Warning))
+	}
 	what := "unregistered panes"
 	if !all {
 		what = "unregistered panes running " + strings.Join(list.Commands, ", ")
