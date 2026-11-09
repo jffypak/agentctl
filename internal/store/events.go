@@ -42,19 +42,27 @@ func (s *Store) Events() *Events { return &Events{s} }
 
 const eventCols = `id, ts, type, task_id, session_id, cause_id, payload`
 
+// eventPayload validates in and returns its JSON payload.
+func eventPayload(in EventInput) ([]byte, error) {
+	if in.Type == "" || !strings.Contains(in.Type, ".") {
+		return nil, fmt.Errorf("store: invalid event type %q", in.Type)
+	}
+	if in.Payload == nil {
+		return []byte("{}"), nil
+	}
+	b, err := json.Marshal(in.Payload)
+	if err != nil {
+		return nil, fmt.Errorf("store: event %s payload: %w", in.Type, err)
+	}
+	return b, nil
+}
+
 // appendEvent inserts one event using q (a *sql.Tx when the event must commit
 // atomically with a state change).
 func appendEvent(ctx context.Context, q querier, now time.Time, in EventInput) (int64, error) {
-	if in.Type == "" || !strings.Contains(in.Type, ".") {
-		return 0, fmt.Errorf("store: invalid event type %q", in.Type)
-	}
-	payload := []byte("{}")
-	if in.Payload != nil {
-		b, err := json.Marshal(in.Payload)
-		if err != nil {
-			return 0, fmt.Errorf("store: event %s payload: %w", in.Type, err)
-		}
-		payload = b
+	payload, err := eventPayload(in)
+	if err != nil {
+		return 0, err
 	}
 	res, err := q.ExecContext(ctx, `INSERT INTO events (ts, type, task_id, session_id, cause_id, payload) VALUES (?, ?, ?, ?, ?, ?)`,
 		ms(now), in.Type, in.TaskID, nullInt(in.SessionID), nullInt(in.CauseID), string(payload))
@@ -78,9 +86,20 @@ func scanEvent(r rowScanner) (Event, error) {
 	return e, nil
 }
 
-// Append appends one event and returns its id.
+// Append appends one event and returns its id. Like every store write it runs
+// in withTx, so it takes the write lock fairly instead of waiting on SQLite's
+// busy handler as an autocommit INSERT would.
 func (e *Events) Append(ctx context.Context, in EventInput) (int64, error) {
-	return appendEvent(ctx, e.s.db, e.s.now(), in)
+	if _, err := eventPayload(in); err != nil {
+		return 0, err // reject before taking the write lock
+	}
+	var id int64
+	err := e.s.withTx(ctx, func(tx *sql.Tx) error {
+		var err error
+		id, err = appendEvent(ctx, tx, e.s.now(), in)
+		return err
+	})
+	return id, err
 }
 
 // Since returns up to limit events with id > afterID in id order (the TUI
