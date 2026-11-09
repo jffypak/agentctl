@@ -200,18 +200,36 @@ func (mr *Messages) HasQueued(ctx context.Context, sessionID int64) (bool, error
 	return n > 0, nil
 }
 
-// claimSQL is Delivery rule 1 as one conditional UPDATE: the oldest queued
-// message of the session becomes delivering only while the session is ready
-// with hook confidence, no message of the session is delivering, and none
-// was sent during the current ready period (sent_at >= state_since): one
-// delivery per ready transition, however many drainers race.
-const claimSQL = `UPDATE messages SET state = 'delivering', claimed_at = ?
-	WHERE id = (SELECT id FROM messages WHERE session_id = ? AND state = 'queued' ORDER BY id LIMIT 1)
+// claimable is Delivery rule 1's condition on a message row of session ?1: it is
+// the oldest queued message, the session is ready with hook confidence, no
+// message of the session is delivering, and none was sent during the current
+// ready period (sent_at >= state_since): one delivery per ready transition,
+// however many drainers race. Every parameter is the session id.
+const claimable = `id = (SELECT id FROM messages WHERE session_id = ?1 AND state = 'queued' ORDER BY id LIMIT 1)
 	  AND state = 'queued'
-	  AND EXISTS (SELECT 1 FROM sessions s WHERE s.id = ? AND s.agent_state = 'ready' AND s.state_confidence = 'hook')
-	  AND NOT EXISTS (SELECT 1 FROM messages o WHERE o.session_id = ?
-	        AND (o.state = 'delivering' OR o.sent_at >= (SELECT state_since FROM sessions WHERE id = ?)))
-	RETURNING id`
+	  AND EXISTS (SELECT 1 FROM sessions s WHERE s.id = ?1 AND s.agent_state = 'ready' AND s.state_confidence = 'hook')
+	  AND NOT EXISTS (SELECT 1 FROM messages o WHERE o.session_id = ?1
+	        AND (o.state = 'delivering' OR o.sent_at >= (SELECT state_since FROM sessions WHERE id = ?1)))`
+
+// claimSQL claims with one conditional UPDATE (run inside BEGIN IMMEDIATE).
+const claimSQL = `UPDATE messages SET state = 'delivering', claimed_at = ?2 WHERE ` + claimable + ` RETURNING id`
+
+// Claimable reports, with a read only, whether Claim could claim a message
+// of the session now. Drain asks it first so a drain that cannot deliver
+// never takes the write lock (it competes with hooks, which have a 1.5 s
+// budget). Claim still decides atomically.
+func (mr *Messages) Claimable(ctx context.Context, sessionID int64) (bool, error) {
+	var ok bool
+	err := mr.s.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM messages WHERE `+claimable+`)`, sessionID).Scan(&ok)
+	if err != nil {
+		return false, fmt.Errorf("store: claimable for session %d: %w", sessionID, err)
+	}
+	return ok, nil
+}
+
+// IsBusy reports whether err is SQLITE_BUSY: the write lock was not free
+// within the Store's busy timeout. Nothing was written.
+func IsBusy(err error) bool { return isBusy(err) }
 
 // Claim atomically claims the session's next message (see claimSQL) and
 // appends message.claimed{message_id} with causeID. ok is false when nothing
@@ -224,7 +242,7 @@ func (mr *Messages) Claim(ctx context.Context, sessionID, causeID int64) (Claim,
 	err := mr.s.withTx(ctx, func(tx *sql.Tx) error {
 		now := mr.s.now()
 		var id int64
-		err := tx.QueryRowContext(ctx, claimSQL, ms(now), sessionID, sessionID, sessionID, sessionID).Scan(&id)
+		err := tx.QueryRowContext(ctx, claimSQL, sessionID, ms(now)).Scan(&id)
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil
 		}
@@ -427,6 +445,17 @@ func (mr *Messages) Cancel(ctx context.Context, id int64) (Message, error) {
 // window: a deliverer that crashed or never saw an ack (invariant 4). Each
 // gets message.unconfirmed with cause_id = its own claimed / sent event.
 func (mr *Messages) SweepStale(ctx context.Context, sessionID int64, window time.Duration) ([]int64, error) {
+	// read first: the write lock is taken only when there is something to
+	// sweep, so routine drains never queue behind (or ahead of) hook writers
+	var stale bool
+	if err := mr.s.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM messages WHERE (?1 = 0 OR session_id = ?1)
+		AND ((state = 'delivering' AND claimed_at <= ?2) OR (state = 'sent' AND sent_at <= ?2)))`,
+		sessionID, ms(mr.s.now().Add(-window))).Scan(&stale); err != nil {
+		return nil, fmt.Errorf("store: sweep: %w", err)
+	}
+	if !stale {
+		return nil, nil
+	}
 	var swept []int64
 	err := mr.s.withTx(ctx, func(tx *sql.Tx) error {
 		cutoff := ms(mr.s.now().Add(-window))
