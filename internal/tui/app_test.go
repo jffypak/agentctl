@@ -48,7 +48,7 @@ func TestHeaderAndSectionsInAttentionOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := screen(m)[0]; strings.TrimSpace(got) != ov.Header() || ov.Header() != "agents / repo · 2 running · 5 need you" {
+	if got := screen(m)[0]; strings.TrimSpace(got) != ov.Header() || ov.Header() != "agents / repo · 2 running · 6 need you" {
 		t.Fatalf("header = %q, Overview.Header() = %q", got, ov.Header())
 	}
 	order, rows := sectionsOf(m)
@@ -56,7 +56,7 @@ func TestHeaderAndSectionsInAttentionOrder(t *testing.T) {
 		t.Fatalf("sections = %v", order)
 	}
 	want := map[string][]string{ // oldest state_since first
-		"NEEDS YOU": {"legacy-pane", "flaky-ci", "migrate-db", "auth-tests", "api-docs"},
+		"NEEDS YOU": {"legacy-pane", "flaky-ci", "migrate-db", "auth-tests", "api-docs", "silent-agent"},
 		"IDLE":      {"old-spike", "docs-site"},
 		"RUNNING":   {"payments", "fresh-task"},
 		"UNKNOWN":   {"adopted-shell", "reserving"},
@@ -158,7 +158,7 @@ func TestMoveKeysAndFilterOnNameGoalBranch(t *testing.T) {
 				t.Fatalf("applied filter line = %q", screen(fm)[2])
 			}
 			fm = press(t, fm, "esc")
-			if fm.filter.active() || len(fm.rows()) != 11 {
+			if fm.filter.active() || len(fm.rows()) != 12 {
 				t.Fatalf("esc did not clear the filter (%d rows)", len(fm.rows()))
 			}
 		}
@@ -207,7 +207,7 @@ func TestUnknownIsHonestAndStoppedIsExited(t *testing.T) {
 	f := newFixture(t)
 	f.seed(t, everyState)
 	m := f.model(t, 120, 40, Options{})
-	for _, id := range []string{"adopted-shell", "reserving", "legacy-pane"} {
+	for _, id := range []string{"adopted-shell", "reserving", "legacy-pane", "silent-agent"} {
 		row := strings.ToLower(plain(lineWith(m, id)))
 		for _, bad := range []string{"ready", "idle", "done"} {
 			if strings.Contains(row, bad) {
@@ -225,15 +225,25 @@ func TestUnknownIsHonestAndStoppedIsExited(t *testing.T) {
 	if !strings.Contains(lineWith(m, "NEEDS YOU"), "38;5;"+accentDark) || !strings.Contains(lineWith(m, "auth-tests"), "38;5;"+accentDark) {
 		t.Errorf("NEEDS YOU does not use the accent: %q", lineWith(m, "NEEDS YOU"))
 	}
+	if row := lineWith(m, "silent-agent"); !strings.Contains(plain(row), "silent since launch · attach to check") || !strings.Contains(row, "38;5;"+accentDark) {
+		t.Errorf("launched agent silent since launch is not NEEDS YOU: %q", plain(row))
+	}
 	if strings.Contains(lineWith(m, "payments"), "38;5;"+accentDark) {
 		t.Errorf("RUNNING row uses the accent: %q", lineWith(m, "payments"))
 	}
 	// the detail of an unknown task says unknown, faint, never ready
-	d := press(t, m, "j", "j", "j", "j", "j", "j", "j", "j", "j", "enter") // adopted-shell
+	d := press(t, m, "j", "j", "j", "j", "j", "j", "j", "j", "j", "j", "enter") // adopted-shell
 	if !strings.Contains(screenText(d), "state      unknown · confidence none · since 2d") {
 		t.Fatalf("unknown detail:\n%s", screenText(d))
 	}
-	d = press(t, m, "j", "j", "j", "j", "j", "enter") // old-spike
+	d = press(t, m, "j", "j", "j", "j", "j", "enter") // silent-agent: launched, never sent a hook
+	for _, want := range []string{"silent-agent  NEEDS YOU · silent since launch · attach to check",
+		"state      unknown · confidence none · since 50s", "needs you  silent since launch · attach to check"} {
+		if !strings.Contains(screenText(d), want) {
+			t.Fatalf("silent-since-launch detail lacks %q:\n%s", want, screenText(d))
+		}
+	}
+	d = press(t, m, "j", "j", "j", "j", "j", "j", "enter") // old-spike
 	if !strings.Contains(screenText(d), "state      exited · confidence pane") {
 		t.Fatalf("stopped detail:\n%s", screenText(d))
 	}
@@ -485,7 +495,7 @@ func TestRefreshFollowsTheSelectedTask(t *testing.T) {
 	t.Parallel()
 	f := newFixture(t)
 	f.seed(t, everyState)
-	m := press(t, f.model(t, 120, 40, Options{}), "j", "j", "j", "j", "j", "j", "j") // payments (RUNNING)
+	m := press(t, f.model(t, 120, 40, Options{}), "j", "j", "j", "j", "j", "j", "j", "j") // payments (RUNNING)
 	if s, _ := m.selectedTask(); s.ID != "payments" {
 		t.Fatalf("selected %s", s.ID)
 	}

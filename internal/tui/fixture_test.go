@@ -127,13 +127,15 @@ type seedSpec struct {
 }
 
 // everyState covers every agent state, an unconfirmed message, a queued
-// message on an unknown agent, a task without a session yet, and a closed task.
+// message on an unknown agent, a launched agent silent since launch (NEEDS
+// YOU), a task without a session yet, and a closed task.
 var everyState = []seedSpec{
 	{id: "auth-tests", goal: "Write integration tests for the OAuth login flow, including the redirect and the expired-token path", detail: "permission prompt: Bash(npm test -- auth)", origin: domain.OriginLaunched, state: domain.StateAwaitingInput, age: 4 * time.Minute},
 	{id: "flaky-ci", goal: "Find why CI flakes on the cache step", detail: "disconnected: pane_missing", origin: domain.OriginLaunched, state: domain.StateDisconnected, age: 12 * time.Minute},
 	{id: "migrate-db", goal: "Add the orders migration", detail: "exit 1", origin: domain.OriginLaunched, state: domain.StateFailed, age: 9 * time.Minute},
 	{id: "api-docs", goal: "Regenerate the API reference", detail: "turn finished", origin: domain.OriginLaunched, state: domain.StateReady, age: 2 * time.Minute, unconf: 1},
 	{id: "legacy-pane", goal: "", detail: "", origin: domain.OriginAdopted, state: domain.StateUnknown, age: time.Hour, queued: 1},
+	{id: "silent-agent", goal: "Rename the config package", detail: "no hook within 30s — Claude may be showing its folder-trust or login prompt; attach to check", origin: domain.OriginLaunched, state: domain.StateUnknown, age: 50 * time.Second},
 	{id: "docs-site", goal: "Fix broken links in the docs site", detail: "turn finished", origin: domain.OriginLaunched, state: domain.StateReady, age: 30 * time.Second},
 	{id: "old-spike", goal: "Spike: try the new router", detail: "exit 0", origin: domain.OriginLaunched, state: domain.StateStopped, age: 3 * time.Hour},
 	{id: "payments", goal: "Refactor payment retries", detail: "Bash: go test ./...", origin: domain.OriginLaunched, state: domain.StateWorking, age: 45 * time.Second},
@@ -177,8 +179,11 @@ func (f *fixture) seed(t *testing.T, specs []seedSpec) {
 		}
 		if s.state != initial {
 			conf := domain.ConfidenceHook
-			if s.state.IsTerminal() {
+			switch {
+			case s.state.IsTerminal():
 				conf = domain.ConfidencePane
+			case s.state == domain.StateUnknown: // a launched agent that never sent a hook (starting timeout)
+				conf = domain.ConfidenceNone
 			}
 			if _, err := f.st.Sessions().Transition(ctx, sess.ID, s.state, conf, s.detail, domain.SourceHook); err != nil {
 				t.Fatalf("%s -> %s: %v", s.id, s.state, err)
