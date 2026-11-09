@@ -217,7 +217,8 @@ func (it *hookIT) checkHooksFailedOpen() {
 	}
 }
 
-// TestHookStateEndToEnd: new -> starting, ready, working, ready (within 5 s);
+// TestHookStateEndToEnd: new -> starting (SessionStart holds it while the
+// goal is submitted, m3-goal-start-race), working, ready (within 5 s);
 // #ask -> awaiting_input; y -> working -> ready; #exit 0 -> stopped. A second
 // agent that exits 3 right after its SessionEnd hook reads failed, not stopped.
 func TestHookStateEndToEnd(t *testing.T) {
@@ -230,13 +231,13 @@ func TestHookStateEndToEnd(t *testing.T) {
 	it.waitState("t1", "working", 5*time.Second)
 	tk := it.waitState("t1", "ready", 5*time.Second)
 	if d := time.Since(start); d > 5*time.Second {
-		t.Fatalf("starting -> ready -> working -> ready took %v:%s", d, it.timeline(tk.Session.ID))
+		t.Fatalf("starting -> working -> ready took %v:%s", d, it.timeline(tk.Session.ID))
 	}
 	if tk.Confidence != "hook" || tk.Session == nil {
 		t.Fatalf("t1 = %+v", tk)
 	}
 	sess, pane := tk.Session.ID, tk.Session.TmuxPaneID
-	want := []string{"starting>ready", "ready>working", "working>ready"}
+	want := []string{"starting>working", "working>ready"} // no SessionStart ready before the goal turn
 	if got := it.chain(sess); strings.Join(got, " ") != strings.Join(want, " ") {
 		t.Fatalf("state chain = %v, want %v", got, want)
 	}
