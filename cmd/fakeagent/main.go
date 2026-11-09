@@ -21,6 +21,8 @@
 //	                                 (kind: paste | submit | key)
 //	FAKEAGENT_HOOK_LOG=<file>        JSONL {ts, event, command, exit, stdout, stderr, ms} per hook run
 //	FAKEAGENT_PASTE_PLACEHOLDER=1    report pastes to UserPromptSubmit as [Pasted text #N]
+//	FAKEAGENT_TRUST_DIALOG=1         show a Claude-style folder-trust dialog before SessionStart and
+//	                                 fire no hook until it is answered: 1/Enter accepts, 2/n exits 1
 //	FAKEAGENT_GOAL_DELAY_MS=0        gap between SessionStart and submitting the initial prompt
 //	                                 (input in the gap is received while starting)
 package main
@@ -99,6 +101,7 @@ func parseConfig(args []string, getenv func(string) string) (config, error) {
 		settingsPath: *settingsPath, initialPrompt: fs.Arg(0), work: defaultWork,
 		logPath: getenv("FAKEAGENT_LOG"), hookLogPath: getenv("FAKEAGENT_HOOK_LOG"),
 		pastePlaceholder: getenv("FAKEAGENT_PASTE_PLACEHOLDER") == "1",
+		trustDialog:      getenv("FAKEAGENT_TRUST_DIALOG") == "1",
 		cwd:              cwd, env: os.Environ(),
 		transcriptDir: filepath.Join(os.TempDir(), "fakeagent-transcripts-never-created"),
 	}

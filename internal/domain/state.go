@@ -129,9 +129,10 @@ func (a AckMatch) Valid() bool { return a == AckHash || a == AckTiming }
 
 // Transition sources recorded in agent.state_changed payloads.
 const (
-	SourceHook    = "hook"    // agentctl hook
-	SourcePane    = "pane"    // reconcile observed the pane
-	SourceTimeout = "timeout" // StartingTimeout elapsed
-	SourceLaunch  = "launch"  // agentctl new
-	SourceUser    = "user"    // explicit user action (close --stop)
+	SourceHook     = "hook"      // agentctl hook
+	SourcePane     = "pane"      // reconcile observed the pane
+	SourceTimeout  = "timeout"   // StartingTimeout elapsed
+	SourcePaneText = "pane_text" // reconcile read the pane's screen (folder-trust dialog before the first hook)
+	SourceLaunch   = "launch"    // agentctl new
+	SourceUser     = "user"      // explicit user action (close --stop)
 )

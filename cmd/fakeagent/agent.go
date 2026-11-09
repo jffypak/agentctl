@@ -29,6 +29,7 @@ type config struct {
 	logPath          string        // FAKEAGENT_LOG: JSONL of every received input
 	hookLogPath      string        // FAKEAGENT_HOOK_LOG: JSONL of every hook run (stdout, exit, ms)
 	pastePlaceholder bool          // FAKEAGENT_PASTE_PLACEHOLDER=1
+	trustDialog      bool          // FAKEAGENT_TRUST_DIALOG=1: folder-trust dialog before SessionStart (trust.go)
 	goalDelay        time.Duration // FAKEAGENT_GOAL_DELAY_MS: SessionStart -> initial-prompt submit gap (goal.go)
 	cwd              string
 	env              []string // hooks inherit this environment
@@ -99,6 +100,9 @@ func (a *agent) setState(s string) {
 // run is the agent loop. It returns the process exit code.
 func (a *agent) run() int {
 	a.term.write("\x1b[?2004h") // bracketed paste on
+	if code, ok := a.trustGate(); !ok {
+		return code
+	}
 	a.term.write("fakeagent " + a.sessionID + "\n")
 	a.fire("SessionStart", map[string]any{"source": "startup", "model": "fakeagent"})
 	if a.cfg.initialPrompt == "" {
@@ -262,6 +266,10 @@ func (a *agent) readInput(r io.Reader) {
 
 func (a *agent) handle(tok token, line, hookLine *strings.Builder) {
 	st := a.getState()
+	if st == stTrust {
+		a.trustKey(tok)
+		return
+	}
 	switch tok.kind {
 	case tokText:
 		if st == stAwaiting {

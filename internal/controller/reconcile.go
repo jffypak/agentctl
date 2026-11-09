@@ -21,6 +21,11 @@ import (
 //     session.disconnected{reason}; all with source pane, confidence pane;
 //   - a live session with a lost-hook marker newer than its state -> unknown
 //     / none, source lost_hook (m2-prompt-queue: downgradeLostHooks);
+//   - starting with no hook yet whose live pane shows Claude's folder-trust
+//     dialog -> unknown / none, detail domain.FolderTrustDetail, source
+//     pane_text, on the first poll (m3-folder-trust-detect, foldertrust.go;
+//     guarded like the timeout). Only these sessions are captured: the
+//     bottom of the visible screen, once per poll;
 //   - starting with no hook for Tunables.StartingTimeout -> unknown / none,
 //     source timeout (guarded: a hook that arrives first wins); a
 //     launched-with-goal agent stays starting after SessionStart until its
@@ -79,6 +84,9 @@ func (c *Controller) reconcileSession(ctx context.Context, sess store.Session, l
 			Source: domain.SourcePane, Reason: l.Reason,
 		})
 		return err
+	}
+	if awaitingFirstHook(sess) && l.IsAlive() && c.showsFolderTrust(ctx, sess) {
+		return c.markFolderTrust(ctx, sess) // before the timeout: the specific detail wins
 	}
 	if sess.State == domain.StateStarting && !c.now().Before(sess.StateSince.Add(c.tun.StartingTimeout)) {
 		_, err := c.store.Sessions().ReconcileTransition(ctx, store.ReconcileInput{

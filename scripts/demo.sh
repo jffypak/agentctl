@@ -208,7 +208,12 @@ settled() {
 	fi
 	if [[ ${s} == unknown && ${DEMO_AGENT} == claude && ${hinted} != *" $1:${s} "* ]]; then
 		hinted+=" $1:${s} "
-		log "$1 is unknown (no hook within 30s): folder-trust or login dialog? tmux -L ${DEMO_SOCKET} attach -t agentctl-$1"
+		if [[ $(show_field "$1" detail) == "folder trust: attach to answer" ]]; then
+			# agentctl spots the dialog within one poll and never answers it
+			log "$1 is on Claude's folder-trust dialog: tmux -L ${DEMO_SOCKET} attach -t agentctl-$1, choose \"Yes, I trust this folder\", then detach (prefix d)"
+		else
+			log "$1 is unknown (no hook within 30s): login dialog? tmux -L ${DEMO_SOCKET} attach -t agentctl-$1"
+		fi
 	fi
 	[[ ${s} == ready ]]
 }
