@@ -121,6 +121,13 @@ func TestParseConfig(t *testing.T) {
 	if _, err := parseConfig([]string{"a", "b"}, func(string) string { return "" }); err == nil {
 		t.Fatal("two prompts accepted")
 	}
+	cfg, err = parseConfig(nil, func(k string) string { return map[string]string{"FAKEAGENT_GOAL_DELAY_MS": "250"}[k] })
+	if err != nil || cfg.goalDelay != 250*time.Millisecond {
+		t.Fatalf("goal delay: cfg = %+v %v", cfg, err)
+	}
+	if _, err := parseConfig(nil, func(k string) string { return map[string]string{"FAKEAGENT_GOAL_DELAY_MS": "-1"}[k] }); err == nil {
+		t.Fatal("bad FAKEAGENT_GOAL_DELAY_MS accepted")
+	}
 }
 
 // harness drives an in-process agent through a pipe with real hook
@@ -390,5 +397,29 @@ func TestSleepDirectiveOverridesWork(t *testing.T) {
 	h.waitEvents("SessionStart:startup UserPromptSubmit PreToolUse:Bash PostToolUse:Bash Stop")
 	if time.Since(start) > 3*time.Second {
 		t.Fatal("#sleep did not override FAKEAGENT_WORK_MS")
+	}
+}
+
+// TestGoalDelayKeepsStartingUntilSubmit (m3-goal-start-race): with
+// FAKEAGENT_GOAL_DELAY_MS, the initial prompt is submitted that long after
+// the SessionStart hook returns, like real Claude Code's ~230 ms gap. Input
+// arriving in the gap is logged as received while starting (never ready),
+// and the goal turn still runs.
+func TestGoalDelayKeepsStartingUntilSubmit(t *testing.T) {
+	h := startAgent(t, "go", func(c *config) { c.goalDelay = 1500 * time.Millisecond })
+	h.waitEvents("SessionStart:startup")
+	h.send("\x1b[200~in the gap\x1b[201~")
+	testenv.WaitFor(t, 0, "the paste logged", func() (bool, string) {
+		return len(readJSONL(t, filepath.Join(h.dir, "input.jsonl"))) == 1, ""
+	})
+	if got := strings.Join(h.events(), " "); got != "SessionStart:startup" {
+		t.Fatalf("the goal was submitted before the delay elapsed: %s", got)
+	}
+	if log := readJSONL(t, filepath.Join(h.dir, "input.jsonl")); log[0]["state_at_receipt"] != stStarting {
+		t.Fatalf("paste in the gap = %v, want received while starting", log[0])
+	}
+	h.waitEvents("SessionStart:startup UserPromptSubmit PreToolUse:Bash PostToolUse:Bash Stop")
+	if p := readJSONL(t, filepath.Join(h.dir, "hooks.jsonl")); p[1]["prompt"] != "go" {
+		t.Fatalf("UserPromptSubmit = %v", p[1])
 	}
 }

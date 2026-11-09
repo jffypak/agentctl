@@ -30,9 +30,16 @@ type fixture struct {
 	st     *store.Store
 	socket string
 	sess   store.Session
+	goal   string // the seeded tasks' goal ("" = launched without one)
 }
 
 func newFixture(t *testing.T, origin domain.Origin, state domain.AgentState) *fixture {
+	t.Helper()
+	return newGoalFixture(t, origin, state, "")
+}
+
+// newGoalFixture is newFixture whose task was created with goal.
+func newGoalFixture(t *testing.T, origin domain.Origin, state domain.AgentState, goal string) *fixture {
 	t.Helper()
 	p := paths.ForHome(testenv.TempHome(t))
 	if err := paths.EnsureHome(p); err != nil {
@@ -47,7 +54,7 @@ func newFixture(t *testing.T, origin domain.Origin, state domain.AgentState) *fi
 	if err := os.WriteFile(sock, nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	f := &fixture{t: t, p: p, st: st, socket: sock}
+	f := &fixture{t: t, p: p, st: st, socket: sock, goal: goal}
 	f.sess = f.seed("demo", origin, state, "%3")
 	return f
 }
@@ -59,7 +66,7 @@ func (f *fixture) seed(id string, origin domain.Origin, state domain.AgentState,
 	if err != nil {
 		f.t.Fatal(err)
 	}
-	if _, err := f.st.Tasks().Reserve(ctx, store.Task{ID: id, RepoID: repo.ID, Name: id, WorktreePath: "/w/" + id, Branch: "agentctl/" + id}); err != nil {
+	if _, err := f.st.Tasks().Reserve(ctx, store.Task{ID: id, RepoID: repo.ID, Name: id, Goal: f.goal, WorktreePath: "/w/" + id, Branch: "agentctl/" + id}); err != nil {
 		f.t.Fatal(err)
 	}
 	initial := state
