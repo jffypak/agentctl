@@ -1,0 +1,40 @@
+ [1magents / repo[m[38;5;245m · 2 running · [m[1;38;5;215m6 need you[m
+ [38;5;245m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[m
+ [1;38;5;215mstop and close auth-tests? y/N[m
+
+   kills tmux session agentctl-auth-tests (pane %1, pid 4000): the agent stops now
+   then closes the task; worktree and branch agentctl/auth-tests are kept
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ [38;5;245m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[m
+ [1my[m [38;5;245mstop and close[m  [1mother keys[m [38;5;245mcancel[m

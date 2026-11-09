@@ -277,13 +277,8 @@ func TestStubKeysSayComingIn(t *testing.T) {
 	t.Parallel()
 	f := newFixture(t)
 	f.seed(t, everyState)
-	cases := map[string]string{
+	cases := map[string]string{ // d l n a x are real views now (m2-tui-manage, manage_test.go)
 		"p": "prompt: coming in m2-prompt-queue",
-		"d": "diff: coming in m2-tui-manage",
-		"l": "logs: coming in m2-tui-manage",
-		"n": "new task: coming in m2-tui-manage",
-		"a": "adopt: coming in m2-tui-manage",
-		"x": "close: coming in m2-tui-manage",
 	}
 	for k, want := range cases {
 		for _, inDetail := range []bool{false, true} {
