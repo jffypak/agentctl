@@ -43,8 +43,8 @@ func cmdTUI(ctx context.Context, sys *system, args []string) int {
 		defer ctl.Close()
 		opts.Controller = ctl
 	}
-	// m2-tui-manage adds its single config.yaml keymap line here, setting
-	// opts.Keys (a *tui.KeyMap) and opts.Warning for unknown or conflicting keys.
+	// config.yaml keys: (m2-tui-manage); a bad file is a banner, never a crash.
+	opts.Keys, opts.Warning = tui.ConfigKeyMap(sys.getenv, opts.Warning)
 
 	if err := tui.Run(ctx, opts); err != nil {
 		return sys.fail(err)

@@ -1,0 +1,24 @@
+ [1magents / repo[m[38;5;245m · 2 running · [m[1;38;5;215m6 need you[m
+ [38;5;245m──────────────────────────────────────────────────────────────────────────────[m
+ [1mnew task[m
+ [38;5;245ma worktree and branch from the current HEAD, with the agent started in tmux[m
+
+ [38;5;245mname   [mauth-flow
+        [38;5;245mcreates branch agentctl/auth-flow[m
+ [1mgoal   [mWrite integration tests for the OAuth login flow[7m [m
+        [38;5;245mthe agent's first prompt (optional)[m
+
+ [1;38;5;203m! agent command "claude" not found on PATH (install Claude Code or set[m
+ [1;38;5;203mAGENTCTL_AGENT_CMD)[m
+
+
+
+
+
+
+
+
+
+
+ [38;5;245m──────────────────────────────────────────────────────────────────────────────[m
+ [1m↵[m [38;5;245mcreate[m  [1mtab[m [38;5;245mswitch field[m  [1mesc[m [38;5;245mcancel[m
