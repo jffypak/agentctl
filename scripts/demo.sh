@@ -163,6 +163,7 @@ mkdir -p "${repo}"
 git -C "${repo}" init -q -b main
 printf '# demo repo\n\nA throwaway repository for the agentctl demo.\n' >"${repo}/README.md"
 printf '#!/bin/sh\necho "hello, ${1:-world}"\n' >"${repo}/greet.sh"
+chmod +x "${repo}/greet.sh" # beta's goal runs ./greet.sh; without +x the shell refuses it
 git -C "${repo}" add README.md greet.sh
 git -C "${repo}" -c user.name=agentctl-demo -c user.email=demo@agentctl.invalid commit -q -m "initial"
 cd "${repo}"

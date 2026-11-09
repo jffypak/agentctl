@@ -442,17 +442,45 @@ relaunching disconnected agents, worktree cleanup, and deep config schemas.
 
 ## Open questions
 
-- Are Claude Code hooks reliable enough for `working` / `awaiting_input` /
-  `ready` in real sessions, and do `--settings` hooks merge with project hooks?
-  Verify in the real demo. Owner: director (m3).
-- Does `UserPromptSubmit.prompt` contain the expanded text of a large bracketed
-  paste, or a `[Pasted text #N]` placeholder? This decides `hash` vs `timing`
-  acks. Owner: director (m3 demo).
-- Inside a `display-popup`, does `switch-client` followed by agentctl exiting
-  reliably land the user on the agent pane? Owner: m2-tui-inbox, confirmed in the m3 demo.
-- What field names and events does Claude Code 2.1.x actually send
-  (`notification_type`, `PermissionRequest`, `SessionStart.source`)? Owner:
-  m1-hook-state; the director runs `scripts/hook-probe.sh` once against real `claude`.
+**Answered by the real two-Claude demo** (2026-11-09, Claude Code 2.1.319,
+tmux 3.5a, `DEMO_AGENT=claude scripts/demo.sh`, two runs):
+
+- **Hook reliability: yes.** Every turn produced `UserPromptSubmit` → tool
+  hooks → `Stop`, no orphan hooks, no `hook-errors.log` entries. One gap: the
+  `SessionStart` → `ready` mapping is premature when a goal is passed on argv
+  (see the session-start race below).
+- **`--settings` merge: additive.** agentctl's hooks and the user's own plugin
+  hooks (ECC session hooks) both ran in the same agent session. `--settings`
+  does not replace user or project hooks.
+- **Large paste ack: placeholder, so `timing`.** A 1023-byte bracketed paste
+  was acknowledged by `timing`; Claude collapses it to a "paste again to expand"
+  placeholder, so `UserPromptSubmit.prompt` doesn't carry the text. A 30-byte
+  prompt matched by `hash`. Keep the timing fallback; it is the normal path for
+  large prompts, not an edge case.
+- **Popup `switch-client`: works.** `prefix a` → select beta → Enter landed
+  the user on `agentctl-beta`'s pane after the popup closed.
+- **Field names seen:** `SessionStart.source = startup`,
+  `Notification.notification_type = idle_prompt`. No `permission_prompt` or
+  `PermissionRequest` was exercised (neither agent hit a permission prompt), so
+  the NEEDS YOU permission path is still only proven against fakeagent.
+- **Claude `pane_current_command` is the version string** (`2.1.319`), not
+  `claude`: the binary is a symlink into a versions directory. The default
+  adopt filter (`DefaultAdoptCommands = ["claude"]`) therefore matches no real
+  Claude pane. Tracked in `m3-adopt-claude-match`.
+- **Folder trust blocks every first run.** Each worktree is a new path, so
+  Claude shows its trust dialog before any hook fires. The agent sits in
+  `starting` and surfaces as `unknown` only after `StartingTimeout` (30 s). We
+  still never auto-accept; tracked in `m3-folder-trust-detect`.
+- **Session-start race.** With a goal on argv, `SessionStart` (→ `ready`)
+  arrives ~230 ms before the goal's `UserPromptSubmit` (→ `working`). In that
+  window the agent looks deliverable, so a `send` right after `new` could paste
+  into an agent that is about to start working (invariant: never paste into a
+  working agent). Tracked in `m3-goal-start-race`.
+
+Still open:
+
+- Permission prompt → NEEDS YOU with real Claude (not exercised by the demo).
+  Owner: whoever next runs the demo with a goal that triggers a prompt.
 - Multiple agents per task or per pane are out of Phase 1: one session per task,
   many tasks per repo. Owner: TBD (m4).
 - Enforced sandboxing and command permissions. Owner: TBD (m4).

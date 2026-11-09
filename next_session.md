@@ -27,12 +27,13 @@ updated: 2026-11-09
 
 ## Next session TODO
 
-- [ ] **Real two-Claude demo (human-in-the-loop):** in a terminal,
-      `cd /Users/jpark/Code/agent-tui && DEMO_AGENT=claude DEMO_KEEP=1 scripts/demo.sh`.
-      Accept the folder-trust and permission prompts in the agent panes
-      (`tmux -L agentctl-demo attach -t agentctl-alpha|beta`), follow the
-      checklist pause (popup `prefix a` → switch-client), then fold the FINDINGS
-      block into ARCHITECTURE.md §Open questions.
+- [x] **Real two-Claude demo** ran 2026-11-09; results are in ARCHITECTURE.md
+      §Open questions. Three follow-up cards are `todo`: `m3-goal-start-race`
+      (high), `m3-adopt-claude-match` (high), `m3-folder-trust-detect` (medium).
+- [ ] Dispatch the three demo-finding cards (`/tb:orchestrate` or one at a time).
+- [ ] Still unproven with real Claude: permission prompt → NEEDS YOU. Rerun the
+      demo with a goal that triggers a prompt. The demo server's prefix is
+      `C-b` (the server ignores your tmux.conf), not your own prefix.
 - [ ] Optionally run `scripts/hook-probe.sh` with real claude to refresh payload fixtures.
 - [ ] Clean up the W0 test leak (user action): tmux session `agentctl-demo` on the
       default server, worktree `/Users/jpark/Code/agent-tui-worktrees/demo`,
@@ -43,9 +44,6 @@ updated: 2026-11-09
 
 ## Open questions
 
-- Hook reliability, `--settings` merge with user hooks, paste ack hash vs timing,
-  popup switch-client, folder-trust frequency, claude `pane_current_command` —
-  all answered by the real demo.
 - Does claude accept `--` before the goal arg? (goals starting with `-` are rejected.)
 
 ## Context to load
