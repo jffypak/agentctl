@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -286,7 +287,8 @@ func TestReconcileStartingTimeoutBecomesUnknown(t *testing.T) {
 	clock.Advance(time.Millisecond)
 	piReconcile(t, ctl)
 	s := piSession(t, ctl, "demo")
-	if s.State != domain.StateUnknown || s.Confidence != domain.ConfidenceNone || s.LastDetail != "no hook within 2s" {
+	if s.State != domain.StateUnknown || s.Confidence != domain.ConfidenceNone ||
+		!strings.HasPrefix(s.LastDetail, "no hook within 2s") || !strings.Contains(s.LastDetail, "attach to check") {
 		t.Fatalf("after the timeout: %+v", s)
 	}
 	ev := piEvents(t, ctl, "demo", domain.EventAgentStateChanged)

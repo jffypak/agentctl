@@ -78,7 +78,9 @@ func (c *Controller) reconcileSession(ctx context.Context, sess store.Session, l
 	if sess.State == domain.StateStarting && !c.now().Before(sess.StateSince.Add(c.tun.StartingTimeout)) {
 		_, err := c.store.Sessions().ReconcileTransition(ctx, store.ReconcileInput{
 			SessionID: sess.ID, From: domain.StateStarting, To: domain.StateUnknown, Confidence: domain.ConfidenceNone,
-			Detail: "no hook within " + c.tun.StartingTimeout.Round(time.Millisecond).String(), Source: domain.SourceTimeout,
+			Detail: "no hook within " + c.tun.StartingTimeout.Round(time.Millisecond).String() +
+				" — Claude may be showing its folder-trust or login prompt; attach to check",
+			Source: domain.SourceTimeout,
 		})
 		return err
 	}

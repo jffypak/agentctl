@@ -224,6 +224,7 @@ on stdin plus inherited env `AGENTCTL_TASK_ID`, `AGENTCTL_HOME`, `TMUX`, and `TM
 | `Notification` | `idle_prompt` | `ready` |
 | `PermissionRequest` | — | `awaiting_input` |
 | `Stop` | — | `ready` |
+| `StopFailure` | (an API error ended the turn; fires *instead of* `Stop`) | `awaiting_input`, detail `turn failed: <error>` (NEEDS YOU, and no auto-delivery into a failing session) |
 | `SessionEnd` | — | `stopped` |
 | anything else | — | recorded, no change |
 
@@ -262,6 +263,14 @@ label "attach to deliver" until the user cancels it.
 
 The hook-spawned `deliver` waits for the hook pid to exit, waits
 `DeliverSettle`, runs `Drain`, then waits up to `AckWindow`. It always exits 0.
+
+**Lost-hook safety.** A hook whose DB write fails (for example SQLITE_BUSY
+past its budget) writes a marker file instead
+(`<home>/hooks/lost/<session-or-pane-key>`). While the marker is newer than the
+session's `state_since`, the session is not deliverable ("state stale —
+attach to deliver"). Reconcile downgrades it to `unknown`/`none`, and the next
+recorded hook clears it. A lost `UserPromptSubmit` therefore can never lead to
+a paste into a working agent.
 
 **Identity and reconciliation.** A session is bound to (tmux socket, server pid,
 pane id, pane pid), captured at launch or adoption. Reconcile runs
@@ -333,6 +342,7 @@ These are used by the acceptance pass. A violation is a failing review.
 | **NEEDS YOU** | `awaiting_input`, `disconnected`, `failed`, or any message `unconfirmed`/`failed`, or a queued message on an `unknown` agent |
 | **IDLE** | `ready`: turn finished, waiting for the next instruction or review. Also `stopped`, labelled **exited** (never worded as success) |
 | **RUNNING** | `starting`, `working` |
+| **NEEDS YOU** (also) | `unknown` on a **launched** agent → "silent since launch · attach to check": it never sent a hook (Claude's folder-trust or login prompt, early hang) |
 | **UNKNOWN** | `unknown` (adopted without hooks): muted |
 | *(hidden)* | tasks in state `closed`; shown with the `/` filter `closed` |
 
@@ -413,6 +423,12 @@ rules keep merges trivial:
      kill-server only in testenv.
    - gitx never contains `reset --hard`, `worktree remove`, `branch -D`,
      `--force`, `clean -f`, or `push`.
+   - gitx reads against a worktree use plumbing (`diff-tree`, `diff-index`,
+     `diff-files`) or `status`, never porcelain `git diff`. Porcelain diff
+     rewrites `.git/index` (refresh) even with `GIT_OPTIONAL_LOCKS=0`
+     (m1-inspect finding).
+   - tmux `pane_dead_signal` may be a name (`term`), not a number. Unknown
+     names map to a non-zero sentinel, never 0.
 7. **Environment:** the user's global gitignore ignores **all dotfiles** and any
    `go/` directory. Don't add dotfile config (no `.golangci.yml`), and don't
    name a package directory `go`. Commit all work on the worktree branch before

@@ -11,8 +11,9 @@ labels:
 dependencies:
 - m1-hook-state
 - m2-tui-inbox
+- m1-flaky-tests
 created: '2026-11-06'
-updated: '2026-11-06'
+updated: '2026-11-08'
 acceptance_criteria: "- CanDeliver table: only ready + hook confidence + alive passes;\
   \ every other combination returns its label ('agent working', 'awaiting input',\
   \ 'attach to deliver', 'disconnected')\n- 20 concurrent Drain calls (goroutines\
@@ -34,11 +35,20 @@ acceptance_criteria: "- CanDeliver table: only ready + hook confidence + alive p
   \ esc cancels; message states update live in detail with a cancel key for queued;\
   \ goldens for composer + messages-in-detail at both sizes; emits ui.action{prompt}\n\
   - message.{queued,claimed,sent,acknowledged,unconfirmed,cancelled} events carry\
-  \ cause_id linking the triggering hook event"
+  \ cause_id linking the triggering hook event\n- Lost-hook safety: a hook whose DB\
+  \ write fails (simulate with a write-locked DB past the budget) leaves a marker;\
+  \ while it is newer than state_since nothing is pasted (fakeagent log proves it)\
+  \ and the session reads unknown/none after reconcile; the next recorded hook clears\
+  \ it"
 history:
 - when: '2026-11-06'
   from: null
   to: backlog
+- when: '2026-11-08'
+  from: backlog
+  to: backlog
+  note: 'director: added lost-hook safety rule + dependency on m1-flaky-tests before
+    dispatch'
 ---
 
 # Safe deliver-or-queue prompts with acks: `send`, hook-triggered `deliver`, TUI composer
@@ -73,3 +83,15 @@ idle_prompt) with queued messages, spawn detached `agentctl deliver --session N
 else by timing within AckWindow. **deliver:** wait hook pid exit → DeliverSettle
 → Drain → wait up to AckWindow → `unconfirmed` if no ack; always exit 0; log to
 `logs/deliver.log`.
+
+**Lost-hook safety (added 2026-11-08, before dispatch).** A hook write can fail
+(SQLITE_BUSY under load, budget exceeded; see m1-flaky-tests). If the lost event
+was `UserPromptSubmit`, the session keeps showing `ready` while the agent works,
+and a delivery would paste into a busy agent. The rule: when `agentctl hook`
+cannot record an event, it writes a marker file without the DB
+(`<home>/hooks/lost/<session-or-pane-key>`, atomic, 0600). Before claiming,
+`CanDeliver`/`Drain` refuse any session whose marker is newer than its
+`state_since`, with the label "state stale — attach to deliver". Reconcile
+downgrades such a session to `unknown`/`none`. The next successfully recorded
+hook for that session clears the marker. You own this in `internal/hookingest`
+(the marker write) and the controller/domain delivery checks.

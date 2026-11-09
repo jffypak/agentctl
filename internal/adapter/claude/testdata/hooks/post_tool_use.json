@@ -1,0 +1,18 @@
+{
+  "session_id": "9f1c2b7e-0a4d-4c55-8e3a-2b6f1d0c9a11",
+  "transcript_path": "/Users/someone/.claude/projects/-repo/9f1c2b7e-0a4d-4c55-8e3a-2b6f1d0c9a11.jsonl",
+  "cwd": "/repos/main-worktrees/demo",
+  "permission_mode": "default",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Write",
+  "tool_input": {
+    "file_path": "/tmp/x",
+    "content": "secret-ish content"
+  },
+  "tool_response": {
+    "filePath": "/tmp/x",
+    "type": "create"
+  },
+  "tool_use_id": "toolu_03GHI",
+  "duration_ms": 12
+}

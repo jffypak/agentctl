@@ -1,7 +1,7 @@
 ---
 id: m1-hook-state
 title: 'Hook-driven agent state: `agentctl hook`, Claude settings generation, fakeagent'
-status: in-progress
+status: done
 priority: medium
 milestone: m1-see-agents
 labels:
@@ -10,7 +10,7 @@ labels:
 dependencies:
 - m1-walking-skeleton
 created: '2026-11-06'
-updated: '2026-11-07'
+updated: '2026-11-08'
 acceptance_criteria: '- Golden test of generated settings: all mapped events, command
   = shell-quoted abs path + '' hook'', timeout 5, file mode 0600, rewrite byte-identical
 
@@ -50,6 +50,10 @@ history:
   to: in-progress
   note: 'director: dispatched to worktree /Users/jpark/Code/agent-tui/.tinkerbell/worktrees/m1-hook-state
     (tb/m1-hook-state)'
+- when: '2026-11-08'
+  from: in-progress
+  to: done
+  note: "director: done \u2014 acceptance pass green; promote to done"
 ---
 
 # Hook-driven agent state: `agentctl hook`, Claude settings generation, fakeagent

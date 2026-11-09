@@ -139,7 +139,7 @@ func taskView(r store.OverviewRow, now time.Time) TaskView {
 	}
 	v.Attention = domain.ClassifyAttention(domain.AttentionInput{
 		TaskState: v.TaskState, HasSession: v.HasSession, AgentState: v.AgentState,
-		Confidence: v.Confidence, Messages: v.Messages,
+		Confidence: v.Confidence, Messages: v.Messages, Origin: v.Origin,
 	})
 	if v.Age = now.Sub(v.StateSince); v.Age < 0 {
 		v.Age = 0
