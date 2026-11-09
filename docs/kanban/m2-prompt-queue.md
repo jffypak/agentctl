@@ -2,7 +2,7 @@
 id: m2-prompt-queue
 title: 'Safe deliver-or-queue prompts with acks: `send`, hook-triggered `deliver`,
   TUI composer'
-status: in-progress
+status: done
 priority: medium
 milestone: m2-direct-agents
 labels:
@@ -54,6 +54,10 @@ history:
   to: in-progress
   note: 'director: dispatched to worktree /Users/jpark/Code/agent-tui/.tinkerbell/worktrees/m2-prompt-queue
     (tb/m2-prompt-queue)'
+- when: '2026-11-09'
+  from: in-progress
+  to: done
+  note: "director: done \u2014 acceptance pass green; promote to done"
 ---
 
 # Safe deliver-or-queue prompts with acks: `send`, hook-triggered `deliver`, TUI composer
