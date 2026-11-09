@@ -100,6 +100,7 @@ func Run(ctx context.Context, cfg Config) Outcome {
 		o.TimedOut = true
 		o.Err = fmt.Errorf("hook budget %v exceeded; gave up (state not recorded)", cfg.Budget)
 		r.log.write(o, o.Err)
+		r.lostOnTimeout(o) // lost.go: the event may never be recorded
 		return o
 	}
 }
@@ -142,6 +143,7 @@ type runner struct {
 	cfg      Config
 	log      *errorLog
 	progress Outcome
+	lost     lostState // lost.go; guarded by log.mu like progress
 }
 
 func (r *runner) snapshot() Outcome {
@@ -170,6 +172,7 @@ func (r *runner) run(ctx context.Context) Outcome {
 	}
 	o.TaskID = env.TaskID
 	p, perr := paths.Resolve(r.cfg.Getenv)
+	r.setLostContext(env, p)
 	if perr == nil {
 		if fi, err := os.Stat(p.Home); err == nil && fi.IsDir() {
 			r.log.setPath(filepath.Join(p.Logs, ErrorLogName))
@@ -185,11 +188,11 @@ func (r *runner) run(ctx context.Context) Outcome {
 		return o // not an agentctl pane (a user-wide hooks-snippet firing elsewhere): nothing to do
 	}
 	if err != nil {
-		return r.fail(o, err)
+		return r.failLost(o, err)
 	}
 	obs, err := claude.New(claude.Config{}).ParseHook(payload, env)
 	if err != nil {
-		return r.fail(o, err)
+		return r.failLost(o, err)
 	}
 	o.Event = obs.Event
 	r.note(o)
@@ -201,13 +204,13 @@ func (r *runner) run(ctx context.Context) Outcome {
 	}
 	st, err := store.Open(ctx, p.DB, store.Options{BusyTimeout: r.cfg.BusyTimeout, Now: r.cfg.Now})
 	if err != nil {
-		return r.fail(o, err)
+		return r.failLost(o, err)
 	}
 	defer st.Close()
 
 	match, err := resolve(ctx, st, env)
 	if err != nil {
-		return r.fail(o, err)
+		return r.failLost(o, err)
 	}
 	switch {
 	case match.orphan != "":
@@ -227,10 +230,11 @@ func (r *runner) run(ctx context.Context) Outcome {
 	}
 	res, err := retryFastBusy(ctx, func() (store.HookResult, error) { return st.Sessions().RecordHook(ctx, in) })
 	if err != nil {
-		return r.fail(o, err)
+		return r.failLost(o, err)
 	}
 	o.Applied = res.Applied
 	r.note(o)
+	r.recorded(o, p, obs, res) // lost.go: clears this session's lost-hook markers
 	r.runFollowups(ctx, st, Applied{Observation: obs, Session: res.Session, Result: res, Match: match.how}, o)
 	return o
 }
