@@ -33,3 +33,35 @@ func ValidateSlug(s string) error {
 	}
 	return nil
 }
+
+// SlugFrom derives a task name from free text (a directory name): lower-case,
+// every run of characters outside [a-z0-9] becomes one '-', leading and
+// trailing '-' are dropped, and the result is cut to MaxSlugLen (then trailing
+// '-' dropped again). It returns "" when nothing usable is left; any other
+// result passes ValidateSlug.
+func SlugFrom(s string) string {
+	var b []byte
+	dash := false
+	for _, r := range s {
+		switch {
+		case r >= 'A' && r <= 'Z':
+			r += 'a' - 'A'
+			fallthrough
+		case r >= 'a' && r <= 'z' || r >= '0' && r <= '9':
+			if dash && len(b) > 0 {
+				b = append(b, '-')
+			}
+			dash = false
+			b = append(b, byte(r))
+		default:
+			dash = true
+		}
+	}
+	if len(b) > MaxSlugLen {
+		b = b[:MaxSlugLen]
+	}
+	for len(b) > 0 && b[len(b)-1] == '-' {
+		b = b[:len(b)-1]
+	}
+	return string(b)
+}

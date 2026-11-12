@@ -57,3 +57,38 @@ func normalizeScreen(screen string) string {
 	}, SanitizeTerminalText(screen))
 	return strings.Join(strings.Fields(clean), " ")
 }
+
+// HookTrustDetail is the last_detail of a Codex agent whose pane shows Codex's
+// hook-trust screen (new or changed hooks are skipped until the user trusts
+// them in /hooks). agentctl never answers it: the user attaches and decides.
+const HookTrustDetail = "hook trust: attach to answer"
+
+// DetailAwaitingFirstPrompt is the last_detail of a Codex agent that has no
+// goal: Codex fires its first hook (SessionStart) only at the first prompt,
+// so until the user types, silence is expected (INITIALSTATE).
+const DetailAwaitingFirstPrompt = "waiting for first prompt · attach to start"
+
+// codexHookTrustPhrases are distinctive options of Codex's startup hook-trust
+// screen (Codex CLI 0.167.2, seen 2026-11-12: "Review hooks", "Trust all and
+// continue", "Continue without trusting (hooks won't run)"). "Review hooks"
+// alone is too generic (it also names the /hooks browser), so only the two
+// trust options match. Lower-case and single-spaced like folderTrustPhrases.
+var codexHookTrustPhrases = []string{
+	"trust all and continue",
+	"continue without trusting (hooks won't run)",
+}
+
+// ShowsCodexHookTrustDialog reports whether captured pane text shows Codex's
+// hook-trust screen. Matching works like ShowsFolderTrustDialog.
+func ShowsCodexHookTrustDialog(screen string) bool {
+	norm := normalizeScreen(screen)
+	if norm == "" {
+		return false
+	}
+	for _, p := range codexHookTrustPhrases {
+		if strings.Contains(norm, p) {
+			return true
+		}
+	}
+	return false
+}

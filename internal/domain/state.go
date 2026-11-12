@@ -76,10 +76,13 @@ type Origin string
 const (
 	OriginLaunched Origin = "launched" // started by `agentctl new`
 	OriginAdopted  Origin = "adopted"  // registered by `agentctl adopt`
+	OriginWrapped  Origin = "wrapped"  // registered by `agentctl codex` in the user's own pane
 )
 
 // Valid reports whether o is a known origin.
-func (o Origin) Valid() bool { return o == OriginLaunched || o == OriginAdopted }
+func (o Origin) Valid() bool {
+	return o == OriginLaunched || o == OriginAdopted || o == OriginWrapped
+}
 
 // MessageState is the delivery lifecycle of a queued prompt.
 //

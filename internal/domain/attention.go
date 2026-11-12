@@ -7,13 +7,14 @@ const (
 	SectionNeedsYou Section = "needs_you"
 	SectionIdle     Section = "idle"
 	SectionRunning  Section = "running"
+	SectionInitial  Section = "initial" // no hook event received yet ("INITIALSTATE")
 	SectionUnknown  Section = "unknown"
 	SectionClosed   Section = "closed" // hidden unless the closed filter is on
 )
 
 // Sections lists every section in display order.
 func Sections() []Section {
-	return []Section{SectionNeedsYou, SectionIdle, SectionRunning, SectionUnknown, SectionClosed}
+	return []Section{SectionNeedsYou, SectionIdle, SectionRunning, SectionInitial, SectionUnknown, SectionClosed}
 }
 
 // Order is the display rank of a section (lower first).
@@ -25,12 +26,14 @@ func (s Section) Order() int {
 		return 1
 	case SectionRunning:
 		return 2
-	case SectionUnknown:
+	case SectionInitial:
 		return 3
-	case SectionClosed:
+	case SectionUnknown:
 		return 4
+	case SectionClosed:
+		return 5
 	}
-	return 5
+	return 6
 }
 
 // Title is the human header for a section.
@@ -42,6 +45,8 @@ func (s Section) Title() string {
 		return "IDLE"
 	case SectionRunning:
 		return "RUNNING"
+	case SectionInitial:
+		return "INITIALSTATE"
 	case SectionUnknown:
 		return "UNKNOWN"
 	case SectionClosed:
@@ -82,6 +87,9 @@ func (m MessageSummary) Add(s MessageState, n int) MessageSummary {
 	return m
 }
 
+// labelNoEvents is the INITIALSTATE label: the agent has sent no hook yet.
+const labelNoEvents = "no events yet"
+
 // AttentionInput is everything attention classification looks at.
 type AttentionInput struct {
 	TaskState  TaskState
@@ -89,7 +97,8 @@ type AttentionInput struct {
 	AgentState AgentState
 	Confidence Confidence
 	Messages   MessageSummary
-	Origin     Origin // launched agents that fall silent need the user; adopted ones are expected to be unknown
+	Origin     Origin // launched/wrapped agents that fall silent need the user; adopted ones are expected to be unknown
+	HasHook    bool   // at least one hook event was matched to the session
 }
 
 // Attention is the classification result: a section plus a short label that
@@ -104,14 +113,18 @@ type Attention struct {
 //   - closed task -> CLOSED (hidden by default)
 //   - awaiting_input, failed, disconnected -> NEEDS YOU
 //   - any unconfirmed or failed message -> NEEDS YOU
-//   - a queued message on an unknown agent -> NEEDS YOU ("attach to deliver")
+//   - a queued message on an unknown agent, or on a starting agent that has
+//     sent no hook yet -> NEEDS YOU ("attach to deliver")
 //   - a queued message on an exited/failed/disconnected agent -> NEEDS YOU
 //     (it can never be delivered; honest rather than silently stuck)
 //   - ready -> IDLE "ready"; stopped -> IDLE "exited" (never worded as success)
+//   - starting with no hook yet -> INITIALSTATE "no events yet"
 //   - starting, working -> RUNNING
-//   - unknown on a *launched* agent -> NEEDS YOU "silent since launch": it only
-//     gets there by never sending a hook (trust prompt, login, early hang)
-//   - unknown (adopted / no origin), or no session yet -> UNKNOWN
+//   - unknown on a *launched* or *wrapped* agent -> NEEDS YOU "silent since
+//     launch": it only gets there by never sending a hook (trust prompt,
+//     login, early hang)
+//   - unknown with no hook ever (adopted without hooks) -> INITIALSTATE
+//   - unknown (hooks seen, state lost), or no session yet -> UNKNOWN
 //
 // Agent-state reasons outrank message reasons in the label.
 func ClassifyAttention(in AttentionInput) Attention {
@@ -135,7 +148,7 @@ func ClassifyAttention(in AttentionInput) Attention {
 		return Attention{SectionNeedsYou, "message unconfirmed · attach to check"}
 	case m.Failed > 0:
 		return Attention{SectionNeedsYou, "message failed"}
-	case m.Queued > 0 && in.AgentState == StateUnknown:
+	case m.Queued > 0 && (in.AgentState == StateUnknown || in.AgentState == StateStarting && !in.HasHook):
 		return Attention{SectionNeedsYou, "queued · attach to deliver"}
 	case m.Queued > 0 && in.AgentState == StateStopped:
 		return Attention{SectionNeedsYou, "queued · agent exited"}
@@ -146,12 +159,18 @@ func ClassifyAttention(in AttentionInput) Attention {
 	case StateStopped:
 		return Attention{SectionIdle, "exited"}
 	case StateStarting:
+		if !in.HasHook {
+			return Attention{SectionInitial, labelNoEvents}
+		}
 		return Attention{SectionRunning, "starting"}
 	case StateWorking:
 		return Attention{SectionRunning, "working"}
 	case StateUnknown:
-		if in.Origin == OriginLaunched {
+		if in.Origin == OriginLaunched || in.Origin == OriginWrapped {
 			return Attention{SectionNeedsYou, "silent since launch · attach to check"}
+		}
+		if !in.HasHook {
+			return Attention{SectionInitial, labelNoEvents}
 		}
 	}
 	return Attention{SectionUnknown, "unknown"}

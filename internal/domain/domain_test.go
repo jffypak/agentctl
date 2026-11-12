@@ -190,7 +190,8 @@ func TestAttentionEveryAgentStateWithNoMessages(t *testing.T) {
 		{StateUnknown, SectionUnknown, "unknown"},
 	}
 	for _, c := range cases {
-		got := ClassifyAttention(AttentionInput{TaskState: TaskRunning, HasSession: true, AgentState: c.state})
+		// HasHook: these sessions have reported (no-hook rules: attention_initial_test.go).
+		got := ClassifyAttention(AttentionInput{TaskState: TaskRunning, HasSession: true, AgentState: c.state, HasHook: true})
 		if got.Section != c.section || got.Label != c.label {
 			t.Errorf("%s: got %s/%q, want %s/%q", c.state, got.Section, got.Label, c.section, c.label)
 		}
@@ -228,7 +229,7 @@ func TestAttentionMatrix(t *testing.T) {
 			case ms.Queued > 0 && (st == StateUnknown || st.IsTerminal()):
 				want = SectionNeedsYou
 			}
-			got := ClassifyAttention(AttentionInput{TaskState: TaskRunning, HasSession: true, AgentState: st, Messages: ms})
+			got := ClassifyAttention(AttentionInput{TaskState: TaskRunning, HasSession: true, AgentState: st, Messages: ms, HasHook: true})
 			if got.Section != want {
 				t.Errorf("%s x %s: section %s, want %s (label %q)", st, name, got.Section, want, got.Label)
 			}
@@ -275,19 +276,19 @@ func TestUnknownNeverRendersAsSuccess(t *testing.T) {
 }
 
 func TestSectionOrderAndTitles(t *testing.T) {
-	order := []Section{SectionNeedsYou, SectionIdle, SectionRunning, SectionUnknown, SectionClosed}
+	order := []Section{SectionNeedsYou, SectionIdle, SectionRunning, SectionInitial, SectionUnknown, SectionClosed}
 	for i := 1; i < len(order); i++ {
 		if order[i-1].Order() >= order[i].Order() {
 			t.Errorf("%s must sort before %s", order[i-1], order[i])
 		}
 	}
-	titles := map[Section]string{SectionNeedsYou: "NEEDS YOU", SectionIdle: "IDLE", SectionRunning: "RUNNING", SectionUnknown: "UNKNOWN", SectionClosed: "CLOSED"}
+	titles := map[Section]string{SectionNeedsYou: "NEEDS YOU", SectionIdle: "IDLE", SectionRunning: "RUNNING", SectionInitial: "INITIALSTATE", SectionUnknown: "UNKNOWN", SectionClosed: "CLOSED"}
 	for s, want := range titles {
 		if s.Title() != want {
 			t.Errorf("%s.Title() = %q, want %q", s, s.Title(), want)
 		}
 	}
-	if len(Sections()) != 5 {
+	if len(Sections()) != 6 {
 		t.Errorf("Sections() = %v", Sections())
 	}
 }
