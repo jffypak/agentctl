@@ -207,15 +207,26 @@ func (a *agent) turn(text, hookText string) (code int, done bool) {
 // "Yes" — which is why nothing may ever be pasted into a dialog) or n.
 func (a *agent) ask() (approved, quit bool) {
 	a.fire("PreToolUse", bashTool())
+	if a.cfg.codex {
+		// Codex fires PermissionRequest as its approval prompt opens, and has
+		// no Notification: the dialog is up when the hook is seen.
+		a.setState(stAwaiting)
+		a.term.write("Allow Bash: echo approved? (y/n) ")
+		a.fire("PermissionRequest", bashTool())
+		return a.awaitApproval()
+	}
 	a.fire("PermissionRequest", bashTool())
 	a.setState(stAwaiting)
-	if !a.cfg.codex { // Codex has no Notification event
-		a.fire("Notification", map[string]any{
-			"notification_type": "permission_prompt", "title": "Permission needed",
-			"message": "fakeagent needs your permission to use Bash",
-		})
-	}
+	a.fire("Notification", map[string]any{
+		"notification_type": "permission_prompt", "title": "Permission needed",
+		"message": "fakeagent needs your permission to use Bash",
+	})
 	a.term.write("Allow Bash: echo approved? (y/n) ")
+	return a.awaitApproval()
+}
+
+// awaitApproval waits for y/Enter (approve), n (deny) or quit.
+func (a *agent) awaitApproval() (approved, quit bool) {
 	for ev := range a.events {
 		switch ev.kind {
 		case evApprove:
