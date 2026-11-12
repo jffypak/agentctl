@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/jffypak/agentctl/internal/adapter"
 	"github.com/jffypak/agentctl/internal/domain"
@@ -173,22 +172,10 @@ func withParen(label, v string) string {
 	return label + " (" + v + ")"
 }
 
-// hookLine sanitizes terminal control sequences and folds whitespace runs
-// (including newlines and tabs) into single spaces.
-func hookLine(s string) string {
-	return strings.Join(strings.Fields(domain.SanitizeTerminalText(s)), " ")
-}
+// hookLine and bound are the shared hook-text helpers (adapter/hooktext.go).
+func hookLine(s string) string { return adapter.HookLine(s) }
 
-// bound truncates s to at most n bytes on a rune boundary.
-func bound(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	for n > 0 && !utf8.RuneStart(s[n]) {
-		n--
-	}
-	return s[:n]
-}
+func bound(s string, n int) string { return adapter.Bound(s, n) }
 
 // HookPane is the tmux pane a hook process runs in, read from the $TMUX and
 // $TMUX_PANE it inherits from the agent pane.
