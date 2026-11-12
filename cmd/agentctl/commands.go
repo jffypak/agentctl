@@ -30,6 +30,7 @@ var commands = []command{
 	{"hook", "hook: Claude Code hook entry point (reads stdin, prints nothing)", cmdHook},
 	{"deliver", "deliver --session <id>: background delivery after a hook", cmdDeliver},
 	{"stats", "stats [--json]: time from popup open to first action", cmdStats},
+	{"codex", "codex [--name <name>] [codex args…]: run Codex here and track it", cmdCodex},
 	{"hooks-snippet", "hooks-snippet: hooks JSON to merge into your Claude settings", cmdHooksSnippet},
 	{"tmux-binding", "tmux-binding: tmux.conf line that opens the popup", cmdTmuxBinding},
 }

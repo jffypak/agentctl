@@ -138,4 +138,5 @@ const (
 	SourcePaneText = "pane_text" // reconcile read the pane's screen (folder-trust dialog before the first hook)
 	SourceLaunch   = "launch"    // agentctl new
 	SourceUser     = "user"      // explicit user action (close --stop)
+	SourceWrapper  = "wrapper"   // agentctl codex saw Codex exit in the user's pane
 )

@@ -56,6 +56,7 @@ type Controller struct {
 	tmuxInjected bool
 	git          gitx.Git
 	agents       map[string]adapter.AgentAdapter // by agent_type (agents.go)
+	agentctlPath string                          // the agentctl binary hooks invoke
 	procs        procLister                      // process table for adopt matching (adopt_match.go)
 	uid          int
 }
@@ -107,6 +108,7 @@ func Open(ctx context.Context, cfg Config) (*Controller, error) {
 		exe, _ = os.Executable()
 	}
 	c.procs = c.psProcs
+	c.agentctlPath = exe
 	c.agents = map[string]adapter.AgentAdapter{
 		claude.Name: claude.New(claude.Config{Runner: c.tmuxRunner, AgentctlPath: exe, Now: c.now}),
 		codex.Name:  codex.New(codex.Config{Runner: c.tmuxRunner, AgentctlPath: exe, Now: c.now}),

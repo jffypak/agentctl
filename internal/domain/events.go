@@ -12,6 +12,7 @@ const (
 
 	EventSessionStarted      = "session.started"       // {socket, server_pid, session_id, pane_id, pane_pid, argv0}
 	EventSessionAdopted      = "session.adopted"       // same identity fields as session.started
+	EventSessionWrapped      = "session.wrapped"       // agentctl codex registered its own pane; same identity fields
 	EventSessionLaunchFailed = "session.launch_failed" // {error}
 	EventSessionDisconnected = "session.disconnected"  // {reason}
 
@@ -34,7 +35,7 @@ func EventTypes() []string {
 	return []string{
 		EventUIOpened, EventUIClosed, EventUIAction,
 		EventTaskCreated, EventTaskClosed,
-		EventSessionStarted, EventSessionAdopted, EventSessionLaunchFailed, EventSessionDisconnected,
+		EventSessionStarted, EventSessionAdopted, EventSessionWrapped, EventSessionLaunchFailed, EventSessionDisconnected,
 		EventAgentStateChanged,
 		EventMessageQueued, EventMessageClaimed, EventMessageSent, EventMessageAcknowledged,
 		EventMessageUnconfirmed, EventMessageCancelled, EventMessageFailed,

@@ -240,6 +240,21 @@ func (c *Controller) Adopt(ctx context.Context, req AdoptRequest) (AdoptResult, 
 // adoptablePane finds a live, unregistered pane on the resolved server and
 // returns it with the identity captured from the same snapshot.
 func (c *Controller) adoptablePane(ctx context.Context, paneID string) (tmux.Pane, domain.Identity, error) {
+	pane, id, err := c.livePane(ctx, paneID)
+	if err != nil {
+		return tmux.Pane{}, domain.Identity{}, err
+	}
+	if owner, err := c.store.Sessions().PaneOwner(ctx, id); err == nil {
+		return tmux.Pane{}, domain.Identity{}, userErr(ErrPaneRegistered, nil, "pane %s is already registered as task %q (`agentctl ls --closed` lists every task)", paneID, owner.TaskID)
+	} else if !errors.Is(err, store.ErrNotFound) {
+		return tmux.Pane{}, domain.Identity{}, err
+	}
+	return pane, id, nil
+}
+
+// livePane finds a live pane on the resolved tmux server and captures its
+// identity (socket, server pid, session id, pane id, pane pid).
+func (c *Controller) livePane(ctx context.Context, paneID string) (tmux.Pane, domain.Identity, error) {
 	socket, err := tmux.ResolveSocket(c.Getenv, c.uid)
 	if err != nil {
 		return tmux.Pane{}, domain.Identity{}, userErr(ErrNoTmuxServer, err, "%v", err)
@@ -259,11 +274,6 @@ func (c *Controller) adoptablePane(ctx context.Context, paneID string) (tmux.Pan
 		return tmux.Pane{}, domain.Identity{}, userErr(ErrPaneNotFound, nil, "pane %s has exited; only a running agent pane can be adopted", paneID)
 	}
 	id := domain.Identity{Socket: socket, ServerPID: snap.ServerPID, SessionID: pane.SessionID, PaneID: pane.PaneID, PanePID: pane.PanePID}
-	if owner, err := c.store.Sessions().PaneOwner(ctx, id); err == nil {
-		return tmux.Pane{}, domain.Identity{}, userErr(ErrPaneRegistered, nil, "pane %s is already registered as task %q (`agentctl ls --closed` lists every task)", paneID, owner.TaskID)
-	} else if !errors.Is(err, store.ErrNotFound) {
-		return tmux.Pane{}, domain.Identity{}, err
-	}
 	return pane, id, nil
 }
 

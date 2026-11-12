@@ -72,9 +72,12 @@ type itTask struct {
 	AgentState string `json:"agent_state"`
 	Confidence string `json:"confidence"`
 	LastDetail string `json:"last_detail"`
+	Section    string `json:"section"`
 	Session    *struct {
 		ID         int64  `json:"id"`
 		TmuxPaneID string `json:"tmux_pane_id"`
+		Origin     string `json:"origin"`
+		AgentType  string `json:"agent_type"`
 	} `json:"session"`
 }
 
