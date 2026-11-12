@@ -21,6 +21,10 @@ const (
 	LabelFailed       = "agent failed"
 	LabelStarting     = "agent starting"
 	LabelUnverified   = "pane not verified"
+	// LabelNotForeground: a wrapped pane (`agentctl codex`) whose foreground
+	// is no longer agentctl codex — Codex exited or the wrapper died — so a
+	// paste would land in the user's shell.
+	LabelNotForeground = "codex not running in pane · attach to check"
 )
 
 // SourceLostHook is the agent.state_changed source of a reconcile downgrade
@@ -33,6 +37,9 @@ type DeliveryCheck struct {
 	Confidence Confidence
 	Liveness   LivenessStatus // the identity probe at delivery time ("" = not probed: never deliverable)
 	StaleHook  bool           // a lost-hook marker is newer than the session's state_since
+	// ForegroundMismatch: a wrapped session's pane does not run agentctl
+	// codex in its foreground right now (checked only for origin wrapped).
+	ForegroundMismatch bool
 }
 
 // CanDeliver is the delivery precondition (ARCHITECTURE.md §Delivery rule 2,
@@ -51,6 +58,8 @@ func CanDeliver(c DeliveryCheck) (ok bool, label string) {
 		return false, LabelFailed
 	case c.Liveness == LivenessDead:
 		return false, LabelExited
+	case c.ForegroundMismatch:
+		return false, LabelNotForeground
 	case c.StaleHook:
 		return false, LabelStale
 	case c.State == StateAwaitingInput:

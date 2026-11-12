@@ -141,6 +141,7 @@ func (c *Controller) Drain(ctx context.Context, sessionID int64) (DrainResult, e
 	live, _ := c.liveSession(ctx, cur)
 	ok, label := domain.CanDeliver(domain.DeliveryCheck{
 		State: cur.State, Confidence: cur.Confidence, Liveness: live.Status, StaleHook: c.staleHook(cur),
+		ForegroundMismatch: cur.Origin == domain.OriginWrapped && !c.wrapperForeground(ctx, cur.Identity.PanePID),
 	})
 	if ok && !cur.StateSince.Equal(claim.StateSince) {
 		ok, label = false, ReasonStateChanged

@@ -31,35 +31,35 @@ func TestCanDeliverTable(t *testing.T) {
 		in   DeliveryCheck
 		want string
 	}{
-		{DeliveryCheck{StateWorking, ConfidenceHook, LivenessAlive, false}, LabelWorking},
-		{DeliveryCheck{StateAwaitingInput, ConfidenceHook, LivenessAlive, false}, LabelAwaiting},
-		{DeliveryCheck{StateUnknown, ConfidenceNone, LivenessAlive, false}, LabelAttach},
-		{DeliveryCheck{StateReady, ConfidencePane, LivenessAlive, false}, LabelAttach},
-		{DeliveryCheck{StateReady, ConfidenceNone, LivenessAlive, false}, LabelAttach},
-		{DeliveryCheck{StateDisconnected, ConfidencePane, LivenessDisconnected, false}, LabelDisconnected},
-		{DeliveryCheck{StateReady, ConfidenceHook, LivenessDisconnected, false}, LabelDisconnected},
-		{DeliveryCheck{StateReady, ConfidenceHook, LivenessDead, false}, LabelExited},
-		{DeliveryCheck{StateStopped, ConfidencePane, LivenessDead, false}, LabelExited},
-		{DeliveryCheck{StateFailed, ConfidencePane, LivenessDead, false}, LabelFailed},
-		{DeliveryCheck{StateStarting, ConfidenceNone, LivenessAlive, false}, LabelStarting},
-		{DeliveryCheck{StateReady, ConfidenceHook, LivenessUnverified, false}, LabelUnverified},
-		{DeliveryCheck{StateReady, ConfidenceHook, "", false}, LabelUnverified},
-		{DeliveryCheck{StateReady, ConfidenceHook, LivenessAlive, true}, LabelStale},
-		{DeliveryCheck{StateWorking, ConfidenceHook, LivenessAlive, true}, LabelStale},
+		{DeliveryCheck{StateWorking, ConfidenceHook, LivenessAlive, false, false}, LabelWorking},
+		{DeliveryCheck{StateAwaitingInput, ConfidenceHook, LivenessAlive, false, false}, LabelAwaiting},
+		{DeliveryCheck{StateUnknown, ConfidenceNone, LivenessAlive, false, false}, LabelAttach},
+		{DeliveryCheck{StateReady, ConfidencePane, LivenessAlive, false, false}, LabelAttach},
+		{DeliveryCheck{StateReady, ConfidenceNone, LivenessAlive, false, false}, LabelAttach},
+		{DeliveryCheck{StateDisconnected, ConfidencePane, LivenessDisconnected, false, false}, LabelDisconnected},
+		{DeliveryCheck{StateReady, ConfidenceHook, LivenessDisconnected, false, false}, LabelDisconnected},
+		{DeliveryCheck{StateReady, ConfidenceHook, LivenessDead, false, false}, LabelExited},
+		{DeliveryCheck{StateStopped, ConfidencePane, LivenessDead, false, false}, LabelExited},
+		{DeliveryCheck{StateFailed, ConfidencePane, LivenessDead, false, false}, LabelFailed},
+		{DeliveryCheck{StateStarting, ConfidenceNone, LivenessAlive, false, false}, LabelStarting},
+		{DeliveryCheck{StateReady, ConfidenceHook, LivenessUnverified, false, false}, LabelUnverified},
+		{DeliveryCheck{StateReady, ConfidenceHook, "", false, false}, LabelUnverified},
+		{DeliveryCheck{StateReady, ConfidenceHook, LivenessAlive, true, false}, LabelStale},
+		{DeliveryCheck{StateWorking, ConfidenceHook, LivenessAlive, true, false}, LabelStale},
 	}
 	for _, c := range cases {
 		if ok, label := CanDeliver(c.in); ok || label != c.want {
 			t.Errorf("CanDeliver(%+v) = %v %q, want false %q", c.in, ok, label, c.want)
 		}
 	}
-	if ok, _ := CanDeliver(DeliveryCheck{StateReady, ConfidenceHook, LivenessAlive, false}); !ok {
+	if ok, _ := CanDeliver(DeliveryCheck{StateReady, ConfidenceHook, LivenessAlive, false, false}); !ok {
 		t.Error("ready + hook + alive must be deliverable")
 	}
 }
 
 func TestCanDeliverNeverIntoAwaitingInput(t *testing.T) {
 	for _, conf := range []Confidence{ConfidenceHook, ConfidencePane, ConfidenceNone} {
-		if ok, _ := CanDeliver(DeliveryCheck{StateAwaitingInput, conf, LivenessAlive, false}); ok {
+		if ok, _ := CanDeliver(DeliveryCheck{StateAwaitingInput, conf, LivenessAlive, false, false}); ok {
 			t.Fatalf("awaiting_input (%s) must never be deliverable", conf)
 		}
 	}
@@ -155,5 +155,21 @@ func TestMatchAck(t *testing.T) {
 		if got := MatchAck(c.in); got != c.want {
 			t.Errorf("%s: MatchAck = %+v, want %+v", c.name, got, c.want)
 		}
+	}
+}
+
+// A wrapped pane whose foreground is no longer agentctl codex (Codex exited
+// or the wrapper died) must never get a paste: it would land in the user's
+// shell (invariant 3).
+func TestCanDeliverForegroundMismatch(t *testing.T) {
+	ok, label := CanDeliver(DeliveryCheck{State: StateReady, Confidence: ConfidenceHook, Liveness: LivenessAlive, ForegroundMismatch: true})
+	if ok || label != LabelNotForeground {
+		t.Fatalf("CanDeliver = %v %q, want false %q", ok, label, LabelNotForeground)
+	}
+	if LabelNotForeground != "codex not running in pane · attach to check" {
+		t.Fatalf("LabelNotForeground = %q", LabelNotForeground)
+	}
+	if ok, _ := CanDeliver(DeliveryCheck{State: StateReady, Confidence: ConfidenceHook, Liveness: LivenessAlive}); !ok {
+		t.Fatal("ready/hook/alive without a mismatch must stay deliverable")
 	}
 }

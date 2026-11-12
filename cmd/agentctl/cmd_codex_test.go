@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -92,6 +93,20 @@ func TestCmdCodexEndToEnd(t *testing.T) {
 	})
 	it.keys(pane, "hello", true)
 	it.waitState("w", "ready", 10*time.Second)
+
+	// A prompt from agentctl send reaches Codex through the real wrapper: the
+	// foreground guard sees `agentctl codex` in the pane's process group.
+	if _, errOut, code := it.agentctl("send", "w", "from popup"); code != 0 {
+		t.Fatalf("send: %s", errOut)
+	}
+	testenv.WaitFor(t, 15*time.Second, "codex received the sent prompt", func() (bool, string) {
+		b, _ := os.ReadFile(filepath.Join(it.logs, "codex-input.jsonl"))
+		return strings.Contains(string(b), `"text":"from popup"`), string(b)
+	})
+	testenv.WaitFor(t, 15*time.Second, "the sent prompt's turn to finish", func() (bool, string) {
+		out, _ := it.srv.TryRun("capture-pane", "-p", "-t", pane)
+		return strings.Count(out, "done") >= 2 && strings.HasSuffix(strings.TrimSpace(out), ">"), out
+	})
 
 	it.keys(pane, "#exit 0", true)
 	done := it.waitState("w", "stopped", 10*time.Second)

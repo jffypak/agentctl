@@ -225,3 +225,26 @@ func (c *Controller) RecordWrappedExit(ctx context.Context, sessionID int64, exi
 	})
 	return err
 }
+
+// wrapperForeground reports whether the foreground process group of the
+// pane whose process is panePID contains `agentctl codex` (the wrapper,
+// which lives exactly as long as Codex does). tmux names a pane after its
+// foreground group's leader, which under the wrapper is agentctl, not codex,
+// so the process table is the reliable check. Any failure is "no": a paste
+// is only allowed on proof (invariant 3).
+func (c *Controller) wrapperForeground(ctx context.Context, panePID int) bool {
+	procs, err := c.procs(ctx)
+	if err != nil {
+		return false
+	}
+	self := filepath.Base(c.agentctlPath)
+	for _, p := range newProcTable(procs).foreground(panePID) {
+		argv := strings.Fields(p.Args)
+		if len(argv) >= 2 && argv[1] == "codex" {
+			if b := filepath.Base(argv[0]); b == self || b == "agentctl" {
+				return true
+			}
+		}
+	}
+	return false
+}
