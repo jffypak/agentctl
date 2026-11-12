@@ -118,8 +118,18 @@ func TestCmdCodexEndToEnd(t *testing.T) {
 	}
 
 	it.keys(pane, prefix+it.bin+" codex", true)
+	testenv.WaitFor(t, 10*time.Second, "second session registered", func() (bool, string) {
+		return it.task("w").Session.ID != tk.Session.ID, ""
+	})
 	again := it.waitState("w", "starting", 10*time.Second)
 	if again.Session.ID == tk.Session.ID {
 		t.Fatalf("rerun did not start a new session: %+v", again)
 	}
+	// End the second Codex so nothing writes into the temp dirs after the test.
+	testenv.WaitFor(t, 10*time.Second, "second codex prompt", func() (bool, string) {
+		out, _ := it.srv.TryRun("capture-pane", "-p", "-t", pane)
+		return strings.HasSuffix(strings.TrimSpace(out), ">") && strings.Count(out, "tracking this pane") == 2, out
+	})
+	it.keys(pane, "#exit 0", true)
+	it.waitState("w", "stopped", 10*time.Second)
 }
