@@ -52,6 +52,15 @@ func (a *agent) trustKey(tok token) {
 	case tokText:
 		for _, r := range tok.text {
 			a.inputLog.write(inputEntry(string(r), stTrust, "key"))
+			if a.cfg.hookTrust && !a.cfg.trustDialog { // Codex hook-trust screen (codex.go)
+				switch r {
+				case '2':
+					a.events <- event{kind: evApprove, state: stTrust}
+				case '3':
+					a.events <- event{kind: evDeny, state: stTrust}
+				}
+				continue
+			}
 			switch r {
 			case '1', 'y', 'Y':
 				a.events <- event{kind: evApprove, state: stTrust}

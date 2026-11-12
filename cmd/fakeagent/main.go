@@ -2,6 +2,7 @@
 // (ARCHITECTURE.md §fakeagent contract). It is never shipped.
 //
 //	fakeagent --settings <file> [initial prompt]
+//	fakeagent --codex [-c hooks.<Event>=…]... [initial prompt]   (Codex CLI mode: codex.go)
 //
 // It runs the command hooks in the settings file exactly as Claude Code would
 // (payload JSON on stdin with session_id, hook_event_name, cwd and the event
@@ -23,6 +24,8 @@
 //	FAKEAGENT_PASTE_PLACEHOLDER=1    report pastes to UserPromptSubmit as [Pasted text #N]
 //	FAKEAGENT_TRUST_DIALOG=1         show a Claude-style folder-trust dialog before SessionStart and
 //	                                 fire no hook until it is answered: 1/Enter accepts, 2/n exits 1
+//	FAKEAGENT_HOOK_TRUST=1           Codex mode: show Codex's hook-trust screen first; 2/Enter trusts,
+//	                                 3 continues without hooks, 1 is ignored
 //	FAKEAGENT_GOAL_DELAY_MS=0        gap between SessionStart and submitting the initial prompt
 //	                                 (input in the gap is received while starting)
 package main
@@ -84,6 +87,18 @@ func main() {
 
 // parseConfig reads `--settings <file> [prompt]` and the FAKEAGENT_* env.
 func parseConfig(args []string, getenv func(string) string) (config, error) {
+	var codexHooks settings
+	codexMode := len(args) > 0 && args[0] == "--codex"
+	if codexMode {
+		hooks, prompt, err := parseCodexArgs(args[1:])
+		if err != nil {
+			return config{}, err
+		}
+		codexHooks, args = hooks, nil
+		if prompt != "" {
+			args = []string{"--", prompt}
+		}
+	}
 	fs := flag.NewFlagSet("fakeagent", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	settingsPath := fs.String("settings", "", "Claude Code settings file whose command hooks to run")
@@ -102,7 +117,9 @@ func parseConfig(args []string, getenv func(string) string) (config, error) {
 		logPath: getenv("FAKEAGENT_LOG"), hookLogPath: getenv("FAKEAGENT_HOOK_LOG"),
 		pastePlaceholder: getenv("FAKEAGENT_PASTE_PLACEHOLDER") == "1",
 		trustDialog:      getenv("FAKEAGENT_TRUST_DIALOG") == "1",
-		cwd:              cwd, env: os.Environ(),
+		codex:            codexMode, codexHooks: codexHooks,
+		hookTrust: getenv("FAKEAGENT_HOOK_TRUST") == "1",
+		cwd:       cwd, env: os.Environ(),
 		transcriptDir: filepath.Join(os.TempDir(), "fakeagent-transcripts-never-created"),
 	}
 	if v := getenv("FAKEAGENT_WORK_MS"); v != "" {

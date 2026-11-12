@@ -30,6 +30,9 @@ type config struct {
 	hookLogPath      string        // FAKEAGENT_HOOK_LOG: JSONL of every hook run (stdout, exit, ms)
 	pastePlaceholder bool          // FAKEAGENT_PASTE_PLACEHOLDER=1
 	trustDialog      bool          // FAKEAGENT_TRUST_DIALOG=1: folder-trust dialog before SessionStart (trust.go)
+	codex            bool          // --codex: Codex CLI mode (codex.go)
+	codexHooks       settings      // Codex mode: hooks from the -c flags
+	hookTrust        bool          // FAKEAGENT_HOOK_TRUST=1: Codex hook-trust screen first (codex.go)
 	goalDelay        time.Duration // FAKEAGENT_GOAL_DELAY_MS: SessionStart -> initial-prompt submit gap (goal.go)
 	cwd              string
 	env              []string // hooks inherit this environment
@@ -66,6 +69,9 @@ type agent struct {
 	state string
 
 	pasteN int // input goroutine only
+
+	turnID       string // Codex mode: the current turn (turn_id)
+	sessionFired bool   // Codex mode: SessionStart already fired (it fires before the first turn)
 }
 
 func newAgent(cfg config, out io.Writer, raw bool) (*agent, error) {
@@ -73,16 +79,24 @@ func newAgent(cfg config, out io.Writer, raw bool) (*agent, error) {
 	if err != nil {
 		return nil, err
 	}
-	var id [16]byte
-	_, _ = rand.Read(id[:])
-	h := hex.EncodeToString(id[:])
+	if cfg.codex {
+		s = cfg.codexHooks
+	}
 	return &agent{
 		cfg: cfg, hooks: s, term: &terminal{w: out, raw: raw},
 		inputLog: &jsonl{path: cfg.logPath}, hookLog: &jsonl{path: cfg.hookLogPath},
-		sessionID: h[:8] + "-" + h[8:12] + "-" + h[12:16] + "-" + h[16:20] + "-" + h[20:],
+		sessionID: newID(),
 		events:    make(chan event, 64),
 		state:     stStarting,
 	}, nil
+}
+
+// newID is a random UUID-shaped id (session_id, turn_id).
+func newID() string {
+	var id [16]byte
+	_, _ = rand.Read(id[:])
+	h := hex.EncodeToString(id[:])
+	return h[:8] + "-" + h[8:12] + "-" + h[12:16] + "-" + h[16:20] + "-" + h[20:]
 }
 
 func (a *agent) getState() string {
@@ -103,8 +117,13 @@ func (a *agent) run() int {
 	if code, ok := a.trustGate(); !ok {
 		return code
 	}
+	if code, ok := a.hookTrustGate(); !ok {
+		return code
+	}
 	a.term.write("fakeagent " + a.sessionID + "\n")
-	a.fire("SessionStart", map[string]any{"source": "startup", "model": "fakeagent"})
+	if !a.cfg.codex { // Codex fires SessionStart only before the first turn (turn)
+		a.fire("SessionStart", map[string]any{"source": "startup", "model": "fakeagent"})
+	}
 	if a.cfg.initialPrompt == "" {
 		a.setState(stReady)
 	} else {
@@ -145,6 +164,11 @@ func (a *agent) end(reason string, code int) int {
 // (PreToolUse, PostToolUse) -> Stop, and flips to ready only after the Stop
 // hook has returned. done reports that the agent must exit with code.
 func (a *agent) turn(text, hookText string) (code int, done bool) {
+	if a.cfg.codex && !a.sessionFired {
+		a.sessionFired = true
+		a.fire("SessionStart", map[string]any{"source": "startup"})
+	}
+	a.turnID = newID()
 	a.setState(stWorking)
 	a.fire("UserPromptSubmit", map[string]any{"prompt": hookText})
 	d := parseDirectives(text)
@@ -185,10 +209,12 @@ func (a *agent) ask() (approved, quit bool) {
 	a.fire("PreToolUse", bashTool())
 	a.fire("PermissionRequest", bashTool())
 	a.setState(stAwaiting)
-	a.fire("Notification", map[string]any{
-		"notification_type": "permission_prompt", "title": "Permission needed",
-		"message": "fakeagent needs your permission to use Bash",
-	})
+	if !a.cfg.codex { // Codex has no Notification event
+		a.fire("Notification", map[string]any{
+			"notification_type": "permission_prompt", "title": "Permission needed",
+			"message": "fakeagent needs your permission to use Bash",
+		})
+	}
 	a.term.write("Allow Bash: echo approved? (y/n) ")
 	for ev := range a.events {
 		switch ev.kind {

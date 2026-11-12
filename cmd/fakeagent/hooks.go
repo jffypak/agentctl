@@ -40,6 +40,12 @@ func (a *agent) fire(event string, fields map[string]any) {
 		"permission_mode": "default",
 		"hook_event_name": event,
 	}
+	if a.cfg.codex {
+		payload["model"] = "fakeagent-codex"
+		if event != "SessionStart" && event != "SessionEnd" && a.turnID != "" {
+			payload["turn_id"] = a.turnID
+		}
+	}
 	for k, v := range fields {
 		payload[k] = v
 	}
