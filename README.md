@@ -104,6 +104,34 @@ per prompt sent.
 until its hooks report. To enable them, merge `agentctl hooks-snippet` into that
 agent's Claude settings. `agentctl help` lists everything.
 
+### Codex
+
+agentctl also tracks [Codex CLI](https://learn.chatgpt.com/docs) agents, with
+the same sections, prompt queue and delivery rules as Claude.
+
+- `agentctl new <name> --agent codex --goal "<goal>"` starts Codex in a new
+  worktree and tmux session, like Claude. In the popup, `n` has an agent field
+  (`←/→` switches claude ⇄ codex).
+- `agentctl codex [--name <name>] [codex args…]` runs Codex in the pane you are
+  in and tracks it. It registers the pane, runs Codex with agentctl's hooks,
+  and records when Codex exits. The pane, your shell, stays open. Run it again
+  in the same pane to start a new session on the same task.
+
+Codex asks you to trust new hooks once. The first time, Codex shows a "Review
+hooks" screen and the agent is listed under NEEDS YOU as `hook trust: attach to
+answer`. Attach and pick "Trust all and continue". agentctl never answers it.
+
+A Codex you start with plain `codex` can't be tracked: Codex then runs its
+hooks in a shared background server, which reports the wrong tmux pane.
+`agentctl adopt` says so for such a pane. Start it with `agentctl codex`
+instead. agentctl's hooks are passed with `-c`, which can replace your own
+Codex hooks for the same events in that session. `AGENTCTL_CODEX_CMD`
+overrides the Codex command (a JSON array, default `["codex"]`).
+
+A Codex started without a prompt sends no event until you type the first one.
+Until then it is listed under INITIALSTATE as `waiting for first prompt ·
+attach to start`.
+
 ### Where state lives
 
 `$AGENTCTL_HOME`, else `$XDG_STATE_HOME/agentctl`, else
@@ -120,7 +148,7 @@ agent's Claude settings. `agentctl help` lists everything.
 | `git not found on PATH` | Install git 2.40 or newer. |
 | `… is not inside a git repository` | `cd` into the repository (or one of its worktrees) and run the command again. agentctl registers tasks against the main checkout. |
 | `… has no commits yet` | Make an initial commit. Worktrees branch from `HEAD`. |
-| `agent command "claude" not found on PATH` | Install Claude Code, or make `claude` reachable from the shell tmux starts. `AGENTCTL_AGENT_CMD='["/path/to/claude"]'` overrides the command. |
+| `agent command "claude" not found on PATH` | Install Claude Code, or make `claude` reachable from the shell tmux starts. `AGENTCTL_AGENT_CMD='["/path/to/claude"]'` overrides the command. For Codex: install Codex CLI, or set `AGENTCTL_CODEX_CMD`. |
 | `branch agentctl/<name> already exists` | Pick another task name, or delete the old branch yourself if you are done with it (agentctl never deletes branches). |
 | `worktree path … already exists` | Pick another task name, or move that directory out of `../<repo>-worktrees/`. |
 | `tmux session agentctl-<name> already exists` | Pick another name, or close that session. |
@@ -128,7 +156,11 @@ agent's Claude settings. `agentctl help` lists everything.
 | `cannot open registry …` | The banner names the path. Check its permissions, or point `AGENTCTL_HOME` at a writable directory. |
 | `silent since launch · attach to check` with `folder trust: attach to answer` | Claude is showing its folder-trust dialog (each new worktree is a new path). agentctl never answers it: attach (`↵ ↵`), pick "Yes, I trust this folder" if you do, then detach. Prompts sent meanwhile stay queued. |
 | Agent stays `starting`, then `silent since launch · attach to check` | No hook arrived within 30 s and no folder-trust dialog was seen. Attach (`↵ ↵`): Claude is usually waiting on its login dialog. |
-| `unknown` on an adopted agent; prompts say `queued · attach to deliver` | No hooks are installed for that pane. Merge `agentctl hooks-snippet` into its Claude settings, or attach and type the prompt yourself. |
+| INITIALSTATE · `no events yet` | The agent has not sent its first hook event. For an adopted pane, no hooks are installed: merge `agentctl hooks-snippet` into its Claude settings, or attach and type the prompt yourself. A Codex agent sends nothing until its first prompt. |
+| `hook trust: attach to answer` | Codex is showing its hook-trust screen. agentctl never answers it: attach, pick "Trust all and continue" if you trust agentctl's hooks, then detach. You trust them once. |
+| `codex not running in pane · attach to check` | The pane of an `agentctl codex` task no longer runs Codex, so nothing is pasted. Run `agentctl codex` in that pane again. |
+| `agentctl codex runs the interactive Codex TUI` | `agentctl codex` only wraps the TUI (`codex`, `codex resume`, `codex fork`). Run other subcommands such as `codex exec` directly; they are not tracked. |
+| `unknown` on an adopted agent; prompts say `queued · attach to deliver` | Its hooks reported before, but the state was lost. The next hook fixes it. Until then attach and type the prompt yourself. |
 | `disconnected · pane_missing` / `identity_mismatch` / `server_gone` | The pane was killed, or the tmux server restarted and reused its id. agentctl never re-attributes it to another pane. You can still inspect it with `d`, or close it with `x`. Start a new task to continue. |
 | `message unconfirmed · attach to check` | A prompt was pasted but Claude Code never confirmed it within 15 s. Attach and look. It is never pasted again automatically. |
 | `queued · state stale — attach to deliver` | A hook could not be recorded, so the state may be wrong. The next recorded hook clears this. Until then nothing is pasted. |

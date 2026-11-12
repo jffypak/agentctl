@@ -94,6 +94,9 @@ Config lives at `$XDG_CONFIG_HOME/agentctl/config.yaml` (optional).
 | `messages` | `id`, `task_id`, `session_id`, `body`, `body_sha256`, `state` (`queued`→`delivering`→`sent`→`acknowledged` \| `unconfirmed` \| `failed` \| `cancelled`), `ack_match` (`hash`/`timing`), `created_at`, `claimed_at`, `sent_at`, `acked_at`, `error` |
 | `events` | `id` (autoinc), `ts`, `type`, `task_id`, `session_id`, `cause_id`, `payload` (JSON) — append-only |
 
+`migrations/1000_codex.sql` (codex-support) rebuilds `sessions` so `origin`
+allows `wrapped` and adds `first_hook_at`. It runs with foreign keys off
+(`store.MigrationForeignKeysOff`) and `PRAGMA foreign_key_check` before commit.
 The **entire Phase-1 schema is `migrations/0001_init.sql`**, written by the
 skeleton. The migrator applies every *unapplied* version in ascending order (set
 semantics, not "max+1"). Write transactions use `BEGIN IMMEDIATE`
@@ -313,6 +316,45 @@ never leak another agent's output or focus. Captured pane text and hook-supplied
 text pass through `domain.SanitizeTerminalText`, which strips CSI and OSC
 (including OSC 52) and other control sequences before anything is displayed.
 
+### Codex adapter (`internal/adapter/codex`, codex-support)
+
+Design: `docs/superpowers/specs/2026-11-12-codex-support-design.md`. Codex
+is tracked only in **embedded mode**. A plain `codex` runs its sessions in
+the shared `codex app-server` daemon, whose hook processes inherit the
+daemon's `$TMUX_PANE`, not the user's pane. agentctl always starts Codex with
+its hooks as `-c hooks.<Event>=[{hooks=[{type="command",command="'<agentctl>'
+hook --agent codex",timeout=5}]}]` flags, and any `-c` forces embedded mode.
+Events: SessionStart, UserPromptSubmit, PreToolUse, PostToolUse,
+PermissionRequest, PreCompact, Stop, Interrupt, SessionEnd.
+
+| Codex event | → `agent_state` |
+|---|---|
+| `SessionStart` | no change (fires just before the first prompt; `ready` here could allow a paste into an agent about to work) |
+| `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PreCompact` | `working` |
+| `PermissionRequest` | `awaiting_input` (no `Notification` in Codex) |
+| `Stop`, `Interrupt` | `ready` (`Stop` is the only normal way to ready) |
+| `SessionEnd` | detail only, like Claude |
+
+Hook ingest guards: a Codex hook whose parent or grandparent is `codex
+app-server` is an orphan `codex_daemon`; a hook whose `--agent` differs from
+the session's `agent_type` is an orphan `agent_mismatch`; a Codex hook with a
+different `session_id` than the session's changes nothing, except
+`SessionStart` with source clear/resume/fork. A Codex task with no goal is
+expected to be silent (no `StartingTimeout`); reconcile looks for Codex's
+hook-trust screen like Claude's folder trust.
+
+**`agentctl codex` (origin `wrapped`).** It registers the user's current pane
+as a Codex task (`starting`, detail `waiting for first prompt · attach to
+start`), runs Codex as its child with the hook flags, and records the exit
+(`stopped` / `failed`, source `wrapper`). The pane pid is the user's shell, so
+reconcile can't see Codex exit. A rerun in the same pane after that starts a
+new session on the task. Only the TUI is wrapped (`exec`, `review`, … are
+refused). **Delivery to a wrapped session also needs** the pane's foreground
+process group to contain `agentctl codex` with a live child. Otherwise
+`codex not running in pane · attach to check`, and nothing is pasted into the
+shell. Reconcile stops a wrapped session when no `agentctl codex` process is
+left under the pane. `close --stop` refuses wrapped sessions, as for adopted.
+
 ### fakeagent contract (tests only)
 
 Accepts `--settings <file>` and an optional positional initial prompt. It runs
@@ -370,9 +412,10 @@ These are used by the acceptance pass. A violation is a failing review.
 |---|---|
 | **NEEDS YOU** | `awaiting_input`, `disconnected`, `failed`, or any message `unconfirmed`/`failed`, or a queued message on an `unknown` agent |
 | **IDLE** | `ready`: turn finished, waiting for the next instruction or review. Also `stopped`, labelled **exited** (never worded as success) |
-| **RUNNING** | `starting`, `working` |
-| **NEEDS YOU** (also) | `unknown` on a **launched** agent → "silent since launch · attach to check": it never sent a hook (Claude's folder-trust or login prompt, early hang). Detail `folder trust: attach to answer` when the trust dialog was seen on screen |
-| **UNKNOWN** | `unknown` (adopted without hooks): muted |
+| **RUNNING** | `starting` (after its first hook), `working` |
+| **NEEDS YOU** (also) | `unknown` on a **launched** or **wrapped** agent → "silent since launch · attach to check": it never sent a hook (Claude's folder-trust or login prompt, Codex's hook-trust screen, early hang). Detail `folder trust: attach to answer` / `hook trust: attach to answer` when the dialog was seen on screen. Also any queued message on a `starting` session with no hook yet |
+| **INITIALSTATE** | no hook event ever matched to the session (`sessions.first_hook_at` NULL): `starting` before its first hook, an adopted pane without hooks, a Codex agent waiting for its first prompt. Label "no events yet"; muted; not counted as running |
+| **UNKNOWN** | `unknown` after hooks were seen (state lost, e.g. lost-hook downgrade): muted |
 | *(hidden)* | tasks in state `closed`; shown with the `/` filter `closed` |
 
 Within a section, rows are ordered by `state_since`, oldest first. The header
