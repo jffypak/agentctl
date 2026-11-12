@@ -30,6 +30,14 @@ func cmdCodex(ctx context.Context, sys *system, args []string) int {
 		fmt.Fprintln(sys.stderr, "agentctl: agentctl codex must run inside tmux (start tmux, then run it in a pane)")
 		return exitError
 	}
+	// SIGINT and SIGQUIT are caught (and dropped) from before registration
+	// until after the exit is recorded: a Ctrl-C at either edge must not kill
+	// the wrapper between writing the session and recording its end.
+	// Catching, unlike ignoring, is not inherited by the child.
+	sigs := make(chan os.Signal, 4)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGHUP)
+	defer signal.Stop(sigs)
+
 	ctl, err := sys.openController(ctx)
 	if err != nil {
 		return sys.fail(err)
@@ -45,7 +53,7 @@ func cmdCodex(ctx context.Context, sys *system, args []string) int {
 	}
 	fmt.Fprintf(sys.stderr, "agentctl: %s %s\n", verb, res.TaskID)
 
-	code := runChild(sys, res.Argv, append(append([]string(nil), sys.environ...), res.Env...))
+	code := runChild(sys, sigs, res.Argv, append(append([]string(nil), sys.environ...), res.Env...))
 
 	ctl, err = sys.openController(context.WithoutCancel(ctx))
 	if err != nil {
@@ -60,17 +68,13 @@ func cmdCodex(ctx context.Context, sys *system, args []string) int {
 }
 
 // runChild runs argv with the terminal passed through and returns its exit
-// code (128+signal when killed, 127 when it could not start). While it runs,
-// SIGINT and SIGQUIT are caught and dropped (the terminal delivers them to
-// Codex too; catching, unlike ignoring, is not inherited by the child), and
-// SIGTERM / SIGHUP are forwarded. SIGTSTP keeps its default, so Ctrl-Z stops
-// the whole job as usual.
-func runChild(sys *system, argv, env []string) int {
+// code (128+signal when killed, 127 when it could not start). sigs carries
+// the caught SIGINT/SIGQUIT (dropped: the terminal delivers them to Codex
+// too) and SIGTERM/SIGHUP (forwarded to Codex). SIGTSTP keeps its default,
+// so Ctrl-Z stops the whole job as usual.
+func runChild(sys *system, sigs <-chan os.Signal, argv, env []string) int {
 	cmd := exec.Command(argv[0], argv[1:]...)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr, cmd.Env, cmd.Dir = sys.stdin, sys.stdout, sys.stderr, env, sys.cwd
-	sigs := make(chan os.Signal, 4)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGHUP)
-	defer signal.Stop(sigs)
 	if err := cmd.Start(); err != nil {
 		fmt.Fprintf(sys.stderr, "agentctl: cannot start codex: %v\n", err)
 		return 127

@@ -86,6 +86,15 @@ func (c *Controller) reconcileSession(ctx context.Context, sess store.Session, l
 		})
 		return err
 	}
+	if sess.Origin == domain.OriginWrapped && !sess.State.IsTerminal() && l.IsAlive() {
+		if gone, ok := c.wrapperGone(ctx, sess.Identity.PanePID); ok && gone {
+			_, err := c.store.Sessions().ReconcileTransition(ctx, store.ReconcileInput{
+				SessionID: sess.ID, To: domain.StateStopped, Confidence: domain.ConfidencePane,
+				Detail: DetailWrapperGone, Source: domain.SourcePane,
+			})
+			return err
+		}
+	}
 	if awaitingFirstHook(sess) && l.IsAlive() {
 		if detail, ok := c.showsFolderTrust(ctx, sess); ok {
 			return c.markFolderTrust(ctx, sess, detail) // before the timeout: the specific detail wins

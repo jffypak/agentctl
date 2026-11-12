@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strconv"
 	"testing"
 
 	"github.com/jffypak/agentctl/internal/adapter/codex"
@@ -198,5 +199,29 @@ func TestRegisterWrappedValidates(t *testing.T) {
 	}
 	if n := count(t, f.ctl, "tasks"); n != 0 {
 		t.Fatalf("tasks = %d", n)
+	}
+}
+
+// Review fix: agentctl codex only runs the interactive Codex TUI. A
+// non-interactive subcommand has no composer: a paste would sit in the tty
+// and run in the shell after Codex exits.
+func TestRegisterWrappedRefusesNonInteractiveSubcommands(t *testing.T) {
+	t.Parallel()
+	f := newWrapFixture(t)
+	ctx := context.Background()
+	pane := f.shellPane(t, "user")
+	for _, args := range [][]string{{"exec", "fix it"}, {"e", "x"}, {"review"}, {"login"}, {"mcp", "list"}, {"--help"}, {"-V"}} {
+		if _, err := f.ctl.RegisterWrapped(ctx, WrapRequest{Name: "a", PaneID: pane, UserArgs: args}); !errors.Is(err, ErrCodexNotInteractive) {
+			t.Errorf("%q: err = %v, want ErrCodexNotInteractive", args, err)
+		}
+	}
+	if n := count(t, f.ctl, "tasks"); n != 0 {
+		t.Fatalf("tasks = %d", n)
+	}
+	for i, args := range [][]string{nil, {"fix the tests"}, {"resume", "--last"}, {"fork"}, {"--model", "x", "do it"}} {
+		p := f.shellPane(t, "ok"+strconv.Itoa(i))
+		if _, err := f.ctl.RegisterWrapped(ctx, WrapRequest{Name: "ok" + strconv.Itoa(i), PaneID: p, UserArgs: args}); err != nil {
+			t.Errorf("%q: %v", args, err)
+		}
 	}
 }

@@ -16,15 +16,18 @@ var (
 	ErrTmuxMissing     = errors.New("tmux missing")
 	ErrAgentMissing    = errors.New("agent command missing")
 	ErrInvalidAgent    = errors.New("unknown agent")
-	ErrNotARepo        = errors.New("not a git repository")
-	ErrNoCommits       = errors.New("repository has no commits")
-	ErrTaskExists      = errors.New("task exists")
-	ErrTaskNotFound    = errors.New("task not found")
-	ErrBranchExists    = errors.New("branch exists")
-	ErrWorktreeExists  = errors.New("worktree path exists")
-	ErrSessionExists   = errors.New("tmux session exists")
-	ErrWorktreeFailed  = errors.New("worktree creation failed")
-	ErrLaunchFailed    = errors.New("agent launch failed")
+	// ErrCodexNotInteractive: agentctl codex was given a non-interactive
+	// Codex subcommand (exec, review, login, …); only the TUI has a composer.
+	ErrCodexNotInteractive = errors.New("codex subcommand is not interactive")
+	ErrNotARepo            = errors.New("not a git repository")
+	ErrNoCommits           = errors.New("repository has no commits")
+	ErrTaskExists          = errors.New("task exists")
+	ErrTaskNotFound        = errors.New("task not found")
+	ErrBranchExists        = errors.New("branch exists")
+	ErrWorktreeExists      = errors.New("worktree path exists")
+	ErrSessionExists       = errors.New("tmux session exists")
+	ErrWorktreeFailed      = errors.New("worktree creation failed")
+	ErrLaunchFailed        = errors.New("agent launch failed")
 )
 
 // Error is a user-facing failure: Kind for errors.Is, Msg for display, Err

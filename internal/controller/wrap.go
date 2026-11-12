@@ -57,6 +57,10 @@ func (c *Controller) RegisterWrapped(ctx context.Context, req WrapRequest) (Wrap
 			return WrapResult{}, userErr(ErrAgentCmdInvalid, nil, "a codex argument contains a NUL byte")
 		}
 	}
+	if sub := codexSubcommand(req.UserArgs); sub != "" {
+		return WrapResult{}, userErr(ErrCodexNotInteractive, nil,
+			"agentctl codex runs the interactive Codex TUI; run `codex %s` directly (it is not tracked)", sub)
+	}
 	if err := c.requireTmux(); err != nil {
 		return WrapResult{}, err
 	}
@@ -227,24 +231,104 @@ func (c *Controller) RecordWrappedExit(ctx context.Context, sessionID int64, exi
 }
 
 // wrapperForeground reports whether the foreground process group of the
-// pane whose process is panePID contains `agentctl codex` (the wrapper,
-// which lives exactly as long as Codex does). tmux names a pane after its
-// foreground group's leader, which under the wrapper is agentctl, not codex,
-// so the process table is the reliable check. Any failure is "no": a paste
-// is only allowed on proof (invariant 3).
+// pane whose process is panePID contains `agentctl codex` (the wrapper) AND
+// a live child of it (Codex). tmux names a pane after its foreground group's
+// leader, which under the wrapper is agentctl, not codex, so the process
+// table is the reliable check; the child check closes the window in which
+// the wrapper outlives Codex while it records the exit. Any failure is "no":
+// a paste is only allowed on proof (invariant 3).
 func (c *Controller) wrapperForeground(ctx context.Context, panePID int) bool {
 	procs, err := c.procs(ctx)
 	if err != nil {
 		return false
 	}
-	self := filepath.Base(c.agentctlPath)
-	for _, p := range newProcTable(procs).foreground(panePID) {
-		argv := strings.Fields(p.Args)
-		if len(argv) >= 2 && argv[1] == "codex" {
-			if b := filepath.Base(argv[0]); b == self || b == "agentctl" {
+	t := newProcTable(procs)
+	fg := t.foreground(panePID)
+	for _, w := range fg {
+		if !c.isWrapperArgs(w.Args) {
+			continue
+		}
+		for _, p := range fg {
+			if p.PPID == w.PID && liveArgs(p.Args) {
 				return true
 			}
 		}
 	}
 	return false
+}
+
+// wrapperGone reports whether no `agentctl codex` process runs anywhere
+// under the pane's process (foreground or not: a Ctrl-Z'd wrapper is still
+// there). ok is false when the process table can't tell (ps failed, pane
+// process not listed): then nothing is concluded.
+func (c *Controller) wrapperGone(ctx context.Context, panePID int) (gone, ok bool) {
+	procs, err := c.procs(ctx)
+	if err != nil {
+		return false, false
+	}
+	t := newProcTable(procs)
+	root, found := t.byPID[panePID]
+	if !found {
+		return false, false
+	}
+	for _, p := range t.descendants(root) {
+		if c.isWrapperArgs(p.Args) {
+			return false, true
+		}
+	}
+	return true, true
+}
+
+// isWrapperArgs: a command line `<…/agentctl> codex …`.
+func (c *Controller) isWrapperArgs(args string) bool {
+	argv := strings.Fields(args)
+	if len(argv) < 2 || argv[1] != "codex" {
+		return false
+	}
+	b := filepath.Base(argv[0])
+	return b == filepath.Base(c.agentctlPath) || b == "agentctl"
+}
+
+// liveArgs rejects a zombie, which ps shows as "(name)" or "<defunct>".
+func liveArgs(args string) bool {
+	a := strings.TrimSpace(args)
+	return a != "" && !strings.HasPrefix(a, "(") && !strings.Contains(a, "<defunct>")
+}
+
+// DetailWrapperGone is the detail when reconcile finds a wrapped session
+// whose wrapper is gone without having recorded Codex's exit.
+const DetailWrapperGone = "agentctl codex is no longer running in this pane (exit not recorded)"
+
+// codexNonInteractive are Codex CLI subcommands (0.167.2 `codex --help`)
+// that do not run the interactive TUI; resume and fork do.
+var codexNonInteractive = map[string]bool{
+	"exec": true, "e": true, "review": true, "login": true, "logout": true, "mcp": true, "plugin": true,
+	"app-server": true, "remote-control": true, "app": true, "completion": true, "update": true,
+	"doctor": true, "sandbox": true, "debug": true, "apply": true, "a": true, "queue": true,
+	"archive": true, "delete": true, "migrate-rollouts": true, "migrate-nfs-db": true, "unarchive": true,
+	"cloud": true, "exec-server": true, "features": true, "help": true, "agents": true,
+}
+
+// codexSubcommand returns the non-interactive subcommand (or help/version
+// flag) in args, "" when args start the TUI. The first positional argument
+// (one not starting with '-' and not right after a bare flag, which is
+// taken to be that flag's value) is Codex's subcommand or prompt.
+func codexSubcommand(args []string) string {
+	for i, a := range args {
+		switch a {
+		case "-h", "--help", "-V", "--version":
+			return a
+		}
+		if strings.HasPrefix(a, "-") {
+			continue
+		}
+		if i > 0 && strings.HasPrefix(args[i-1], "-") && !strings.Contains(args[i-1], "=") {
+			continue // the previous flag's value
+		}
+		if codexNonInteractive[a] {
+			return a
+		}
+		return ""
+	}
+	return ""
 }

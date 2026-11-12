@@ -114,3 +114,60 @@ func TestDrainLaunchedIgnoresForeground(t *testing.T) {
 	}
 	_ = store.Message{}
 }
+
+// Review fix: the wrapper outlives Codex while it records the exit. With no
+// live Codex child under it, the guard refuses.
+func TestDrainWrappedRefusesWrapperWithoutCodexChild(t *testing.T) {
+	t.Parallel()
+	for name, procs := range map[string]func(pid int) []proc{
+		"no child": func(pid int) []proc { return shellWithChild(pid, "/opt/agentctl/bin/agentctl codex")[:2] },
+		"zombie child": func(pid int) []proc {
+			p := shellWithChild(pid, "/opt/agentctl/bin/agentctl codex")
+			p[2].Args = "(codex)"
+			return p
+		},
+	} {
+		r := newWrappedRig(t, func(pid int) ([]proc, error) { return procs(pid), nil })
+		m := r.enqueue("hello")
+		if dr, _ := r.ctl.Drain(context.Background(), r.sess.ID); dr.Delivered || r.message(m.ID).State != domain.MsgQueued {
+			t.Fatalf("%s: drain = %+v", name, dr)
+		}
+	}
+}
+
+// Review fix: when the wrapper is gone without recording Codex's exit
+// (SIGKILL, a Ctrl-C at the wrong moment), reconcile ends the session so it
+// never shows as ready and the pane can be wrapped again.
+func TestReconcileEndsWrappedSessionWhenWrapperGone(t *testing.T) {
+	t.Parallel()
+	r := newWrappedRig(t, func(pid int) ([]proc, error) {
+		return []proc{{PID: pid, PPID: 1, PGID: pid, TPGID: pid, TTY: "ttys009", Args: "-zsh"}}, nil
+	})
+	piReconcile(t, r.ctl)
+	s, err := r.ctl.store.Sessions().Get(context.Background(), r.sess.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.State != domain.StateStopped || s.LastDetail != DetailWrapperGone {
+		t.Fatalf("session = %s %q, want stopped %q", s.State, s.LastDetail, DetailWrapperGone)
+	}
+}
+
+func TestReconcileKeepsWrappedSessionWhileWrapperRuns(t *testing.T) {
+	t.Parallel()
+	for name, procs := range map[string]func(pid int) ([]proc, error){
+		// Ctrl-Z: the wrapper is a stopped background job, not in the foreground.
+		"suspended": func(pid int) ([]proc, error) {
+			p := shellWithChild(pid, "/opt/agentctl/bin/agentctl codex")
+			p[0].TPGID, p[1].TPGID, p[2].TPGID = pid, pid, pid
+			return p, nil
+		},
+		"ps fails": func(int) ([]proc, error) { return nil, errors.New("ps: boom") },
+	} {
+		r := newWrappedRig(t, procs)
+		piReconcile(t, r.ctl)
+		if s, _ := r.ctl.store.Sessions().Get(context.Background(), r.sess.ID); s.State != domain.StateReady {
+			t.Fatalf("%s: session = %s %q, want ready (unchanged)", name, s.State, s.LastDetail)
+		}
+	}
+}
