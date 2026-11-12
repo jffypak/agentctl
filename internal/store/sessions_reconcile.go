@@ -147,7 +147,11 @@ func (ss *Sessions) RegisterAdopted(ctx context.Context, task Task, ns NewSessio
 	}
 	err := ss.s.withTx(ctx, func(tx *sql.Tx) error {
 		if owner, err := paneOwner(ctx, tx, id); err == nil {
-			return fmt.Errorf("store: pane %s is registered to task %s: %w", id.PaneID, owner.TaskID, ErrPaneRegistered)
+			// A pane whose latest session is a finished `agentctl codex` one
+			// may start a new wrapped task (after a cd or a close).
+			if !(ns.Origin == domain.OriginWrapped && owner.Origin == domain.OriginWrapped && owner.State.IsTerminal()) {
+				return fmt.Errorf("store: pane %s is registered to task %s: %w", id.PaneID, owner.TaskID, ErrPaneRegistered)
+			}
 		} else if !errors.Is(err, ErrNotFound) {
 			return err
 		}

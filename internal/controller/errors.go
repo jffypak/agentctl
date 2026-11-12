@@ -19,15 +19,18 @@ var (
 	// ErrCodexNotInteractive: agentctl codex was given a non-interactive
 	// Codex subcommand (exec, review, login, …); only the TUI has a composer.
 	ErrCodexNotInteractive = errors.New("codex subcommand is not interactive")
-	ErrNotARepo            = errors.New("not a git repository")
-	ErrNoCommits           = errors.New("repository has no commits")
-	ErrTaskExists          = errors.New("task exists")
-	ErrTaskNotFound        = errors.New("task not found")
-	ErrBranchExists        = errors.New("branch exists")
-	ErrWorktreeExists      = errors.New("worktree path exists")
-	ErrSessionExists       = errors.New("tmux session exists")
-	ErrWorktreeFailed      = errors.New("worktree creation failed")
-	ErrLaunchFailed        = errors.New("agent launch failed")
+	// ErrNotInPane: agentctl codex can't prove it runs inside the tmux pane
+	// it would register ($TMUX/$TMUX_PANE inherited, or another server).
+	ErrNotInPane      = errors.New("not running inside the pane")
+	ErrNotARepo       = errors.New("not a git repository")
+	ErrNoCommits      = errors.New("repository has no commits")
+	ErrTaskExists     = errors.New("task exists")
+	ErrTaskNotFound   = errors.New("task not found")
+	ErrBranchExists   = errors.New("branch exists")
+	ErrWorktreeExists = errors.New("worktree path exists")
+	ErrSessionExists  = errors.New("tmux session exists")
+	ErrWorktreeFailed = errors.New("worktree creation failed")
+	ErrLaunchFailed   = errors.New("agent launch failed")
 )
 
 // Error is a user-facing failure: Kind for errors.Is, Msg for display, Err

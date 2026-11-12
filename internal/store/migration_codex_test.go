@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"path/filepath"
 	"testing"
 	"testing/fstest"
@@ -223,5 +224,35 @@ func TestForeignKeysOffMigrationStillChecks(t *testing.T) {
 	var on int
 	if err := db.QueryRowContext(ctx, `PRAGMA foreign_keys`).Scan(&on); err != nil || on != 1 {
 		t.Errorf("PRAGMA foreign_keys = %d (%v) after the migration, want 1", on, err)
+	}
+}
+
+// A pane whose latest session is a finished wrapped one can be registered
+// again as a new wrapped task (agentctl codex after cd or close); any other
+// owner still blocks it.
+func TestRegisterAdoptedWrappedAfterFinishedWrapped(t *testing.T) {
+	ctx := context.Background()
+	st, _ := openTest(t)
+	repo, _ := st.Repos().Upsert(ctx, "/repos/main", "main")
+	id := domain.Identity{Socket: "/s", ServerPID: 5, SessionID: "$1", PaneID: "%4", PanePID: 54}
+	ns := func(task string, o domain.Origin, s domain.AgentState) NewSession {
+		return NewSession{TaskID: task, AgentType: "codex", Origin: o, Identity: id, State: s, Confidence: domain.ConfidenceNone}
+	}
+	_, first, err := st.Sessions().RegisterAdopted(ctx, Task{ID: "a", RepoID: repo.ID, WorktreePath: "/w", Branch: "main"}, ns("a", domain.OriginWrapped, domain.StateStarting))
+	if err != nil {
+		t.Fatal(err)
+	}
+	task := func(id string) Task { return Task{ID: id, RepoID: repo.ID, WorktreePath: "/w2", Branch: "main"} }
+	if _, _, err := st.Sessions().RegisterAdopted(ctx, task("b"), ns("b", domain.OriginWrapped, domain.StateStarting)); !errors.Is(err, ErrPaneRegistered) {
+		t.Fatalf("live wrapped owner: err = %v, want ErrPaneRegistered", err)
+	}
+	if _, err := st.Sessions().ReconcileTransition(ctx, ReconcileInput{SessionID: first.ID, To: domain.StateStopped, Confidence: domain.ConfidencePane, Source: domain.SourceWrapper}); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := st.Sessions().RegisterAdopted(ctx, task("c"), ns("c", domain.OriginAdopted, domain.StateUnknown)); !errors.Is(err, ErrPaneRegistered) {
+		t.Fatalf("adopt over a finished wrapped pane: err = %v, want ErrPaneRegistered", err)
+	}
+	if _, _, err := st.Sessions().RegisterAdopted(ctx, task("d"), ns("d", domain.OriginWrapped, domain.StateStarting)); err != nil {
+		t.Fatalf("wrapped over a finished wrapped pane: %v", err)
 	}
 }

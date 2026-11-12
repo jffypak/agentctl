@@ -42,7 +42,7 @@ func cmdCodex(ctx context.Context, sys *system, args []string) int {
 	if err != nil {
 		return sys.fail(err)
 	}
-	res, err := ctl.RegisterWrapped(ctx, controller.WrapRequest{Name: name, PaneID: pane, UserArgs: userArgs})
+	res, err := ctl.RegisterWrapped(ctx, controller.WrapRequest{Name: name, PaneID: pane, SelfPID: os.Getpid(), UserArgs: userArgs})
 	_ = ctl.Close() // never hold the registry open while Codex runs
 	if err != nil {
 		return sys.fail(err)

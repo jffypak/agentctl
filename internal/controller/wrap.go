@@ -12,13 +12,15 @@ import (
 	"github.com/jffypak/agentctl/internal/domain"
 	"github.com/jffypak/agentctl/internal/paths"
 	"github.com/jffypak/agentctl/internal/store"
+	"github.com/jffypak/agentctl/internal/tmux"
 )
 
 // WrapRequest is `agentctl codex [--name <name>] [codex args…]` run in the
-// tmux pane PaneID ($TMUX_PANE).
+// tmux pane PaneID ($TMUX_PANE) by process SelfPID.
 type WrapRequest struct {
 	Name     string   // task name; "" = derived from the pane's worktree (<dir>-codex)
-	PaneID   string   // the pane agentctl codex runs in
+	PaneID   string   // the pane agentctl codex runs in ($TMUX_PANE)
+	SelfPID  int      // the agentctl codex process: must run under the pane's process
 	UserArgs []string // passed to codex unchanged, after agentctl's hook flags
 }
 
@@ -33,16 +35,21 @@ type WrapResult struct {
 }
 
 // RegisterWrapped registers the user's own pane as a Codex task (origin
-// wrapped, agent codex) and returns the argv to run there. The identity is
-// the live pane's (its pane pid is the user's shell, so it survives Codex
-// restarts in the same pane). The session starts starting / none with
-// detail DetailAwaitingFirstPrompt: Codex fires no hook before the first
-// prompt, so the startup hook-trust check runs and the session sits in
-// INITIALSTATE until then (expected silence; never timed out).
+// wrapped, agent codex) and returns the argv to run there. The pane is
+// explicit (invariant 5): the server is the pane's own ($TMUX; a different
+// AGENTCTL_TMUX_SOCKET is refused) and SelfPID must run under the pane's
+// process. The identity's pane pid is the user's shell, so it survives Codex
+// restarts in the same pane. The session starts starting / none with detail
+// DetailAwaitingFirstPrompt: Codex fires no hook before the first prompt.
 //
-// A pane already bound to a task whose latest session ended (stopped,
-// failed, disconnected) gets a new session on that task (Reused; Name is
-// ignored). A pane bound to a live session is refused with ErrPaneRegistered.
+// A pane already bound:
+//   - to a live wrapped session whose agentctl codex still runs: refused;
+//   - to a wrapped session whose wrapper is gone without recording the exit:
+//     that session is ended (DetailWrapperGone) and registration continues;
+//   - to a finished wrapped session: a new session on that task (Reused,
+//     Name ignored), unless the task is closed or the pane is now in another
+//     worktree, which start a new task;
+//   - to an adopted or launched session: refused.
 func (c *Controller) RegisterWrapped(ctx context.Context, req WrapRequest) (WrapResult, error) {
 	if !isPaneID(req.PaneID) {
 		return WrapResult{}, userErr(ErrPaneNotFound, nil, "no tmux pane id (%q); agentctl codex must run inside tmux", req.PaneID)
@@ -61,6 +68,17 @@ func (c *Controller) RegisterWrapped(ctx context.Context, req WrapRequest) (Wrap
 		return WrapResult{}, userErr(ErrCodexNotInteractive, nil,
 			"agentctl codex runs the interactive Codex TUI; run `codex %s` directly (it is not tracked)", sub)
 	}
+	if req.SelfPID <= 0 {
+		return WrapResult{}, userErr(ErrNotInPane, nil, "agentctl codex must run inside the tmux pane it tracks")
+	}
+	own := tmux.SocketFromTMUX(c.Getenv("TMUX"))
+	if own == "" {
+		return WrapResult{}, userErr(ErrNotInPane, nil, "$TMUX is not set: agentctl codex must run inside tmux")
+	}
+	if o := c.Getenv(tmux.EnvSocket); o != "" && !tmux.SameSocket(o, own) {
+		return WrapResult{}, userErr(ErrNotInPane, nil, "%s names a different tmux server (%s) than this pane's (%s); unset it to run agentctl codex here",
+			tmux.EnvSocket, o, own)
+	}
 	if err := c.requireTmux(); err != nil {
 		return WrapResult{}, err
 	}
@@ -68,18 +86,58 @@ func (c *Controller) RegisterWrapped(ctx context.Context, req WrapRequest) (Wrap
 	if err != nil {
 		return WrapResult{}, err
 	}
-	pane, id, err := c.adoptablePane(ctx, req.PaneID)
-	if errors.Is(err, ErrPaneRegistered) {
-		return c.rewrap(ctx, req, tl.agentCmd)
-	}
+	pane, id, err := c.livePane(ctx, req.PaneID)
 	if err != nil {
 		return WrapResult{}, err
+	}
+	if !tmux.SameSocket(id.Socket, own) {
+		return WrapResult{}, userErr(ErrNotInPane, nil, "pane %s is on %s, not this pane's server %s", req.PaneID, id.Socket, own)
+	}
+	if !c.runsUnder(ctx, req.SelfPID, pane.PanePID) {
+		return WrapResult{}, userErr(ErrNotInPane, nil, "agentctl codex is not running inside pane %s ($TMUX_PANE was inherited?); run it in the pane you want tracked", req.PaneID)
 	}
 	loc, err := c.paneLocation(ctx, pane)
 	if err != nil {
 		return WrapResult{}, err
 	}
+	owner, err := c.store.Sessions().PaneOwner(ctx, id)
+	switch {
+	case errors.Is(err, store.ErrNotFound):
+		return c.newWrappedTask(ctx, req, pane, id, loc, tl.agentCmd)
+	case err != nil:
+		return WrapResult{}, err
+	case owner.Origin != domain.OriginWrapped:
+		return WrapResult{}, userErr(ErrPaneRegistered, nil, "pane %s belongs to task %q, which agentctl codex did not start", req.PaneID, owner.TaskID)
+	}
+	if !owner.State.IsTerminal() {
+		if runs, ok := c.otherWrapperRuns(ctx, pane.PanePID, req.SelfPID); runs || !ok {
+			return WrapResult{}, userErr(ErrPaneRegistered, nil, "this pane already runs agentctl task %q (%s); exit it first", owner.TaskID, owner.State)
+		}
+		if _, err := c.store.Sessions().ReconcileTransition(ctx, store.ReconcileInput{
+			SessionID: owner.ID, To: domain.StateStopped, Confidence: domain.ConfidencePane,
+			Detail: DetailWrapperGone, Source: domain.SourcePane,
+		}); err != nil {
+			return WrapResult{}, err
+		}
+	}
+	task, err := c.store.Tasks().Get(ctx, owner.TaskID)
+	if err != nil {
+		return WrapResult{}, err
+	}
+	if task.State == domain.TaskClosed || filepath.Clean(task.WorktreePath) != filepath.Clean(loc.worktree) {
+		return c.newWrappedTask(ctx, req, pane, id, loc, tl.agentCmd)
+	}
+	sess, err := c.store.Sessions().Create(ctx, c.wrappedSession(task.ID, id, pane.SessionName, task.WorktreePath))
+	if err != nil {
+		return WrapResult{}, err
+	}
+	return c.wrapResult(task.ID, sess, true, tl.agentCmd, req.UserArgs)
+}
+
+// newWrappedTask registers a new task for the pane's current worktree.
+func (c *Controller) newWrappedTask(ctx context.Context, req WrapRequest, pane tmux.Pane, id domain.Identity, loc paneLoc, codexCmd []string) (WrapResult, error) {
 	name := req.Name
+	var err error
 	if name == "" {
 		if name, err = c.wrapName(ctx, loc.worktree); err != nil {
 			return WrapResult{}, err
@@ -110,42 +168,51 @@ func (c *Controller) RegisterWrapped(ctx context.Context, req WrapRequest) (Wrap
 	case err != nil:
 		return WrapResult{}, err
 	}
-	return c.wrapResult(name, sess, false, tl.agentCmd, req.UserArgs)
+	return c.wrapResult(name, sess, false, codexCmd, req.UserArgs)
 }
 
-// rewrap starts a new session on the task that owns the pane, when that
-// task's latest session has ended.
-func (c *Controller) rewrap(ctx context.Context, req WrapRequest, codexCmd []string) (WrapResult, error) {
-	pane, id, err := c.livePane(ctx, req.PaneID)
+// runsUnder reports whether pid is panePID or one of its descendants (the
+// process table's parent chain). A table that can't be read is "no".
+func (c *Controller) runsUnder(ctx context.Context, pid, panePID int) bool {
+	if pid == panePID {
+		return true
+	}
+	procs, err := c.procs(ctx)
 	if err != nil {
-		return WrapResult{}, err
+		return false
 	}
-	owner, err := c.store.Sessions().PaneOwner(ctx, id)
+	t := newProcTable(procs)
+	for i := 0; i < 64 && pid > 1; i++ {
+		p, ok := t.byPID[pid]
+		if !ok {
+			return false
+		}
+		if p.PPID == panePID {
+			return true
+		}
+		pid = p.PPID
+	}
+	return false
+}
+
+// otherWrapperRuns reports whether an `agentctl codex` other than self runs
+// under the pane. ok is false when the process table can't be read.
+func (c *Controller) otherWrapperRuns(ctx context.Context, panePID, self int) (runs, ok bool) {
+	procs, err := c.procs(ctx)
 	if err != nil {
-		return WrapResult{}, err
+		return false, false
 	}
-	latest, err := c.store.Sessions().LatestForTask(ctx, owner.TaskID)
-	if err != nil {
-		return WrapResult{}, err
+	t := newProcTable(procs)
+	root, found := t.byPID[panePID]
+	if !found {
+		root = proc{PID: panePID}
 	}
-	if !latest.State.IsTerminal() {
-		return WrapResult{}, userErr(ErrPaneRegistered, nil, "this pane already runs agentctl task %q (%s); exit it first", owner.TaskID, latest.State)
+	for _, p := range t.descendants(root) {
+		if p.PID != self && c.isWrapperArgs(p.Args) {
+			return true, true
+		}
 	}
-	if latest.Origin != domain.OriginWrapped || latest.AgentType != codex.Name {
-		return WrapResult{}, userErr(ErrPaneRegistered, nil, "pane %s belongs to task %q, which agentctl codex did not start", req.PaneID, owner.TaskID)
-	}
-	task, err := c.store.Tasks().Get(ctx, owner.TaskID)
-	if err != nil {
-		return WrapResult{}, err
-	}
-	if task.State == domain.TaskClosed {
-		return WrapResult{}, userErr(ErrPaneRegistered, nil, "this pane belongs to closed task %q; run agentctl codex in a new pane", task.ID)
-	}
-	sess, err := c.store.Sessions().Create(ctx, c.wrappedSession(task.ID, id, pane.SessionName, task.WorktreePath))
-	if err != nil {
-		return WrapResult{}, err
-	}
-	return c.wrapResult(task.ID, sess, true, codexCmd, req.UserArgs)
+	return false, true
 }
 
 // wrappedSession is the session row of a wrapped pane (plus extra events
