@@ -28,7 +28,8 @@ type newTaskView struct {
 	id         int64
 	sh         *shared
 	name, goal lineInput
-	focus      int // focusName or focusGoal
+	codex      bool // agent field: false = claude (default), true = codex
+	focus      int  // focusName, focusGoal or focusAgent
 	busy       bool
 	err        string // the controller's refusal
 }
@@ -36,6 +37,8 @@ type newTaskView struct {
 const (
 	focusName = iota
 	focusGoal
+	focusAgent
+	numFocus
 )
 
 // newTaskDoneMsg is NewTask's answer.
@@ -82,14 +85,20 @@ func (v newTaskView) key(k tea.KeyPressMsg) (view, tea.Cmd) {
 	switch {
 	case s == "esc" || (k.Text == "" && key.Matches(k, keys.Back)):
 		return nil, nil
-	case s == "tab" || s == "shift+tab":
-		v.focus = 1 - v.focus
+	case s == "tab":
+		v.focus = (v.focus + 1) % numFocus
+		return v, nil
+	case s == "shift+tab":
+		v.focus = (v.focus + numFocus - 1) % numFocus
 		return v, nil
 	case s == "up":
-		v.focus = focusName
+		v.focus = max(v.focus-1, focusName)
 		return v, nil
 	case s == "down":
-		v.focus = focusGoal
+		v.focus = min(v.focus+1, focusAgent)
+		return v, nil
+	case v.focus == focusAgent && (s == "left" || s == "right" || s == "space" || s == " "):
+		v.codex, v.err = !v.codex, ""
 		return v, nil
 	case s == "enter" || (k.Text == "" && key.Matches(k, keys.Open)):
 		if v.focus == focusName {
@@ -106,9 +115,10 @@ func (v newTaskView) key(k tea.KeyPressMsg) (view, tea.Cmd) {
 // edit sends a key or paste to the focused field.
 func (v newTaskView) edit(msg tea.Msg) newTaskView {
 	var handled bool
-	if v.focus == focusName {
+	switch v.focus {
+	case focusName:
 		v.name, handled = v.name.Update(msg)
-	} else {
+	case focusGoal:
 		v.goal, handled = v.goal.Update(msg)
 	}
 	if handled {
@@ -124,7 +134,7 @@ func (v newTaskView) submit() (view, tea.Cmd) {
 	}
 	v.busy, v.err = true, ""
 	sh, id := v.sh, v.id
-	req := controller.NewTaskRequest{Name: v.name.Value(), Goal: v.goal.Value(), Cwd: sh.cwd}
+	req := controller.NewTaskRequest{Name: v.name.Value(), Goal: v.goal.Value(), Cwd: sh.cwd, Agent: v.agent()}
 	return v, func() tea.Msg {
 		res, err := sh.ctl.NewTask(sh.ctx, req)
 		return newTaskDoneMsg{id: id, res: res, err: err}
@@ -173,6 +183,8 @@ func (v newTaskView) Body(f frame) string {
 		v.nameHint(f),
 		formField(f, "goal", v.goal, v.focus == focusGoal && !v.busy),
 		formHint(f, "the agent's first prompt (optional)", st.muted),
+		v.agentField(f),
+		formHint(f, "←/→ to switch: claude or codex", st.muted),
 		"",
 	}
 	switch {
@@ -201,7 +213,7 @@ func (v newTaskView) Hints() []key.Binding {
 		return []key.Binding{k.ForceQuit}
 	}
 	next := help(k.Open, "next")
-	if v.focus == focusGoal {
+	if v.focus != focusName {
 		next = help(k.Open, "create")
 	}
 	return []key.Binding{next, textHint("tab", "switch field"), help(k.Back, "cancel")}
@@ -259,4 +271,21 @@ func safeLine(s string) string { return controller.OneLine(domain.SanitizeTermin
 // flashErr is flashError with the text sanitized.
 func flashErr(err error) tea.Cmd {
 	return func() tea.Msg { return flashMsg{text: safeLine(err.Error()), isErr: true} }
+}
+
+// agent is the chosen agent type.
+func (v newTaskView) agent() string {
+	if v.codex {
+		return "codex"
+	}
+	return "claude"
+}
+
+// agentField renders `agent  <claude|codex>` (bold label when focused).
+func (v newTaskView) agentField(f frame) string {
+	style := f.st.muted
+	if v.focus == focusAgent && !v.busy {
+		style = f.st.hintKey
+	}
+	return style.Render(padRight("agent", formLabelWidth)) + f.st.text.Render(v.agent())
 }

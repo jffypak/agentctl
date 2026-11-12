@@ -200,7 +200,7 @@ func (v adoptView) Body(f frame) string {
 		if !v.all {
 			lines = append(lines, st.muted.Render(truncate(v.sh.keys.Adopt.Help().Key+" lists every pane", f.width)))
 		}
-		return strings.Join(lines, "\n")
+		return strings.Join(append(lines, v.hintLines(f)...), "\n")
 	}
 	vis := max(f.height-adoptHeaderRows, 1)
 	if len(v.cands.Panes) > vis {
@@ -321,4 +321,17 @@ func suggestName(dir string) string {
 		return ""
 	}
 	return s
+}
+
+// hintLines are the listing's notes (a normally started Codex pane that
+// agentctl can't track), one muted line each, after a blank line.
+func (v adoptView) hintLines(f frame) []string {
+	if len(v.cands.Hints) == 0 {
+		return nil
+	}
+	out := []string{""}
+	for _, h := range v.cands.Hints {
+		out = append(out, f.st.muted.Render(truncate(safeLine(h), f.width)))
+	}
+	return out
 }

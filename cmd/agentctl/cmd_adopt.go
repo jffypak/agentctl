@@ -43,6 +43,9 @@ func cmdAdopt(ctx context.Context, sys *system, args []string) int {
 	}
 	fmt.Fprintf(sys.stdout, "adopted %s as %s · %s · %s · state %s (no hooks yet: merge `agentctl hooks-snippet` into your Claude settings for live state)\n",
 		res.Identity.PaneID, res.TaskID, clean(res.Branch), clean(res.Worktree), res.State)
+	if res.Warning != "" {
+		fmt.Fprintf(sys.stderr, "agentctl: warning: %s\n", controller.OneLine(res.Warning))
+	}
 	return exitOK
 }
 
@@ -53,6 +56,9 @@ func adoptList(ctx context.Context, sys *system, ctl *controller.Controller, all
 	}
 	if list.Warning != "" {
 		fmt.Fprintf(sys.stderr, "agentctl: warning: %s\n", controller.OneLine(list.Warning))
+	}
+	for _, h := range list.Hints {
+		fmt.Fprintf(sys.stderr, "agentctl: note: %s\n", controller.OneLine(h))
 	}
 	what := "unregistered panes"
 	if !all {

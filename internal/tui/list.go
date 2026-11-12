@@ -104,19 +104,31 @@ func (m Model) sectionTitle(s domain.Section) string {
 type columns struct {
 	name, repo, text int
 	showRepo         bool
+	showAgent        bool // more than one agent type is listed: tag each row
 }
+
+// agentWidth is the agent tag column ("claude", "codex").
+const agentWidth = 6
 
 func (m Model) columns(width int, rows []controller.TaskView) columns {
 	c := columns{showRepo: m.ov.AllRepos}
+	agents := map[string]bool{}
 	for _, r := range rows {
 		c.name = max(c.name, lipgloss.Width(r.Name))
 		c.repo = max(c.repo, lipgloss.Width(r.Repo))
+		if r.AgentType != "" {
+			agents[r.AgentType] = true
+		}
 	}
+	c.showAgent = len(agents) > 1
 	c.name = min(max(c.name, minNameWidth), maxNameWidth)
 	c.repo = min(c.repo, maxRepoWidth)
 	fixed := 2 + c.name + gap + gap + ageWidth // marker, name, gaps, age
 	if c.showRepo {
 		fixed += c.repo + gap
+	}
+	if c.showAgent {
+		fixed += agentWidth + gap
 	}
 	c.text = max(width-fixed, 0)
 	return c
@@ -151,6 +163,10 @@ func (m Model) row(r controller.TaskView, c columns, selected bool) string {
 	b.WriteString(strings.Repeat(" ", gap))
 	if c.showRepo {
 		b.WriteString(st.muted.Render(padRight(truncate(r.Repo, c.repo), c.repo)))
+		b.WriteString(strings.Repeat(" ", gap))
+	}
+	if c.showAgent {
+		b.WriteString(st.muted.Render(padRight(truncate(safeLine(r.AgentType), agentWidth), agentWidth)))
 		b.WriteString(strings.Repeat(" ", gap))
 	}
 	b.WriteString(styled)

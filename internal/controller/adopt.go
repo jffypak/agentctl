@@ -52,6 +52,9 @@ type AdoptCandidates struct {
 	// Warning is set when the listing degraded (the process table could not
 	// be read, so only exact pane_current_command matches are listed).
 	Warning string
+	// Hints name unregistered panes running a normally started Codex, which
+	// agentctl cannot track (its hooks run in the shared daemon).
+	Hints []string
 }
 
 // CandidateQuery filters the candidate list.
@@ -96,6 +99,11 @@ func (c *Controller) ListAdoptCandidates(ctx context.Context, q CandidateQuery) 
 	matched := open
 	if !q.All {
 		matched, out.Warning = c.matchAdoptPanes(ctx, open, out.Commands)
+		for _, p := range open {
+			if p.CurrentCommand == codexAdoptCommand {
+				out.Hints = append(out.Hints, codexAdoptHint(p.PaneID))
+			}
+		}
 	}
 	for _, p := range matched {
 		out.Panes = append(out.Panes, AdoptCandidate{
@@ -162,6 +170,7 @@ type AdoptResult struct {
 	Identity    domain.Identity
 	State       domain.AgentState
 	Confidence  domain.Confidence
+	Warning     string // set when the pane runs Codex, which adopt cannot track
 }
 
 // Adopt registers an existing live pane as task req.Name: the pane's cwd
@@ -230,11 +239,25 @@ func (c *Controller) Adopt(ctx context.Context, req AdoptRequest) (AdoptResult, 
 	case err != nil:
 		return AdoptResult{}, err
 	}
-	return AdoptResult{
+	res := AdoptResult{
 		TaskID: req.Name, Repo: loc.repo.Name, RepoRoot: loc.repo.Root, Branch: loc.head.Ref, Worktree: loc.worktree,
 		BaseRef: loc.baseRef, BaseSHA: loc.baseSHA, SessionID: sess.ID, SessionName: sess.SessionName,
 		Identity: sess.Identity, State: sess.State, Confidence: sess.Confidence,
-	}, nil
+	}
+	if pane.CurrentCommand == codexAdoptCommand {
+		res.Warning = codexAdoptHint(pane.PaneID)
+	}
+	return res, nil
+}
+
+// codexAdoptCommand is pane_current_command of a normally started Codex.
+const codexAdoptCommand = "codex"
+
+// codexAdoptHint explains that a normally started Codex can't be tracked:
+// its hooks run in the shared codex app-server daemon, which reports the
+// wrong pane. `agentctl codex` runs it in embedded mode instead.
+func codexAdoptHint(paneID string) string {
+	return "pane " + paneID + " runs codex; agentctl can't track it. Restart it with: agentctl codex"
 }
 
 // adoptablePane finds a live, unregistered pane on the resolved server and
