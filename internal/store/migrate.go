@@ -90,8 +90,29 @@ func migrate(ctx context.Context, db *sql.DB, ms []Migration, now func() time.Ti
 	return nil
 }
 
+// MigrationForeignKeysOff, as the first line of a migration, runs it with
+// foreign-key enforcement off — SQLite's documented way to rebuild a table
+// that other tables reference (enforcement cannot change inside a
+// transaction, and a dropped parent leaves a deferred violation that a
+// rename never clears). PRAGMA foreign_key_check still runs inside the
+// migration's transaction, so a migration that leaves a dangling reference
+// fails and rolls back. Enforcement is restored on the connection afterwards.
+const MigrationForeignKeysOff = "-- agentctl:foreign_keys=off"
+
 func applyOne(ctx context.Context, db *sql.DB, m Migration, now func() time.Time) error {
-	tx, err := db.BeginTx(ctx, nil)
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		return fmt.Errorf("store: migration %s: connect: %w", m.Name, err)
+	}
+	defer conn.Close()
+	fkOff := strings.HasPrefix(m.SQL, MigrationForeignKeysOff)
+	if fkOff {
+		if _, err := conn.ExecContext(ctx, `PRAGMA foreign_keys = OFF`); err != nil {
+			return fmt.Errorf("store: migration %s: foreign_keys off: %w", m.Name, err)
+		}
+		defer func() { _, _ = conn.ExecContext(context.WithoutCancel(ctx), `PRAGMA foreign_keys = ON`) }()
+	}
+	tx, err := conn.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("store: migration %s: begin: %w", m.Name, err)
 	}
@@ -105,6 +126,11 @@ func applyOne(ctx context.Context, db *sql.DB, m Migration, now func() time.Time
 	}
 	if _, err := tx.ExecContext(ctx, m.SQL); err != nil {
 		return fmt.Errorf("store: migration %s: %w", m.Name, err)
+	}
+	if fkOff {
+		if err := foreignKeyCheck(ctx, tx); err != nil {
+			return fmt.Errorf("store: migration %s: %w", m.Name, err)
+		}
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)`,
 		m.Version, m.Name, ms(now())); err != nil {
@@ -145,4 +171,23 @@ func (s *Store) AppliedMigrations(ctx context.Context) ([]int, error) {
 	}
 	sort.Ints(out)
 	return out, nil
+}
+
+// foreignKeyCheck fails when PRAGMA foreign_key_check reports any row.
+func foreignKeyCheck(ctx context.Context, tx *sql.Tx) error {
+	rows, err := tx.QueryContext(ctx, `PRAGMA foreign_key_check`)
+	if err != nil {
+		return fmt.Errorf("foreign_key_check: %w", err)
+	}
+	defer rows.Close()
+	if rows.Next() {
+		var table, parent string
+		var rowid sql.NullInt64
+		var fkid int
+		if err := rows.Scan(&table, &rowid, &parent, &fkid); err != nil {
+			return fmt.Errorf("foreign_key_check: %w", err)
+		}
+		return fmt.Errorf("foreign key violation: %s row %d references a missing %s row", table, rowid.Int64, parent)
+	}
+	return rows.Err()
 }

@@ -114,7 +114,7 @@ func TestTUIQuitLeavesAgentsAlive(t *testing.T) {
 	for i, quit := range []string{"q", "C-c", "SIGHUP"} {
 		p := tiStartTUI(t, f.srv, f.env, "ui-"+strconv.Itoa(i), f.repo.Root, 120)
 		p.waitFor(t, "the TUI header", func(s string) bool {
-			return strings.Contains(s, "agents / repo · 2 running · 0 need you") && strings.Contains(s, "two")
+			return strings.Contains(s, "agents / repo · 0 running · 0 need you") && strings.Contains(s, "INITIALSTATE") && strings.Contains(s, "two")
 		})
 		if quit == "SIGHUP" {
 			pid, err := strconv.Atoi(f.srv.Run(t, "display-message", "-p", "-t", p.target, "#{pane_pid}"))

@@ -1,4 +1,4 @@
- [1magents / repo[m[38;5;245m · 2 running · [m[1;38;5;215m6 need you[m
+ [1magents / repo[m[38;5;245m · 1 running · [m[1;38;5;215m6 need you[m
  [38;5;245m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[m
  [1;38;5;215mNEEDS YOU[m
  [1;38;5;215m>[m [1mlegacy-pane  [m  [38;5;215mqueued · attach to deliver[m                                                                       [38;5;245m  1h[m
@@ -14,13 +14,13 @@
 
  [1mRUNNING[m
    payments       working[38;5;245m · Bash: go test ./...[m                                                                    [38;5;245m 45s[m
-   fresh-task     starting                                                                                         [38;5;245m  5s[m
+
+ [2;38;5;245mINITIALSTATE[m
+   [2;38;5;245madopted-shell[m  [2;38;5;245mno events yet[m                                                                                    [38;5;245m  2d[m
+   [2;38;5;245mfresh-task   [m  [2;38;5;245mno events yet[m                                                                                    [38;5;245m  5s[m
 
  [2;38;5;245mUNKNOWN[m
-   [2;38;5;245madopted-shell[m  [2;38;5;245munknown[m                                                                                          [38;5;245m  2d[m
    [2;38;5;245mreserving    [m  [2;38;5;245mno session[m                                                                                       [38;5;245m  1s[m
-
-
 
 
 

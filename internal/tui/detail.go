@@ -117,7 +117,7 @@ func (d detailModel) title(f frame) string {
 	switch sec {
 	case domain.SectionNeedsYou:
 		style = st.labelNeed
-	case domain.SectionUnknown, domain.SectionClosed:
+	case domain.SectionInitial, domain.SectionUnknown, domain.SectionClosed:
 		style = st.unknown
 	}
 	name := truncate(t.Name, maxNameWidth)
@@ -132,7 +132,7 @@ func (d detailModel) stateLine(f frame) string {
 		return fieldLine(f, "state", "no session yet · since "+formatAge(t.Age))
 	}
 	value := stateWord(t.AgentState) + " · confidence " + string(t.Confidence) + " · since " + formatAge(t.Age)
-	if t.Attention.Section == domain.SectionUnknown {
+	if t.Attention.Section == domain.SectionUnknown || t.Attention.Section == domain.SectionInitial {
 		return f.st.muted.Render(padRight("state", fieldLabelWidth)) + f.st.unknown.Render(truncate(value, f.width-fieldLabelWidth))
 	}
 	return fieldLine(f, "state", value)

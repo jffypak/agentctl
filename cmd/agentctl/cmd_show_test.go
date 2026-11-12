@@ -68,7 +68,7 @@ func TestShowPrintsStateBlockAndLast40Lines(t *testing.T) {
 	}
 	wt := filepath.Join(f.repo.WorktreesDir(), "demo")
 	for _, want := range []string{
-		"task       demo · RUNNING · starting",
+		"task       demo · INITIALSTATE · no events yet",
 		"state      starting · confidence none",
 		"branch     agentctl/demo · base main @ ",
 		"worktree   " + wt,

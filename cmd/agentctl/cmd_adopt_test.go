@@ -121,7 +121,7 @@ func TestAdoptListThenAdoptByPaneID(t *testing.T) {
 	tasks := lsTasks(t, env, f.repo.Root)
 	foo := tasks["foo"]
 	sess := foo["session"].(map[string]any)
-	if foo["section"] != "unknown" || foo["agent_state"] != "unknown" || foo["confidence"] != "none" || sess["origin"] != "adopted" ||
+	if foo["section"] != "initial" || foo["agent_state"] != "unknown" || foo["confidence"] != "none" || sess["origin"] != "adopted" ||
 		sess["tmux_pane_id"] != work.PaneID || sess["pane_pid"] != float64(work.PanePID) || sess["tmux_server_pid"] != float64(work.ServerPID) ||
 		sess["tmux_socket"] != f.srv.Socket || foo["worktree"] != f.repo.Root || foo["base_sha"] != f.repo.HeadSHA(t) {
 		t.Fatalf("ls row = %v", foo)

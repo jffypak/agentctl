@@ -31,7 +31,7 @@ func (s *Store) Overview(ctx context.Context, f OverviewFilter) ([]OverviewRow, 
 			r.id, r.root_path, r.name, r.created_at,
 			s.id, s.task_id, s.agent_type, s.origin, s.tmux_socket, s.tmux_server_pid, s.tmux_session_id,
 			s.tmux_session_name, s.tmux_pane_id, s.pane_pid, s.agent_session_id, s.agent_state, s.state_confidence,
-			s.state_since, s.last_detail, s.created_at, s.ended_at,
+			s.state_since, s.last_detail, s.created_at, s.ended_at, s.first_hook_at,
 			COALESCE(mc.queued, 0), COALESCE(mc.delivering, 0), COALESCE(mc.sent, 0), COALESCE(mc.acknowledged, 0),
 			COALESCE(mc.unconfirmed, 0), COALESCE(mc.failed, 0), COALESCE(mc.cancelled, 0)
 		FROM tasks t
@@ -64,7 +64,7 @@ func scanOverviewRow(rows *sql.Rows) (OverviewRow, error) {
 	var (
 		row                                         OverviewRow
 		tCreated, tUpdated, rCreated                int64
-		tClosed, sEnded                             sql.NullInt64
+		tClosed, sEnded, sFirstHook                 sql.NullInt64
 		sID, sServerPID, sPanePID, sSince, sCreated sql.NullInt64
 		sTask, sType, sOrigin, sSocket, sSessID     sql.NullString
 		sSessName, sPane, sAgentSess, sState, sConf sql.NullString
@@ -77,7 +77,7 @@ func scanOverviewRow(rows *sql.Rows) (OverviewRow, error) {
 		&row.Repo.ID, &row.Repo.RootPath, &row.Repo.Name, &rCreated,
 		&sID, &sTask, &sType, &sOrigin, &sSocket, &sServerPID, &sSessID,
 		&sSessName, &sPane, &sPanePID, &sAgentSess, &sState, &sConf,
-		&sSince, &sDetail, &sCreated, &sEnded,
+		&sSince, &sDetail, &sCreated, &sEnded, &sFirstHook,
 		&m.Queued, &m.Delivering, &m.Sent, &m.Acknowledged, &m.Unconfirmed, &m.Failed, &m.Cancelled); err != nil {
 		return OverviewRow{}, err
 	}
@@ -94,7 +94,7 @@ func scanOverviewRow(rows *sql.Rows) (OverviewRow, error) {
 			SessionName: sSessName.String, AgentSessionID: sAgentSess.String,
 			State: domain.AgentState(sState.String), Confidence: domain.Confidence(sConf.String),
 			StateSince: fromMS(sSince.Int64), LastDetail: sDetail.String,
-			CreatedAt: fromMS(sCreated.Int64), EndedAt: fromNullMS(sEnded),
+			CreatedAt: fromMS(sCreated.Int64), EndedAt: fromNullMS(sEnded), FirstHookAt: fromNullMS(sFirstHook),
 		}
 	}
 	return row, nil

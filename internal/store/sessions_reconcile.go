@@ -133,7 +133,7 @@ func (ss *Sessions) RegisterAdopted(ctx context.Context, task Task, ns NewSessio
 		return Task{}, Session{}, fmt.Errorf("store: adopt %s: a full pane identity is required", task.ID)
 	}
 	if task.WorktreePath == "" || task.RepoID == 0 || ns.AgentType == "" || ns.TaskID != task.ID ||
-		ns.Origin != domain.OriginAdopted || ns.State != domain.StateUnknown || !ns.Confidence.Valid() {
+		!registrableOrigin(ns.Origin, ns.State) || !ns.Confidence.Valid() {
 		return Task{}, Session{}, fmt.Errorf("store: adopt %s: invalid task or session", task.ID)
 	}
 	if task.Name == "" {
@@ -191,4 +191,12 @@ func (ss *Sessions) RegisterAdopted(ctx context.Context, task Task, ns NewSessio
 		return Task{}, Session{}, err
 	}
 	return task, sess, nil
+}
+
+// registrableOrigin is the origin/initial-state pair RegisterAdopted accepts:
+// an adopted pane starts unknown (no hooks yet); a wrapped pane (`agentctl
+// codex`) starts starting, like a launch, so its startup screens are checked.
+func registrableOrigin(o domain.Origin, st domain.AgentState) bool {
+	return o == domain.OriginAdopted && st == domain.StateUnknown ||
+		o == domain.OriginWrapped && st == domain.StateStarting
 }

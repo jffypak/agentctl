@@ -14,7 +14,8 @@ import (
 // TestInv6_FailedStoppedAndUnknownNeverRenderAsSuccess — invariant 6
 // ("Unknown is honest") on a real terminal: an agent that exits 3 is failed
 // in NEEDS YOU, one that exits 0 is "exited" (never "ready" or done), and an
-// adopted pane without hooks is unknown in its own muted section. None of
+// adopted pane without hooks has sent no event, so it is in the muted
+// INITIALSTATE section with "no events yet" (state unknown). None of
 // these rows uses the words of success.
 func TestInv6_FailedStoppedAndUnknownNeverRenderAsSuccess(t *testing.T) {
 	t.Parallel()
@@ -46,7 +47,7 @@ func TestInv6_FailedStoppedAndUnknownNeverRenderAsSuccess(t *testing.T) {
 	s := ui.WaitScreen(t, "failed, exited and unknown rows", func(s string) bool {
 		return sectionOf(s, "crasher") == "NEEDS YOU" && strings.Contains(rowOf(s, "crasher"), "failed · exit 3") &&
 			sectionOf(s, "quitter") == "IDLE" && strings.Contains(rowOf(s, "quitter"), "exited · exit 0") &&
-			sectionOf(s, "loner") == "UNKNOWN" && strings.Contains(rowOf(s, "loner"), "unknown")
+			sectionOf(s, "loner") == "INITIALSTATE" && strings.Contains(rowOf(s, "loner"), "no events yet")
 	})
 	for _, name := range []string{"crasher", "quitter", "loner"} {
 		row := strings.ToLower(rowOf(s, name))

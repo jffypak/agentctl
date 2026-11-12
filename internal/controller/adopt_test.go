@@ -146,8 +146,8 @@ func TestAdoptRegistersPaneWithMergeBaseAndEvents(t *testing.T) {
 		t.Fatalf("payloads %v / %v", created, adopted)
 	}
 
-	// listed as UNKNOWN; reconcile keeps an alive adopted pane as is, and the
-	// pane is never touched
+	// listed as INITIALSTATE (no hook yet); reconcile keeps an alive adopted
+	// pane as is, and the pane is never touched
 	piReconcile(t, f.ctl)
 	ov, _ := f.ctl.Overview(ctx, OverviewQuery{Cwd: wt})
 	var row TaskView
@@ -156,7 +156,7 @@ func TestAdoptRegistersPaneWithMergeBaseAndEvents(t *testing.T) {
 			row = r
 		}
 	}
-	if row.Attention.Section != domain.SectionUnknown || row.Origin != domain.OriginAdopted || row.AgentState != domain.StateUnknown {
+	if row.Attention.Section != domain.SectionInitial || row.Origin != domain.OriginAdopted || row.AgentState != domain.StateUnknown {
 		t.Fatalf("overview row = %+v", row)
 	}
 	if l, p := f.ctl.liveSession(ctx, sess); !l.IsAlive() || p.PaneID != work.PaneID {

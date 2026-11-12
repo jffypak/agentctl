@@ -154,7 +154,7 @@ func TestNewThenLsTextAndJSON(t *testing.T) {
 		t.Fatalf("ls = %+v", r)
 	}
 	lines := strings.Split(strings.TrimRight(r.stdout, "\n"), "\n")
-	if lines[0] != "agents / repo · 2 running · 0 need you" {
+	if lines[0] != "agents / repo · 0 running · 0 need you" { // no hooks yet: INITIALSTATE, not running
 		t.Fatalf("header = %q", lines[0])
 	}
 	if got := strings.Fields(lines[2]); strings.Join(got, " ") != "NAME SECTION STATE CONFIDENCE AGE BRANCH WORKTREE" {
@@ -162,7 +162,7 @@ func TestNewThenLsTextAndJSON(t *testing.T) {
 	}
 	row := strings.Fields(lines[3])
 	wt := filepath.Join(f.repo.WorktreesDir(), "demo")
-	if len(row) != 7 || row[0] != "demo" || row[1] != "RUNNING" || row[2] != "starting" || row[3] != "none" ||
+	if len(row) != 7 || row[0] != "demo" || row[1] != "INITIALSTATE" || row[2] != "starting" || row[3] != "none" ||
 		!strings.HasSuffix(row[4], "s") || row[5] != "agentctl/demo" || row[6] != wt {
 		t.Fatalf("row = %q", lines[3])
 	}
@@ -182,7 +182,7 @@ func TestNewThenLsTextAndJSON(t *testing.T) {
 		t.Fatalf("ls --json = %v\n%s", err, r.stdout)
 	}
 	if doc.SchemaVersion != 1 || doc.Scope.AllRepos || doc.Scope.Repo != "repo" || doc.Scope.RepoRoot != f.repo.Root ||
-		doc.Counts["running"] != 2 || len(doc.Tasks) != 2 {
+		doc.Counts["initial"] != 2 || doc.Counts["running"] != 0 || len(doc.Tasks) != 2 {
 		t.Fatalf("doc = %+v", doc)
 	}
 	var task map[string]any
@@ -194,7 +194,7 @@ func TestNewThenLsTextAndJSON(t *testing.T) {
 			t.Errorf("task JSON missing %q", key)
 		}
 	}
-	if task["id"] != "demo" || task["agent_state"] != "starting" || task["section"] != "running" || task["worktree"] != wt {
+	if task["id"] != "demo" || task["agent_state"] != "starting" || task["section"] != "initial" || task["worktree"] != wt {
 		t.Fatalf("task = %v", task)
 	}
 	sess := task["session"].(map[string]any)
@@ -314,7 +314,7 @@ func TestLsScopesToRepoOrAllRepos(t *testing.T) {
 		t.Fatalf("ls in repo A = %q", inA.stdout)
 	}
 	outside := runCmd(t, f.env, t.TempDir(), "ls")
-	if !strings.HasPrefix(outside.stdout, "agents / all repos · 2 running") || !strings.Contains(outside.stdout, "a1") || !strings.Contains(outside.stdout, "b1") {
+	if !strings.HasPrefix(outside.stdout, "agents / all repos · 0 running") || !strings.Contains(outside.stdout, "a1") || !strings.Contains(outside.stdout, "b1") {
 		t.Fatalf("ls outside a repo = %q", outside.stdout)
 	}
 	fresh := testenv.TempRepo(t, f.env)

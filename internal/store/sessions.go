@@ -29,7 +29,11 @@ type Session struct {
 	LastDetail     string
 	CreatedAt      time.Time
 	EndedAt        time.Time // set when the session reaches a terminal state
+	FirstHookAt    time.Time // first hook.received matched to the session; zero = none yet
 }
+
+// HasHook reports whether any hook event was ever matched to the session.
+func (s Session) HasHook() bool { return !s.FirstHookAt.IsZero() }
 
 // NewSession describes a session row to insert. Events are appended in the
 // same transaction; their TaskID/SessionID are filled in when zero.
@@ -75,20 +79,21 @@ func (s *Store) Sessions() *Sessions { return &Sessions{s} }
 
 const sessionCols = `id, task_id, agent_type, origin, tmux_socket, tmux_server_pid, tmux_session_id,
 	tmux_session_name, tmux_pane_id, pane_pid, agent_session_id, agent_state, state_confidence,
-	state_since, last_detail, created_at, ended_at`
+	state_since, last_detail, created_at, ended_at, first_hook_at`
 
 func scanSession(r rowScanner) (Session, error) {
 	var (
 		s              Session
 		since, created int64
-		ended          sql.NullInt64
+		ended, hooked  sql.NullInt64
 	)
 	if err := r.Scan(&s.ID, &s.TaskID, &s.AgentType, &s.Origin, &s.Identity.Socket, &s.Identity.ServerPID,
 		&s.Identity.SessionID, &s.SessionName, &s.Identity.PaneID, &s.Identity.PanePID, &s.AgentSessionID,
-		&s.State, &s.Confidence, &since, &s.LastDetail, &created, &ended); err != nil {
+		&s.State, &s.Confidence, &since, &s.LastDetail, &created, &ended, &hooked); err != nil {
 		return Session{}, err
 	}
 	s.StateSince, s.CreatedAt, s.EndedAt = fromMS(since), fromMS(created), fromNullMS(ended)
+	s.FirstHookAt = fromNullMS(hooked)
 	return s, nil
 }
 

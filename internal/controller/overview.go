@@ -22,6 +22,7 @@ type SectionCounts struct {
 	NeedsYou int `json:"needs_you"`
 	Idle     int `json:"idle"`
 	Running  int `json:"running"`
+	Initial  int `json:"initial"`
 	Unknown  int `json:"unknown"`
 	Closed   int `json:"closed"`
 }
@@ -57,6 +58,7 @@ type TaskView struct {
 	Identity       domain.Identity
 	SessionName    string
 	AgentSessionID string
+	HasHook        bool // at least one hook event was matched to the session
 	AgentState     domain.AgentState
 	Confidence     domain.Confidence
 	StateSince     time.Time // task creation time while no session exists
@@ -105,6 +107,8 @@ func (c *Controller) Overview(ctx context.Context, q OverviewQuery) (Overview, e
 			out.Counts.Idle++
 		case domain.SectionRunning:
 			out.Counts.Running++
+		case domain.SectionInitial:
+			out.Counts.Initial++
 		case domain.SectionUnknown:
 			out.Counts.Unknown++
 		case domain.SectionClosed:
@@ -136,10 +140,11 @@ func taskView(r store.OverviewRow, now time.Time) TaskView {
 		v.HasSession, v.SessionID, v.AgentType, v.Origin = true, s.ID, s.AgentType, s.Origin
 		v.Identity, v.SessionName, v.AgentSessionID = s.Identity, s.SessionName, s.AgentSessionID
 		v.AgentState, v.Confidence, v.StateSince, v.LastDetail, v.EndedAt = s.State, s.Confidence, s.StateSince, s.LastDetail, s.EndedAt
+		v.HasHook = s.HasHook()
 	}
 	v.Attention = domain.ClassifyAttention(domain.AttentionInput{
 		TaskState: v.TaskState, HasSession: v.HasSession, AgentState: v.AgentState,
-		Confidence: v.Confidence, Messages: v.Messages, Origin: v.Origin,
+		Confidence: v.Confidence, Messages: v.Messages, Origin: v.Origin, HasHook: v.HasHook,
 	})
 	if v.Age = now.Sub(v.StateSince); v.Age < 0 {
 		v.Age = 0

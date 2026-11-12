@@ -188,6 +188,9 @@ func (f *fixture) seed(t *testing.T, specs []seedSpec) {
 			if _, err := f.st.Sessions().Transition(ctx, sess.ID, s.state, conf, s.detail, domain.SourceHook); err != nil {
 				t.Fatalf("%s -> %s: %v", s.id, s.state, err)
 			}
+			if conf == domain.ConfidenceHook || s.state.IsTerminal() { // a hook drove it: the session has sent its first event
+				f.exec(t, `UPDATE sessions SET first_hook_at = ? WHERE id = ?`, since.UnixMilli(), sess.ID)
+			}
 		}
 		f.exec(t, `UPDATE sessions SET state_since = ? WHERE id = ?`, since.UnixMilli(), sess.ID)
 		for range s.queued {

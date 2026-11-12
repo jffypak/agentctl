@@ -1,4 +1,4 @@
- [1magents / repo[m · 2 running · [1m6 need you[m
+ [1magents / repo[m · 1 running · [1m6 need you[m
  [2m──────────────────────────────────────────────────────────────────────────────[m
  [1mNEEDS YOU[m
  [1m>[m [1mlegacy-pane  [m  [1mqueued · attach to deliver[m                               [2m  1h[m
@@ -7,18 +7,18 @@
    auth-tests     [1mawaiting input[m[2m · permission prompt: Bash(npm test -- a…[m  [2m  4m[m
    api-docs       [1mmessage unconfirmed · attach to check[m[2m · turn finished[m    [2m  2m[m
    silent-agent   [1msilent since launch · attach to check[m[2m · no hook within…[m  [2m 50s[m
-
  [1mIDLE[m
    old-spike      exited[2m · exit 0[m                                          [2m  3h[m
    docs-site      ready[2m · turn finished[m                                    [2m 30s[m
-
  [1mRUNNING[m
    payments       working[2m · Bash: go test ./...[m                            [2m 45s[m
-   fresh-task     starting                                                 [2m  5s[m
-
+ [2mINITIALSTATE[m
+   [2madopted-shell[m  [2mno events yet[m                                            [2m  2d[m
+   [2mfresh-task   [m  [2mno events yet[m                                            [2m  5s[m
  [2mUNKNOWN[m
-   [2madopted-shell[m  [2munknown[m                                                  [2m  2d[m
    [2mreserving    [m  [2mno session[m                                               [2m  1s[m
+
+
 
  [2m──────────────────────────────────────────────────────────────────────────────[m
  [1m↵[m [2mopen[m  [1mp[m [2mprompt[m  [1md[m [2mdiff[m  [1ml[m [2mlogs[m  [1mn[m [2mnew[m  [1ma[m [2madopt[m  [1mx[m [2mclose[m  [1m/[m [2mfilter[m  [1mq[m [2mquit[m

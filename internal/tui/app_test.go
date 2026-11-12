@@ -48,18 +48,19 @@ func TestHeaderAndSectionsInAttentionOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := screen(m)[0]; strings.TrimSpace(got) != ov.Header() || ov.Header() != "agents / repo · 2 running · 6 need you" {
+	if got := screen(m)[0]; strings.TrimSpace(got) != ov.Header() || ov.Header() != "agents / repo · 1 running · 6 need you" {
 		t.Fatalf("header = %q, Overview.Header() = %q", got, ov.Header())
 	}
 	order, rows := sectionsOf(m)
-	if !slices.Equal(order, []string{"NEEDS YOU", "IDLE", "RUNNING", "UNKNOWN"}) {
+	if !slices.Equal(order, []string{"NEEDS YOU", "IDLE", "RUNNING", "INITIALSTATE", "UNKNOWN"}) {
 		t.Fatalf("sections = %v", order)
 	}
 	want := map[string][]string{ // oldest state_since first
-		"NEEDS YOU": {"legacy-pane", "flaky-ci", "migrate-db", "auth-tests", "api-docs", "silent-agent"},
-		"IDLE":      {"old-spike", "docs-site"},
-		"RUNNING":   {"payments", "fresh-task"},
-		"UNKNOWN":   {"adopted-shell", "reserving"},
+		"NEEDS YOU":    {"legacy-pane", "flaky-ci", "migrate-db", "auth-tests", "api-docs", "silent-agent"},
+		"IDLE":         {"old-spike", "docs-site"},
+		"RUNNING":      {"payments"},
+		"INITIALSTATE": {"adopted-shell", "fresh-task"}, // no hook event yet
+		"UNKNOWN":      {"reserving"},
 	}
 	for s, w := range want {
 		if !slices.Equal(rows[s], w) {
@@ -142,7 +143,7 @@ func TestMoveKeysAndFilterOnNameGoalBranch(t *testing.T) {
 		}
 		_, rows := sectionsOf(fm)
 		var got []string
-		for _, s := range []string{"NEEDS YOU", "IDLE", "RUNNING", "UNKNOWN"} {
+		for _, s := range []string{"NEEDS YOU", "IDLE", "RUNNING", "INITIALSTATE", "UNKNOWN"} {
 			got = append(got, rows[s]...)
 		}
 		if !slices.Equal(got, want) {
@@ -217,7 +218,7 @@ func TestUnknownIsHonestAndStoppedIsExited(t *testing.T) {
 	}
 	raw := lineWith(m, "adopted-shell")
 	if !strings.Contains(raw, "\x1b[2;") && !strings.Contains(raw, "\x1b[2m") {
-		t.Errorf("UNKNOWN row is not faint: %q", raw)
+		t.Errorf("INITIALSTATE row is not faint: %q", raw)
 	}
 	if !strings.Contains(plain(lineWith(m, "old-spike")), "exited · exit 0") || strings.Contains(screenText(m), "stopped") {
 		t.Errorf("stopped row: %q", plain(lineWith(m, "old-spike")))
@@ -232,7 +233,7 @@ func TestUnknownIsHonestAndStoppedIsExited(t *testing.T) {
 		t.Errorf("RUNNING row uses the accent: %q", lineWith(m, "payments"))
 	}
 	// the detail of an unknown task says unknown, faint, never ready
-	d := press(t, m, "j", "j", "j", "j", "j", "j", "j", "j", "j", "j", "enter") // adopted-shell
+	d := press(t, m, "j", "j", "j", "j", "j", "j", "j", "j", "j", "enter") // adopted-shell (first INITIALSTATE row)
 	if !strings.Contains(screenText(d), "state      unknown · confidence none · since 2d") {
 		t.Fatalf("unknown detail:\n%s", screenText(d))
 	}

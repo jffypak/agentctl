@@ -389,10 +389,10 @@ func TestNewTaskFormValidatesAndCreates(t *testing.T) {
 	}
 	sel, _ := m.selectedTask()
 	if sel.ID != "auth-tests" || !strings.Contains(plain(lineWith(m, "auth-tests")), "> auth-tests") ||
-		!strings.Contains(plain(lineWith(m, "auth-tests")), "starting") {
+		!strings.Contains(plain(lineWith(m, "auth-tests")), "no events yet") {
 		t.Fatalf("new row not selected as starting:\n%s", screenText(m))
 	}
-	if rows := rowsOf(m); !slices.Equal(rows["RUNNING"], []string{"auth-tests"}) {
+	if rows := rowsOf(m); !slices.Equal(rows["INITIALSTATE"], []string{"auth-tests"}) { // no hook yet
 		t.Fatalf("sections = %v", rows)
 	}
 	if got := uiActions(t, f.ctl); !slices.Equal(got, []string{"new:auth-tests"}) {
@@ -500,7 +500,7 @@ func TestAdoptPickerLandsTheRowInUnknown(t *testing.T) {
 		t.Fatalf("adopt did not finish:\n%s", screenText(m))
 	}
 	sel, _ := m.selectedTask()
-	if rows := rowsOf(m); sel.ID != "repo" || !slices.Equal(rows["UNKNOWN"], []string{"repo"}) {
+	if rows := rowsOf(m); sel.ID != "repo" || !slices.Equal(rows["INITIALSTATE"], []string{"launched", "repo"}) {
 		t.Fatalf("adopted row: selected %s, sections %v\n%s", sel.ID, rows, screenText(m))
 	}
 	if got := uiActions(t, f.ctl); !slices.Equal(got, []string{"adopt:repo"}) {

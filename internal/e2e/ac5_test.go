@@ -196,7 +196,7 @@ func sectionOf(screen, name string) string {
 	section := ""
 	for _, l := range strings.Split(screen, "\n") {
 		switch strings.TrimSpace(l) {
-		case "NEEDS YOU", "IDLE", "RUNNING", "UNKNOWN", "CLOSED":
+		case "NEEDS YOU", "IDLE", "RUNNING", "INITIALSTATE", "UNKNOWN", "CLOSED":
 			section = strings.TrimSpace(l)
 			continue
 		}

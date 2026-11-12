@@ -399,6 +399,15 @@ func TestOverviewSortsBySectionThenStateSince(t *testing.T) {
 	}
 	mk("run-old")
 	mk("idle", domain.StateReady)
+	// A starting session whose first hook (record-only, like Codex
+	// SessionStart) was recorded: it has reported, so it is RUNNING, not
+	// INITIALSTATE. Proves HasHook reaches the classifier.
+	mk("run-hooked")
+	if hs, err := ctl.store.Sessions().LatestForTask(ctx, "run-hooked"); err != nil {
+		t.Fatal(err)
+	} else if _, err := ctl.store.Sessions().RecordHook(ctx, store.HookInput{SessionID: hs.ID, Event: "SessionStart"}); err != nil {
+		t.Fatal(err)
+	}
 	mk("ask", domain.StateAwaitingInput)
 	mk("run-new", domain.StateWorking)
 	mk("exited", domain.StateStopped)
@@ -413,11 +422,12 @@ func TestOverviewSortsBySectionThenStateSince(t *testing.T) {
 	for _, r := range ov.Rows {
 		order = append(order, r.ID+":"+string(r.Attention.Section))
 	}
-	want := "ask:needs_you,idle:idle,exited:idle,run-old:running,run-new:running,pending:unknown"
+	// run-old never sent a hook: INITIALSTATE (sorted after RUNNING).
+	want := "ask:needs_you,idle:idle,exited:idle,run-hooked:running,run-new:running,run-old:initial,pending:unknown"
 	if strings.Join(order, ",") != want {
 		t.Fatalf("order = %s\nwant    %s", strings.Join(order, ","), want)
 	}
-	if ov.Counts != (SectionCounts{NeedsYou: 1, Idle: 2, Running: 2, Unknown: 1}) {
+	if ov.Counts != (SectionCounts{NeedsYou: 1, Idle: 2, Running: 2, Initial: 1, Unknown: 1}) {
 		t.Fatalf("counts = %+v", ov.Counts)
 	}
 	if ov.Header() != "agents / all repos · 2 running · 1 need you" {

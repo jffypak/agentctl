@@ -61,6 +61,10 @@ func (ss *Sessions) RecordHook(ctx context.Context, in HookInput) (HookResult, e
 		if err != nil {
 			return err
 		}
+		if _, err := tx.ExecContext(ctx, `UPDATE sessions SET first_hook_at = ? WHERE id = ? AND first_hook_at IS NULL`,
+			ms(now), cur.ID); err != nil {
+			return fmt.Errorf("store: session %d first_hook_at: %w", cur.ID, err)
+		}
 		if in.AgentSessionID != "" && in.AgentSessionID != cur.AgentSessionID && !cur.State.IsTerminal() {
 			if _, err := tx.ExecContext(ctx, `UPDATE sessions SET agent_session_id = ? WHERE id = ?`, in.AgentSessionID, cur.ID); err != nil {
 				return fmt.Errorf("store: session %d agent_session_id: %w", cur.ID, err)

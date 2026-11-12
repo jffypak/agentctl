@@ -94,7 +94,7 @@ func (m Model) sectionTitle(s domain.Section) string {
 	switch s {
 	case domain.SectionNeedsYou:
 		return m.st.sectionNeed.Render(s.Title())
-	case domain.SectionUnknown, domain.SectionClosed:
+	case domain.SectionInitial, domain.SectionUnknown, domain.SectionClosed:
 		return m.st.unknown.Render(s.Title())
 	}
 	return m.st.section.Render(s.Title())
@@ -134,7 +134,7 @@ func (m Model) row(r controller.TaskView, c columns, selected bool) string {
 	switch r.Attention.Section {
 	case domain.SectionNeedsYou:
 		labelStyle = st.labelNeed
-	case domain.SectionUnknown, domain.SectionClosed:
+	case domain.SectionInitial, domain.SectionUnknown, domain.SectionClosed:
 		labelStyle, detailStyle, name = st.unknown, st.unknown, st.unknown.Bold(selected)
 	}
 	text := truncate(label, c.text)

@@ -141,7 +141,7 @@ func TestLiveStateChangeFromAnotherProcess(t *testing.T) {
 	if lag > time.Second {
 		t.Fatalf("state change took %v to appear, want <= 1s", lag)
 	}
-	if scr := latest.Load().(string); !strings.Contains(scr, "agents / repo · 1 running · 7 need you") {
+	if scr := latest.Load().(string); !strings.Contains(scr, "agents / repo · 0 running · 7 need you") {
 		t.Fatalf("header did not follow:\n%s", scr)
 	}
 
