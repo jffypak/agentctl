@@ -75,7 +75,11 @@ func (c *Controller) CloseTask(ctx context.Context, req CloseRequest) (CloseResu
 			}
 		}
 		h := adapter.Handle{Identity: sess.Identity, SessionName: sess.SessionName}
-		if err := c.agent.Stop(ctx, h); err != nil {
+		agent, err := c.agentFor(sess.AgentType)
+		if err != nil {
+			return CloseResult{ClosePlan: plan}, err
+		}
+		if err := agent.Stop(ctx, h); err != nil {
 			if errors.Is(err, claude.ErrStopRefused) {
 				return CloseResult{ClosePlan: plan}, userErr(ErrStopRefused, err, "refusing to stop %q: %v; nothing was killed and the task is still open", plan.TaskID, err)
 			}

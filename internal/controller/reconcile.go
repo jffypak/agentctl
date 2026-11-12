@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jffypak/agentctl/internal/adapter/codex"
 	"github.com/jffypak/agentctl/internal/domain"
 	"github.com/jffypak/agentctl/internal/store"
 	"github.com/jffypak/agentctl/internal/tmux"
@@ -85,10 +86,15 @@ func (c *Controller) reconcileSession(ctx context.Context, sess store.Session, l
 		})
 		return err
 	}
-	if awaitingFirstHook(sess) && l.IsAlive() && c.showsFolderTrust(ctx, sess) {
-		return c.markFolderTrust(ctx, sess) // before the timeout: the specific detail wins
+	if awaitingFirstHook(sess) && l.IsAlive() {
+		if detail, ok := c.showsFolderTrust(ctx, sess); ok {
+			return c.markFolderTrust(ctx, sess, detail) // before the timeout: the specific detail wins
+		}
 	}
 	if sess.State == domain.StateStarting && !c.now().Before(sess.StateSince.Add(c.tun.StartingTimeout)) {
+		if silent, err := c.expectedSilent(ctx, sess); err != nil || silent {
+			return err // a Codex agent waiting for its first prompt: no hook is expected yet
+		}
 		_, err := c.store.Sessions().ReconcileTransition(ctx, store.ReconcileInput{
 			SessionID: sess.ID, From: domain.StateStarting, To: domain.StateUnknown, Confidence: domain.ConfidenceNone,
 			Detail: startingTimeoutDetail(sess, c.tun.StartingTimeout), Source: domain.SourceTimeout,
@@ -107,5 +113,27 @@ func startingTimeoutDetail(sess store.Session, timeout time.Duration) string {
 	if sess.Confidence == domain.ConfidenceHook {
 		return "goal never submitted: no prompt hook within " + d + " of launch; attach to check"
 	}
+	if sess.AgentType == codex.Name {
+		return "no hook within " + d + " — Codex may be showing its hook-trust screen; attach to check"
+	}
 	return "no hook within " + d + " — Claude may be showing its folder-trust or login prompt; attach to check"
+}
+
+// expectedSilent reports whether a starting session is not expected to have
+// sent a hook yet: Codex fires its first hook only at the first prompt, so a
+// Codex agent with no goal (or in the user's own wrapped pane, where agentctl
+// can't tell a prompt from other codex args) is silent until the user types.
+// It is shown in INITIALSTATE and never timed out into NEEDS YOU.
+func (c *Controller) expectedSilent(ctx context.Context, sess store.Session) (bool, error) {
+	if sess.AgentType != codex.Name || sess.HasHook() {
+		return false, nil
+	}
+	if sess.Origin == domain.OriginWrapped {
+		return true, nil
+	}
+	task, err := c.store.Tasks().Get(ctx, sess.TaskID)
+	if err != nil {
+		return false, err
+	}
+	return task.Goal == "", nil
 }

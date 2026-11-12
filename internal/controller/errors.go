@@ -15,6 +15,7 @@ var (
 	ErrGitMissing      = errors.New("git missing")
 	ErrTmuxMissing     = errors.New("tmux missing")
 	ErrAgentMissing    = errors.New("agent command missing")
+	ErrInvalidAgent    = errors.New("unknown agent")
 	ErrNotARepo        = errors.New("not a git repository")
 	ErrNoCommits       = errors.New("repository has no commits")
 	ErrTaskExists      = errors.New("task exists")

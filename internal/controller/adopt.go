@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/jffypak/agentctl/internal/adapter/claude"
 	"github.com/jffypak/agentctl/internal/domain"
 	"github.com/jffypak/agentctl/internal/gitx"
 	"github.com/jffypak/agentctl/internal/store"
@@ -206,7 +207,7 @@ func (c *Controller) Adopt(ctx context.Context, req AdoptRequest) (AdoptResult, 
 		Branch: loc.head.Ref, BaseRef: loc.baseRef, BaseSHA: loc.baseSHA,
 	}
 	_, sess, err := c.store.Sessions().RegisterAdopted(ctx, task, store.NewSession{
-		TaskID: req.Name, AgentType: c.agent.Name(), Origin: domain.OriginAdopted, Identity: id,
+		TaskID: req.Name, AgentType: claude.Name, Origin: domain.OriginAdopted, Identity: id,
 		SessionName: pane.SessionName, State: domain.StateUnknown, Confidence: domain.ConfidenceNone,
 		Detail: "adopted; no hooks yet",
 		Events: []store.EventInput{
@@ -217,7 +218,7 @@ func (c *Controller) Adopt(ctx context.Context, req AdoptRequest) (AdoptResult, 
 			{Type: domain.EventSessionAdopted, Payload: map[string]any{
 				"socket": id.Socket, "server_pid": id.ServerPID, "session_id": id.SessionID,
 				"session_name": domain.SanitizeTerminalText(pane.SessionName), "pane_id": id.PaneID, "pane_pid": id.PanePID,
-				"agent_type": c.agent.Name(), "command": domain.SanitizeTerminalText(pane.CurrentCommand),
+				"agent_type": claude.Name, "command": domain.SanitizeTerminalText(pane.CurrentCommand),
 			}},
 		},
 	})

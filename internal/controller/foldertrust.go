@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/jffypak/agentctl/internal/adapter/codex"
 	"github.com/jffypak/agentctl/internal/domain"
 	"github.com/jffypak/agentctl/internal/store"
 )
@@ -18,7 +19,7 @@ const folderTrustScanLines = 40
 // recorded yet (confidence none). Any hook, SessionStart included, moves the
 // session out of this window, so capture stops there.
 func awaitingFirstHook(sess store.Session) bool {
-	return sess.State == domain.StateStarting && sess.Confidence == domain.ConfidenceNone
+	return sess.State == domain.StateStarting && sess.Confidence == domain.ConfidenceNone && !sess.HasHook()
 }
 
 // showsFolderTrust captures the bottom of the visible screen through the
@@ -26,12 +27,22 @@ func awaitingFirstHook(sess store.Session) bool {
 // re-check) and matches Claude's folder-trust wording on the sanitized
 // text. A capture that fails for any reason is not a match: the pane and
 // timeout verdicts still cover a pane that died or was reused.
-func (c *Controller) showsFolderTrust(ctx context.Context, sess store.Session) bool {
+func (c *Controller) showsFolderTrust(ctx context.Context, sess store.Session) (detail string, ok bool) {
+	match, detail := startupDialog(sess.AgentType)
 	raw, ps := c.capture(ctx, &sess, 0)
 	if !ps.Available || raw == "" {
-		return false
+		return "", false
 	}
-	return domain.ShowsFolderTrustDialog(strings.Join(recentLines(raw, folderTrustScanLines), "\n"))
+	return detail, match(strings.Join(recentLines(raw, folderTrustScanLines), "\n"))
+}
+
+// startupDialog is the agent's blocking startup screen matcher and the
+// detail it records: Claude's folder-trust dialog, Codex's hook-trust screen.
+func startupDialog(agentType string) (match func(string) bool, detail string) {
+	if agentType == codex.Name {
+		return domain.ShowsCodexHookTrustDialog, domain.HookTrustDetail
+	}
+	return domain.ShowsFolderTrustDialog, domain.FolderTrustDetail
 }
 
 // markFolderTrust records the dialog: unknown / none, detail
@@ -40,10 +51,10 @@ func (c *Controller) showsFolderTrust(ctx context.Context, sess store.Session) b
 // is never deliverable (sends queue), and accepts every hook mapping out of
 // it, exactly like the StartingTimeout verdict. agentctl never answers the
 // dialog (product call: never auto-accept folder trust).
-func (c *Controller) markFolderTrust(ctx context.Context, sess store.Session) error {
+func (c *Controller) markFolderTrust(ctx context.Context, sess store.Session, detail string) error {
 	_, err := c.store.Sessions().ReconcileTransition(ctx, store.ReconcileInput{
 		SessionID: sess.ID, From: domain.StateStarting, To: domain.StateUnknown, Confidence: domain.ConfidenceNone,
-		Detail: domain.FolderTrustDetail, Source: domain.SourcePaneText,
+		Detail: detail, Source: domain.SourcePaneText,
 	})
 	return err
 }

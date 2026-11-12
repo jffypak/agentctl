@@ -151,7 +151,12 @@ func (c *Controller) Drain(ctx context.Context, sessionID int64) (DrainResult, e
 	}
 	h := adapter.Handle{Identity: cur.Identity, SessionName: cur.SessionName}
 	dctx := claude.WithPasteEnterDelay(ctx, c.tun.PasteEnterDelay)
-	rc, err := c.agent.Deliver(dctx, h, adapter.Message{ID: m.ID, Body: m.Body, BodySHA256: m.BodySHA256})
+	agent, err := c.agentFor(cur.AgentType)
+	if err != nil {
+		res.Reason = OneLine(err.Error())
+		return res, c.revert(ctx, m.ID)
+	}
+	rc, err := agent.Deliver(dctx, h, adapter.Message{ID: m.ID, Body: m.Body, BodySHA256: m.BodySHA256})
 	if errors.Is(err, adapter.ErrNotReady) {
 		res.Reason = "pane refused the paste: " + OneLine(err.Error())
 		return res, c.revert(ctx, m.ID)

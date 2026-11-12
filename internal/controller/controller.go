@@ -16,6 +16,7 @@ import (
 
 	"github.com/jffypak/agentctl/internal/adapter"
 	"github.com/jffypak/agentctl/internal/adapter/claude"
+	"github.com/jffypak/agentctl/internal/adapter/codex"
 	"github.com/jffypak/agentctl/internal/gitx"
 	"github.com/jffypak/agentctl/internal/paths"
 	"github.com/jffypak/agentctl/internal/store"
@@ -54,8 +55,8 @@ type Controller struct {
 	tmuxRunner   tmux.Runner
 	tmuxInjected bool
 	git          gitx.Git
-	agent        adapter.AgentAdapter
-	procs        procLister // process table for adopt matching (adopt_match.go)
+	agents       map[string]adapter.AgentAdapter // by agent_type (agents.go)
+	procs        procLister                      // process table for adopt matching (adopt_match.go)
 	uid          int
 }
 
@@ -106,7 +107,10 @@ func Open(ctx context.Context, cfg Config) (*Controller, error) {
 		exe, _ = os.Executable()
 	}
 	c.procs = c.psProcs
-	c.agent = claude.New(claude.Config{Runner: c.tmuxRunner, AgentctlPath: exe, Now: c.now})
+	c.agents = map[string]adapter.AgentAdapter{
+		claude.Name: claude.New(claude.Config{Runner: c.tmuxRunner, AgentctlPath: exe, Now: c.now}),
+		codex.Name:  codex.New(codex.Config{Runner: c.tmuxRunner, AgentctlPath: exe, Now: c.now}),
+	}
 	return c, nil
 }
 

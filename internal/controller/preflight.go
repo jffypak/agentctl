@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/jffypak/agentctl/internal/adapter/claude"
 )
 
 // EnvAgentCmd is a JSON array giving the agent argv prefix (default ["claude"]).
@@ -28,12 +30,12 @@ type tools struct {
 // ErrTmuxMissing, ErrAgentMissing, ErrAgentCmdInvalid). The TUI uses it for
 // error banners.
 func (c *Controller) Preflight(ctx context.Context) error {
-	_, err := c.requireTools()
+	_, err := c.requireTools(claude.Name)
 	return err
 }
 
-func (c *Controller) requireTools() (tools, error) {
-	argv, err := c.agentCommand()
+func (c *Controller) requireTools(agentType string) (tools, error) {
+	argv, err := c.agentCommand(agentType)
 	if err != nil {
 		return tools{}, err
 	}
@@ -48,26 +50,28 @@ func (c *Controller) requireTools() (tools, error) {
 	}
 	resolved, err := c.lookPath(argv[0])
 	if err != nil {
-		hint := "install Claude Code or set " + EnvAgentCmd
+		_, _, hint := agentCmdEnv(agentType)
 		return tools{}, userErr(ErrAgentMissing, err, "agent command %q not found on PATH (%s)", argv[0], hint)
 	}
 	t.agentCmd = append([]string{resolved}, argv[1:]...)
 	return t, nil
 }
 
-// agentCommand parses EnvAgentCmd.
-func (c *Controller) agentCommand() ([]string, error) {
-	raw := strings.TrimSpace(c.Getenv(EnvAgentCmd))
+// agentCommand parses the agent's command env var (EnvAgentCmd for Claude,
+// EnvCodexCmd for Codex).
+func (c *Controller) agentCommand(agentType string) ([]string, error) {
+	envVar, def, _ := agentCmdEnv(agentType)
+	raw := strings.TrimSpace(c.Getenv(envVar))
 	if raw == "" {
-		return append([]string(nil), DefaultAgentCmd...), nil
+		return append([]string(nil), def...), nil
 	}
 	var argv []string
 	if err := json.Unmarshal([]byte(raw), &argv); err != nil || len(argv) == 0 || argv[0] == "" {
-		return nil, userErr(ErrAgentCmdInvalid, err, `%s must be a non-empty JSON array of strings, e.g. ["claude"]`, EnvAgentCmd)
+		return nil, userErr(ErrAgentCmdInvalid, err, `%s must be a non-empty JSON array of strings, e.g. ["%s"]`, envVar, def[0])
 	}
 	for _, a := range argv {
 		if strings.IndexByte(a, 0) >= 0 {
-			return nil, userErr(ErrAgentCmdInvalid, nil, "%s contains a NUL byte", EnvAgentCmd)
+			return nil, userErr(ErrAgentCmdInvalid, nil, "%s contains a NUL byte", envVar)
 		}
 	}
 	return argv, nil

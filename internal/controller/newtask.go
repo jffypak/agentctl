@@ -9,6 +9,7 @@ import (
 
 	"github.com/jffypak/agentctl/internal/adapter"
 	"github.com/jffypak/agentctl/internal/adapter/claude"
+	"github.com/jffypak/agentctl/internal/adapter/codex"
 	"github.com/jffypak/agentctl/internal/domain"
 	"github.com/jffypak/agentctl/internal/gitx"
 	"github.com/jffypak/agentctl/internal/store"
@@ -26,6 +27,8 @@ type NewTaskRequest struct {
 	Name string
 	Goal string
 	Cwd  string // any directory inside the repo or one of its worktrees
+	// Agent is the agent to launch: "" or "claude" (default), or "codex".
+	Agent string
 }
 
 // NewTaskResult describes the launched (or launch-failed) task.
@@ -65,7 +68,11 @@ func (c *Controller) NewTask(ctx context.Context, req NewTaskRequest) (NewTaskRe
 	if err := validateGoal(req.Goal); err != nil {
 		return NewTaskResult{}, err
 	}
-	tl, err := c.requireTools()
+	agent, err := c.agentFor(req.Agent)
+	if err != nil {
+		return NewTaskResult{}, err
+	}
+	tl, err := c.requireTools(agent.Name())
 	if err != nil {
 		return NewTaskResult{}, err
 	}
@@ -142,20 +149,20 @@ func (c *Controller) NewTask(ctx context.Context, req NewTaskRequest) (NewTaskRe
 		"repo": repo.Name, "repo_root": repo.Root, "branch": branch, "worktree": worktree,
 		"base_ref": head.Ref, "base_sha": head.SHA, "origin": string(domain.OriginLaunched),
 	}}
-	h, startErr := c.agent.Start(ctx, adapter.LaunchSpec{
+	h, startErr := agent.Start(ctx, adapter.LaunchSpec{
 		TaskID: name, Goal: req.Goal, Worktree: worktree, Home: c.paths.Home, Socket: socket, AgentCmd: tl.agentCmd,
 	})
 	if startErr != nil {
-		return c.recordLaunchFailure(ctx, res, createdEv, startErr)
+		return c.recordLaunchFailure(ctx, agent.Name(), res, createdEv, startErr)
 	}
 	sess, err := c.store.Sessions().Create(ctx, store.NewSession{
-		TaskID: name, AgentType: c.agent.Name(), Origin: domain.OriginLaunched,
+		TaskID: name, AgentType: agent.Name(), Origin: domain.OriginLaunched,
 		Identity: h.Identity, SessionName: h.SessionName,
-		State: domain.StateStarting, Confidence: domain.ConfidenceNone,
+		State: domain.StateStarting, Confidence: domain.ConfidenceNone, Detail: launchDetail(agent.Name(), req.Goal),
 		Events: []store.EventInput{createdEv, {Type: domain.EventSessionStarted, Payload: map[string]any{
 			"socket": h.Identity.Socket, "server_pid": h.Identity.ServerPID, "session_id": h.Identity.SessionID,
 			"session_name": h.SessionName, "pane_id": h.Identity.PaneID, "pane_pid": h.Identity.PanePID,
-			"agent_type": c.agent.Name(), "argv0": h.Argv[0],
+			"agent_type": agent.Name(), "argv0": h.Argv[0],
 		}}},
 	})
 	if err != nil {
@@ -165,10 +172,10 @@ func (c *Controller) NewTask(ctx context.Context, req NewTaskRequest) (NewTaskRe
 	return res, nil
 }
 
-func (c *Controller) recordLaunchFailure(ctx context.Context, res NewTaskResult, createdEv store.EventInput, startErr error) (NewTaskResult, error) {
+func (c *Controller) recordLaunchFailure(ctx context.Context, agentType string, res NewTaskResult, createdEv store.EventInput, startErr error) (NewTaskResult, error) {
 	detail := "launch failed: " + OneLine(startErr.Error())
 	sess, err := c.store.Sessions().Create(ctx, store.NewSession{
-		TaskID: res.TaskID, AgentType: c.agent.Name(), Origin: domain.OriginLaunched,
+		TaskID: res.TaskID, AgentType: agentType, Origin: domain.OriginLaunched,
 		SessionName: res.SessionName, State: domain.StateFailed, Confidence: domain.ConfidenceNone, Detail: detail,
 		Events: []store.EventInput{createdEv, {Type: domain.EventSessionLaunchFailed, Payload: map[string]any{"error": OneLine(startErr.Error())}}},
 	})
@@ -201,4 +208,13 @@ func branchExists(branch, root string) error {
 
 func worktreeExists(path string) error {
 	return userErr(ErrWorktreeExists, nil, "worktree path %s already exists (pick another task name or move that directory)", path)
+}
+
+// launchDetail is a launched session's first detail: a Codex agent without a
+// goal fires no hook until the user types (expected silence, INITIALSTATE).
+func launchDetail(agentType, goal string) string {
+	if agentType == codex.Name && goal == "" {
+		return domain.DetailAwaitingFirstPrompt
+	}
+	return ""
 }
