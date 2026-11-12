@@ -18,6 +18,18 @@ import (
 // itself finishes within its < 2 s budget).
 const HookTimeoutSeconds = 5
 
+// clampedTimeoutSeconds is Codex's limit for Interrupt and SessionEnd hooks
+// (Codex 0.167.2 clamps them to 3 s and warns on every launch otherwise).
+const clampedTimeoutSeconds = 3
+
+// HookTimeout is the timeout (seconds) in the hook flag of event.
+func HookTimeout(event string) int {
+	if event == "Interrupt" || event == "SessionEnd" {
+		return clampedTimeoutSeconds
+	}
+	return HookTimeoutSeconds
+}
+
 // hookEvents are the Codex events agentctl subscribes to, in flag order.
 var hookEvents = []string{
 	"SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "PermissionRequest",
@@ -49,7 +61,7 @@ func HookFlags(agentctlPath string) ([]string, error) {
 	cmd := tomlString(HookCommand(agentctlPath))
 	out := make([]string, 0, 2*len(hookEvents))
 	for _, ev := range hookEvents {
-		out = append(out, "-c", fmt.Sprintf(`hooks.%s=[{hooks=[{type="command",command=%s,timeout=%d}]}]`, ev, cmd, HookTimeoutSeconds))
+		out = append(out, "-c", fmt.Sprintf(`hooks.%s=[{hooks=[{type="command",command=%s,timeout=%d}]}]`, ev, cmd, HookTimeout(ev)))
 	}
 	return out, nil
 }

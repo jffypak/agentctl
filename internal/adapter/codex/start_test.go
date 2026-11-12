@@ -48,6 +48,18 @@ func TestCodexHookFlags(t *testing.T) {
 			t.Errorf("flag %d = %q %q", i, flags[i], flags[i+1])
 		}
 	}
+	// Codex clamps Interrupt and SessionEnd hook timeouts to 3 s (and warns
+	// on every launch, seen with Codex 0.167.2): those two use 3.
+	for i := 0; i < len(flags); i += 2 {
+		ev := codex.HookEvents()[i/2]
+		want := "timeout=5}"
+		if ev == "Interrupt" || ev == "SessionEnd" {
+			want = "timeout=3}"
+		}
+		if !strings.Contains(flags[i+1], want) {
+			t.Errorf("%s flag %q lacks %q", ev, flags[i+1], want)
+		}
+	}
 	again, _ := codex.HookFlags("/opt/agentctl")
 	if !reflect.DeepEqual(flags, again) {
 		t.Fatal("HookFlags is not deterministic (Codex hook trust is keyed by the command hash)")

@@ -30,7 +30,7 @@ func TestParseCodexArgs(t *testing.T) {
 	}
 	for _, ev := range codex.HookEvents() {
 		hs := cfg.codexHooks.commands(ev, "")
-		if len(hs) != 1 || hs[0].Command != codex.HookCommand(exe) || hs[0].Timeout != 5 {
+		if len(hs) != 1 || hs[0].Command != codex.HookCommand(exe) || hs[0].Timeout != codex.HookTimeout(ev) {
 			t.Fatalf("%s: handlers = %+v", ev, hs)
 		}
 	}
