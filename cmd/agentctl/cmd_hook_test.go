@@ -253,3 +253,34 @@ func holdWriteLock(t *testing.T, db string) func() {
 		_ = st.Close()
 	}
 }
+
+// TestCmdHookAgentFlagNoStdout: `hook --agent <x>` (and bad flags) never
+// write to stdout and always exit 0.
+func TestCmdHookAgentFlagNoStdout(t *testing.T) {
+	env := testenv.NewEnv(t).With("AGENTCTL_TASK_ID=demo", "TMUX=/tmp/x,1,0", "TMUX_PANE=%1")
+	for _, args := range [][]string{{"--agent", "codex"}, {"--agent=codex"}, {"--agent=bogus"}, {"--agent"}, {"--bogus"}, {"-h"}} {
+		var out, errb bytes.Buffer
+		sys := &system{stdin: strings.NewReader(`{"hook_event_name":"Stop","session_id":"s"}`), stdout: &out, stderr: &errb,
+			environ: env.Strings(), cwd: t.TempDir(), now: time.Now, executable: "/opt/agentctl/bin/agentctl"}
+		if code := run(context.Background(), append([]string{"hook"}, args...), sys); code != 0 || out.Len() != 0 {
+			t.Errorf("hook %q: exit %d stdout %q", args, code, out.String())
+		}
+	}
+}
+
+func TestHookAgentArg(t *testing.T) {
+	cases := map[string][]string{
+		"":      nil,
+		"codex": {"--agent", "codex"},
+		"x":     {"--bogus", "--agent=x"},
+		"y":     {"--agent", "y", "--agent", "z"}, // first wins
+	}
+	for want, args := range cases {
+		if got := hookAgentArg(args); got != want {
+			t.Errorf("hookAgentArg(%q) = %q, want %q", args, got, want)
+		}
+	}
+	if got := hookAgentArg([]string{"--agent"}); got != "" {
+		t.Errorf("dangling --agent = %q", got)
+	}
+}

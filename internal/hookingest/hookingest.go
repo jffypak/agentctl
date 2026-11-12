@@ -29,6 +29,7 @@ import (
 
 	"github.com/jffypak/agentctl/internal/adapter"
 	"github.com/jffypak/agentctl/internal/adapter/claude"
+	"github.com/jffypak/agentctl/internal/adapter/codex"
 	"github.com/jffypak/agentctl/internal/paths"
 	"github.com/jffypak/agentctl/internal/store"
 )
@@ -58,6 +59,12 @@ type Config struct {
 	Now         func() time.Time    // default time.Now
 	Spawner     Spawner             // starts detached `agentctl deliver` (default ExecSpawner)
 	PID         int                 // this process's pid, for deliver --after-pid (default os.Getpid())
+	// Agent is the `agentctl hook --agent <name>` value: "" or "claude"
+	// (Claude Code), or "codex".
+	Agent string
+	// ParentCommand returns the command lines of the hook's parent and
+	// grandparent, one per line (Codex daemon guard; default: ps).
+	ParentCommand func() (string, error)
 
 	followups []followupEntry // tests replace the registry
 }
@@ -130,6 +137,12 @@ func (c Config) withDefaults() Config {
 	if c.followups == nil {
 		c.followups = registered()
 	}
+	if c.Agent == "" {
+		c.Agent = claude.Name
+	}
+	if c.ParentCommand == nil {
+		c.ParentCommand = psParentCommand
+	}
 	return c
 }
 
@@ -190,7 +203,15 @@ func (r *runner) run(ctx context.Context) Outcome {
 	if err != nil {
 		return r.failLost(o, err)
 	}
-	obs, err := claude.New(claude.Config{}).ParseHook(payload, env)
+	var obs adapter.HookObservation
+	switch r.cfg.Agent {
+	case claude.Name:
+		obs, err = claude.New(claude.Config{}).ParseHook(payload, env)
+	case codex.Name:
+		obs, err = codex.New(codex.Config{}).ParseHook(payload, env)
+	default:
+		return r.fail(o, fmt.Errorf("unknown agent %q (agentctl hook --agent claude|codex); hook ignored", r.cfg.Agent))
+	}
 	if err != nil {
 		return r.failLost(o, err)
 	}
@@ -208,6 +229,20 @@ func (r *runner) run(ctx context.Context) Outcome {
 	}
 	defer st.Close()
 
+	if r.cfg.Agent == codex.Name {
+		chain, perr := r.cfg.ParentCommand()
+		if perr != nil {
+			r.log.write(o, perr) // fail open: an unreadable parent never blocks a hook
+		}
+		if fromCodexDaemon(chain) {
+			o.Orphan = OrphanCodexDaemon
+			if err := recordOrphan(ctx, st, env, obs, OrphanCodexDaemon); err != nil {
+				return r.fail(o, err)
+			}
+			return o
+		}
+	}
+
 	match, err := resolve(ctx, st, env)
 	if err != nil {
 		return r.failLost(o, err)
@@ -222,10 +257,22 @@ func (r *runner) run(ctx context.Context) Outcome {
 	case match.session.ID == 0:
 		return o // unmanaged pane
 	}
+	if match.session.AgentType != r.cfg.Agent {
+		o.Orphan = OrphanAgentMismatch
+		if err := recordOrphan(ctx, st, env, obs, OrphanAgentMismatch); err != nil {
+			return r.fail(o, err)
+		}
+		return o
+	}
 	o.TaskID, o.SessionID = match.session.TaskID, match.session.ID
 	r.note(o)
-	if obs, err = withGoalHold(ctx, st, match.session, obs); err != nil { // goal.go: SessionStart before the goal turn
-		return r.failLost(o, err)
+	switch r.cfg.Agent {
+	case claude.Name:
+		if obs, err = withGoalHold(ctx, st, match.session, obs); err != nil { // goal.go: SessionStart before the goal turn
+			return r.failLost(o, err)
+		}
+	case codex.Name:
+		obs = guardForeignSession(match.session, obs) // codexguard.go
 	}
 	in := store.HookInput{
 		SessionID: match.session.ID, Event: obs.Event, AgentSessionID: obs.AgentSessionID,
