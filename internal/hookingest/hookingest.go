@@ -277,6 +277,7 @@ func (r *runner) run(ctx context.Context) Outcome {
 	in := store.HookInput{
 		SessionID: match.session.ID, Event: obs.Event, AgentSessionID: obs.AgentSessionID,
 		State: obs.State, Detail: obs.Detail, Payload: receivedPayload(obs, match.how),
+		Prompt: obs.Prompt, LastMessage: obs.LastMessage, Model: obs.Model, TurnEnded: obs.TurnEnded,
 	}
 	res, err := retryFastBusy(ctx, func() (store.HookResult, error) { return st.Sessions().RecordHook(ctx, in) })
 	if err != nil {

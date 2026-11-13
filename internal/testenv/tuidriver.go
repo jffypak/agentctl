@@ -143,21 +143,56 @@ func SelectedRow(screen string) string {
 // listRows returns the task names of the list rows, top to bottom, and the
 // index of the selected one (-1 if none). A row is " > name ..." (selected)
 // or "   name ..."; section titles are indented by one space only.
+//
+// A row may carry the unread column ("● " or two spaces before the name), and
+// a wide screen has the details pane right of " │", which is ignored.
 func listRows(screen string) (names []string, selected int) {
 	selected = -1
-	for _, l := range strings.Split(screen, "\n") {
-		var rest string
-		switch {
-		case strings.HasPrefix(l, " > "):
-			rest, selected = l[3:], len(names)
-		case strings.HasPrefix(l, "   ") && len(l) > 3 && l[3] != ' ':
-			rest = l[3:]
-		default:
+	for _, l := range strings.Split(ListColumn(screen), "\n") {
+		name, isSel, ok := RowName(l)
+		if !ok {
 			continue
 		}
-		names = append(names, strings.Fields(rest)[0])
+		if isSel {
+			selected = len(names)
+		}
+		names = append(names, name)
 	}
 	return names, selected
+}
+
+// ListColumn is screen with the details pane (from " │") cut off every
+// line, so row and section checks see the list alone. The cut is at " │",
+// not " │ ": capture-pane trims the space after the bar when the pane line
+// is empty.
+func ListColumn(screen string) string {
+	lines := strings.Split(screen, "\n")
+	for i, l := range lines {
+		if left, _, ok := strings.Cut(l, " │"); ok {
+			lines[i] = strings.TrimRight(left, " ")
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+// RowName parses one list line: the task name, whether the row is selected
+// (" > "), and ok when the line is a task row at all. The unread dot column
+// is skipped.
+func RowName(l string) (name string, selected, ok bool) {
+	var rest string
+	switch {
+	case strings.HasPrefix(l, " > "):
+		rest, selected = l[3:], true
+	case strings.HasPrefix(l, "   "):
+		rest = l[3:]
+	default:
+		return "", false, false
+	}
+	f := strings.Fields(strings.TrimPrefix(strings.TrimLeft(rest, " "), "●"))
+	if len(f) == 0 {
+		return "", false, false
+	}
+	return f[0], selected, true
 }
 
 // Select moves the list cursor with j/k, one key at a time and waiting for

@@ -86,6 +86,7 @@ func guardForeignSession(sess store.Session, obs adapter.HookObservation) adapte
 	}
 	out := obs
 	out.State, out.Detail, out.AgentSessionID, out.PromptSHA256 = "", "", "", ""
+	out.Prompt, out.LastMessage, out.Model, out.TurnEnded = "", "", "", false // another session's text
 	out.Attrs = make(map[string]string, len(obs.Attrs)+1)
 	for k, v := range obs.Attrs {
 		out.Attrs[k] = v

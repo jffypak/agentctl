@@ -25,6 +25,9 @@ type SectionCounts struct {
 	Initial  int `json:"initial"`
 	Unknown  int `json:"unknown"`
 	Closed   int `json:"closed"`
+	// Unread counts open tasks with a finished turn not looked at yet. It
+	// overlaps the section counts (an unread task is also idle, needs you...).
+	Unread int `json:"unread"`
 }
 
 // Overview is the attention-sorted read model behind `ls` and the TUI list.
@@ -64,6 +67,14 @@ type TaskView struct {
 	StateSince     time.Time // task creation time while no session exists
 	LastDetail     string
 	EndedAt        time.Time
+
+	// Hook text for the task details (newest session; "" when unknown).
+	LastPrompt  string
+	LastMessage string
+	Model       string
+	TurnEndedAt time.Time // zero before the first finished turn
+	ViewedAt    time.Time // zero when never looked at
+	Unread      bool      // domain.IsUnread
 
 	Messages  domain.MessageSummary
 	Attention domain.Attention
@@ -114,6 +125,9 @@ func (c *Controller) Overview(ctx context.Context, q OverviewQuery) (Overview, e
 		case domain.SectionClosed:
 			out.Counts.Closed++
 		}
+		if v.Unread {
+			out.Counts.Unread++
+		}
 		out.Rows = append(out.Rows, v)
 	}
 	sort.SliceStable(out.Rows, func(i, j int) bool {
@@ -141,7 +155,12 @@ func taskView(r store.OverviewRow, now time.Time) TaskView {
 		v.Identity, v.SessionName, v.AgentSessionID = s.Identity, s.SessionName, s.AgentSessionID
 		v.AgentState, v.Confidence, v.StateSince, v.LastDetail, v.EndedAt = s.State, s.Confidence, s.StateSince, s.LastDetail, s.EndedAt
 		v.HasHook = s.HasHook()
+		v.LastPrompt, v.LastMessage, v.Model, v.TurnEndedAt = r.Text.LastPrompt, r.Text.LastMessage, r.Text.Model, r.Text.TurnEndedAt
 	}
+	v.ViewedAt = r.ViewedAt
+	v.Unread = domain.IsUnread(domain.UnreadInput{
+		TaskState: v.TaskState, AgentState: v.AgentState, TurnEndedAt: v.TurnEndedAt, ViewedAt: v.ViewedAt,
+	})
 	v.Attention = domain.ClassifyAttention(domain.AttentionInput{
 		TaskState: v.TaskState, HasSession: v.HasSession, AgentState: v.AgentState,
 		Confidence: v.Confidence, Messages: v.Messages, Origin: v.Origin, HasHook: v.HasHook,

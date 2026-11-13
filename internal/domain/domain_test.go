@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 )
 
 var allAgentStates = []AgentState{
@@ -426,4 +427,28 @@ func ExampleClassifyAttention() {
 	a := ClassifyAttention(AttentionInput{TaskState: TaskRunning, HasSession: true, AgentState: StateStopped})
 	fmt.Println(a.Section.Title(), a.Label)
 	// Output: IDLE exited
+}
+
+func TestIsUnread(t *testing.T) {
+	t0 := time.Date(2026, 11, 12, 9, 0, 0, 0, time.UTC)
+	cases := []struct {
+		name string
+		in   UnreadInput
+		want bool
+	}{
+		{"never finished a turn", UnreadInput{TaskState: TaskRunning, AgentState: StateReady}, false},
+		{"finished, never viewed", UnreadInput{TaskState: TaskRunning, AgentState: StateReady, TurnEndedAt: t0}, true},
+		{"finished after the view", UnreadInput{TaskState: TaskRunning, AgentState: StateReady, TurnEndedAt: t0, ViewedAt: t0.Add(-time.Second)}, true},
+		{"viewed after it finished", UnreadInput{TaskState: TaskRunning, AgentState: StateReady, TurnEndedAt: t0, ViewedAt: t0.Add(time.Second)}, false},
+		{"viewed at the same instant", UnreadInput{TaskState: TaskRunning, AgentState: StateReady, TurnEndedAt: t0, ViewedAt: t0}, false},
+		{"working on the next turn", UnreadInput{TaskState: TaskRunning, AgentState: StateWorking, TurnEndedAt: t0}, false},
+		{"needs input after a turn", UnreadInput{TaskState: TaskRunning, AgentState: StateAwaitingInput, TurnEndedAt: t0}, true},
+		{"failed turn", UnreadInput{TaskState: TaskRunning, AgentState: StateFailed, TurnEndedAt: t0}, true},
+		{"closed task", UnreadInput{TaskState: TaskClosed, AgentState: StateReady, TurnEndedAt: t0}, false},
+	}
+	for _, c := range cases {
+		if got := IsUnread(c.in); got != c.want {
+			t.Errorf("%s: IsUnread = %v, want %v", c.name, got, c.want)
+		}
+	}
 }

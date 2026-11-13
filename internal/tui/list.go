@@ -105,10 +105,17 @@ type columns struct {
 	name, repo, text int
 	showRepo         bool
 	showAgent        bool // more than one agent type is listed: tag each row
+	showUnread       bool // some listed row is unread: a "●" column before the name
 }
 
 // agentWidth is the agent tag column ("claude", "codex").
 const agentWidth = 6
+
+// unreadDot marks a row whose finished turn the user has not looked at.
+const (
+	unreadDot   = "●"
+	unreadWidth = 2 // dot + space
+)
 
 func (m Model) columns(width int, rows []controller.TaskView) columns {
 	c := columns{showRepo: m.ov.AllRepos}
@@ -121,6 +128,9 @@ func (m Model) columns(width int, rows []controller.TaskView) columns {
 		}
 	}
 	c.showAgent = len(agents) > 1
+	for _, r := range rows {
+		c.showUnread = c.showUnread || r.Unread
+	}
 	c.name = min(max(c.name, minNameWidth), maxNameWidth)
 	c.repo = min(c.repo, maxRepoWidth)
 	fixed := 2 + c.name + gap + gap + ageWidth // marker, name, gaps, age
@@ -129,6 +139,9 @@ func (m Model) columns(width int, rows []controller.TaskView) columns {
 	}
 	if c.showAgent {
 		fixed += agentWidth + gap
+	}
+	if c.showUnread {
+		fixed += unreadWidth
 	}
 	c.text = max(width-fixed, 0)
 	return c
@@ -159,6 +172,12 @@ func (m Model) row(r controller.TaskView, c columns, selected bool) string {
 	pad := c.text - used
 	var b strings.Builder
 	b.WriteString(marker)
+	switch {
+	case r.Unread:
+		b.WriteString(st.marker.Render(unreadDot) + " ")
+	case c.showUnread:
+		b.WriteString(strings.Repeat(" ", unreadWidth))
+	}
 	b.WriteString(name.Render(padRight(truncate(r.Name, c.name), c.name)))
 	b.WriteString(strings.Repeat(" ", gap))
 	if c.showRepo {

@@ -97,6 +97,9 @@ Config lives at `$XDG_CONFIG_HOME/agentctl/config.yaml` (optional).
 `migrations/1000_codex.sql` (codex-support) rebuilds `sessions` so `origin`
 allows `wrapped` and adds `first_hook_at`. It runs with foreign keys off
 (`store.MigrationForeignKeysOff`) and `PRAGMA foreign_key_check` before commit.
+`migrations/1001_session_text.sql` (command center) adds `sessions.last_prompt`,
+`last_message`, `model` and `turn_ended_at`, and `tasks.viewed_at`. A task is
+**unread** when its session's last turn ended after `viewed_at`.
 The **entire Phase-1 schema is `migrations/0001_init.sql`**, written by the
 skeleton. The migrator applies every *unapplied* version in ascending order (set
 semantics, not "max+1"). Write transactions use `BEGIN IMMEDIATE`
@@ -107,8 +110,13 @@ inside its 2 s budget. The DB file is mode 0600.
 `DeliverSettle 250ms`, `PasteEnterDelay 100ms`, `StartingTimeout 30s`,
 `Poll 300ms`, `Reconcile 2s`, `HookBudget 1.8s`.
 
-Prompt text the user types directly into a pane is stored as a **hash only**. No
-transcript contents and no secrets go into the DB. Bulky captures go to `logs/` files.
+Hook text is kept in one place only. `sessions.last_prompt` holds the newest
+prompt (from `UserPromptSubmit`) and `sessions.last_message` holds the newest
+final reply (from `Stop` / `StopFailure` `last_assistant_message`). Each
+replaces the previous one. Each is sanitized for the terminal and capped at
+`adapter.MaxHookText` (4 KB). The task details show them. Events and logs
+carry only the prompt's sha256. agentctl never opens `transcript_path` and
+keeps no tool input or output. Bulky captures go to `logs/` files.
 
 ## System architecture
 

@@ -182,9 +182,8 @@ func quit(t *testing.T, ui *testenv.TUI) {
 
 // rowOf is the list row of task name ("" if absent).
 func rowOf(screen, name string) string {
-	for _, l := range strings.Split(screen, "\n") {
-		if f := strings.Fields(strings.TrimPrefix(strings.TrimPrefix(l, " > "), "   ")); len(f) > 0 && f[0] == name &&
-			(strings.HasPrefix(l, " > ") || strings.HasPrefix(l, "   ")) {
+	for _, l := range strings.Split(testenv.ListColumn(screen), "\n") {
+		if n, _, ok := testenv.RowName(l); ok && n == name {
 			return l
 		}
 	}
@@ -194,7 +193,7 @@ func rowOf(screen, name string) string {
 // sectionOf is the title of the list section holding task name.
 func sectionOf(screen, name string) string {
 	section := ""
-	for _, l := range strings.Split(screen, "\n") {
+	for _, l := range strings.Split(testenv.ListColumn(screen), "\n") {
 		switch strings.TrimSpace(l) {
 		case "NEEDS YOU", "IDLE", "RUNNING", "INITIALSTATE", "UNKNOWN", "CLOSED":
 			section = strings.TrimSpace(l)

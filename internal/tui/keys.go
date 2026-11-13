@@ -26,12 +26,15 @@ const (
 	ActSend          = "send"           // composer: send (m2-prompt-queue)
 	ActFullCapture   = "full_capture"   // logs view: write + page the full capture (m2-tui-manage)
 	ActConfirm       = "confirm"        // confirm dialogs: yes (the default is always No)
+	ActNextTab       = "next_tab"       // list: next tab (All, Needs you, Unread, Running, Idle)
+	ActPrevTab       = "prev_tab"       // list: previous tab
 )
 
 // Actions lists every action name in a stable order.
 func Actions() []string {
 	return []string{ActUp, ActDown, ActOpen, ActBack, ActQuit, ActForceQuit, ActFilter, ActPrompt, ActDiff,
-		ActLogs, ActNew, ActAdopt, ActClose, ActCancelMessage, ActSend, ActFullCapture, ActConfirm}
+		ActLogs, ActNew, ActAdopt, ActClose, ActCancelMessage, ActSend, ActFullCapture, ActConfirm,
+		ActNextTab, ActPrevTab}
 }
 
 // KeyMap holds the binding for every action. Bindings are matched with
@@ -42,6 +45,7 @@ type KeyMap struct {
 	Up, Down, Open, Back, Quit, ForceQuit, Filter key.Binding
 	Prompt, Diff, Logs, New, Adopt, Close         key.Binding
 	CancelMessage, Send, FullCapture, Confirm     key.Binding
+	NextTab, PrevTab                              key.Binding
 }
 
 // DefaultKeyMap is spec §4.5 plus the Phase-1 extras (adopt, close, cancel,
@@ -68,6 +72,8 @@ func DefaultKeyMap() KeyMap {
 		Send:          b("ctrl+s", "send", "ctrl+s"),
 		FullCapture:   b("f", "full capture", "f"),
 		Confirm:       b("y", "yes", "y"),
+		NextTab:       b("tab", "next tab", "tab"),
+		PrevTab:       b("⇧tab", "previous tab", "shift+tab"),
 	}
 }
 
@@ -108,6 +114,10 @@ func (k *KeyMap) field(action string) *key.Binding {
 		return &k.FullCapture
 	case ActConfirm:
 		return &k.Confirm
+	case ActNextTab:
+		return &k.NextTab
+	case ActPrevTab:
+		return &k.PrevTab
 	}
 	return nil
 }

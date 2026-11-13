@@ -137,6 +137,8 @@ type lsTask struct {
 	TaskState  string `json:"task_state"`
 	Branch     string `json:"branch"`
 	Worktree   string `json:"worktree"`
+	Unread     bool   `json:"unread"`
+	Model      string `json:"model"`
 	Session    *struct {
 		ID        int64  `json:"id"`
 		Socket    string `json:"tmux_socket"`

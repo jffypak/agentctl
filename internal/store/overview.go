@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/jffypak/agentctl/internal/domain"
 )
@@ -21,6 +22,19 @@ type OverviewRow struct {
 	Repo     Repo
 	Session  *Session
 	Messages domain.MessageSummary
+	// Text is the newest session's hook text (zero without a session).
+	Text SessionText
+	// ViewedAt is when the user last looked at the task (zero = never).
+	ViewedAt time.Time
+}
+
+// SessionText is what hooks reported beyond state: the newest prompt, the
+// newest final reply, the model, and when the last turn ended.
+type SessionText struct {
+	LastPrompt  string
+	LastMessage string
+	Model       string
+	TurnEndedAt time.Time // zero before the first finished turn
 }
 
 // Overview returns every matching task in one consistent read (a single
@@ -32,6 +46,7 @@ func (s *Store) Overview(ctx context.Context, f OverviewFilter) ([]OverviewRow, 
 			s.id, s.task_id, s.agent_type, s.origin, s.tmux_socket, s.tmux_server_pid, s.tmux_session_id,
 			s.tmux_session_name, s.tmux_pane_id, s.pane_pid, s.agent_session_id, s.agent_state, s.state_confidence,
 			s.state_since, s.last_detail, s.created_at, s.ended_at, s.first_hook_at,
+			COALESCE(s.last_prompt, ''), COALESCE(s.last_message, ''), COALESCE(s.model, ''), s.turn_ended_at, t.viewed_at,
 			COALESCE(mc.queued, 0), COALESCE(mc.delivering, 0), COALESCE(mc.sent, 0), COALESCE(mc.acknowledged, 0),
 			COALESCE(mc.unconfirmed, 0), COALESCE(mc.failed, 0), COALESCE(mc.cancelled, 0)
 		FROM tasks t
@@ -69,6 +84,7 @@ func scanOverviewRow(rows *sql.Rows) (OverviewRow, error) {
 		sTask, sType, sOrigin, sSocket, sSessID     sql.NullString
 		sSessName, sPane, sAgentSess, sState, sConf sql.NullString
 		sDetail                                     sql.NullString
+		sTurnEnded, tViewed                         sql.NullInt64
 		m                                           domain.MessageSummary
 	)
 	t := &row.Task
@@ -78,12 +94,14 @@ func scanOverviewRow(rows *sql.Rows) (OverviewRow, error) {
 		&sID, &sTask, &sType, &sOrigin, &sSocket, &sServerPID, &sSessID,
 		&sSessName, &sPane, &sPanePID, &sAgentSess, &sState, &sConf,
 		&sSince, &sDetail, &sCreated, &sEnded, &sFirstHook,
+		&row.Text.LastPrompt, &row.Text.LastMessage, &row.Text.Model, &sTurnEnded, &tViewed,
 		&m.Queued, &m.Delivering, &m.Sent, &m.Acknowledged, &m.Unconfirmed, &m.Failed, &m.Cancelled); err != nil {
 		return OverviewRow{}, err
 	}
 	t.CreatedAt, t.UpdatedAt, t.ClosedAt = fromMS(tCreated), fromMS(tUpdated), fromNullMS(tClosed)
 	row.Repo.CreatedAt = fromMS(rCreated)
 	row.Messages = m
+	row.Text.TurnEndedAt, row.ViewedAt = fromNullMS(sTurnEnded), fromNullMS(tViewed)
 	if sID.Valid {
 		row.Session = &Session{
 			ID: sID.Int64, TaskID: sTask.String, AgentType: sType.String, Origin: domain.Origin(sOrigin.String),

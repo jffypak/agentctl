@@ -87,3 +87,21 @@ func TestCodexParseHookRejectsMalformed(t *testing.T) {
 		}
 	}
 }
+
+func TestCodexParseHookText(t *testing.T) {
+	a := codex.New(codex.Config{})
+	obs, err := a.ParseHook([]byte(stopPayload), adapter.HookEnv{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if obs.LastMessage != "SECRET-ANSWER" || !obs.TurnEnded || obs.Model != "gpt-6-sol" {
+		t.Fatalf("stop obs = %+v", obs)
+	}
+	obs, _ = a.ParseHook([]byte(payload("UserPromptSubmit", `"prompt":"line one\nline two"`)), adapter.HookEnv{})
+	if obs.Prompt != "line one\nline two" || obs.TurnEnded || obs.LastMessage != "" {
+		t.Fatalf("prompt obs = %+v", obs)
+	}
+	if strings.Contains(obs.Detail, "line one") {
+		t.Fatalf("prompt text leaked into the detail: %+v", obs)
+	}
+}

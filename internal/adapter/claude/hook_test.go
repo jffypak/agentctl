@@ -230,3 +230,41 @@ func TestPaneFromEnvAndMatch(t *testing.T) {
 		t.Fatalf("comma path = %+v %v", p, err)
 	}
 }
+
+// TestParseHookText: the prompt, the final reply and the model reach the
+// observation's text fields (sanitized, multi-line kept), and only there:
+// the leak check above covers Detail, Attrs and the rest.
+func TestParseHookText(t *testing.T) {
+	a := claude.New(claude.Config{})
+	obs, _ := a.ParseHook(fixture(t, "user_prompt_submit"), adapter.HookEnv{})
+	if obs.Prompt != "fix the flaky auth tests\nthen run them twice" || obs.TurnEnded || obs.LastMessage != "" {
+		t.Fatalf("prompt obs = %+v", obs)
+	}
+	obs, _ = a.ParseHook(fixture(t, "stop"), adapter.HookEnv{})
+	if obs.LastMessage != "Done. All tests pass." || !obs.TurnEnded || obs.Prompt != "" {
+		t.Fatalf("stop obs = %+v", obs)
+	}
+	obs, _ = a.ParseHook(fixture(t, "stop_failure"), adapter.HookEnv{})
+	if obs.LastMessage != "API Error: Rate limit reached" || !obs.TurnEnded {
+		t.Fatalf("stop failure obs = %+v", obs)
+	}
+	obs, _ = a.ParseHook(fixture(t, "session_start_startup"), adapter.HookEnv{})
+	if obs.Model != "claude-opus-5" || obs.TurnEnded {
+		t.Fatalf("session start obs = %+v", obs)
+	}
+	// subagent replies are not the agent's turn
+	obs, _ = a.ParseHook(fixture(t, "subagent_stop"), adapter.HookEnv{})
+	if obs.LastMessage != "" || obs.TurnEnded {
+		t.Fatalf("subagent stop obs = %+v", obs)
+	}
+
+	hostile := `{"hook_event_name":"Stop","session_id":"s","last_assistant_message":"  ok\u001b]52;c;cGF3bmVk\u0007 done\n\u001b[2Jnext line ` + strings.Repeat("x", adapter.MaxHookText) + `"}`
+	obs, err := a.ParseHook([]byte(hostile), adapter.HookEnv{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.ContainsAny(obs.LastMessage, "\x1b\x07") || !strings.HasPrefix(obs.LastMessage, "ok done\nnext line x") ||
+		len(obs.LastMessage) > adapter.MaxHookText || !strings.HasSuffix(obs.LastMessage, "…") {
+		t.Fatalf("hostile message = %q (len %d)", obs.LastMessage[:40], len(obs.LastMessage))
+	}
+}

@@ -1,0 +1,40 @@
+ [1magents / repo[m[38;5;245m · 1 running · [m[1;38;5;215m6 need you[m
+ [38;5;245m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[m
+ [1mdocs-site[m  IDLE · ready
+
+ [38;5;245mgoal       [mFix broken links in the docs site
+ [38;5;245mlast       [mturn finished
+ [38;5;245mstate      [mready · confidence hook · since 30s
+ [38;5;245magent      [mclaude · launched · claude-opus-5
+ [38;5;245mworktree   [m/src/repo-worktrees/docs-site
+ [38;5;245mbranch     [mjpark/docs-site
+ [38;5;245mbase       [mmain @ 1a2b3c4
+ [38;5;245mtmux       [mjpark-docs-site · $7 %7 · pane pid 4006
+ [38;5;245msocket     [m[38;5;245m/tmp/tmux-501/default[m
+ [38;5;245m● reply    [mFixed
+ [38;5;245m           [m
+ [38;5;245m           [mI fixed 14 broken links in docs/guide.md and docs/api.md.
+ [38;5;245m           [m
+ [38;5;245m           [m- 9 pointed at the old /v1/ paths
+ [38;5;245m           [m- 5 had a typo in the anchor …
+ [38;5;245mprompt     [mFix the broken links in docs/guide.md and docs/api.md
+ [38;5;245mdiff       [m[38;5;245mloading…[m
+ [38;5;245moutput     [m[38;5;245mloading…[m
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ [38;5;245m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[m
+ [1m↵[m [38;5;245mattach[m  [1mp[m [38;5;245mprompt[m  [1md[m [38;5;245mdiff[m  [1ml[m [38;5;245mlogs[m  [1mx[m [38;5;245mclose[m  [1mesc[m [38;5;245mback[m

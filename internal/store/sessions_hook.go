@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jffypak/agentctl/internal/domain"
 )
@@ -20,6 +21,12 @@ type HookInput struct {
 	State          domain.AgentState // "" = record only, no state change
 	Detail         string            // sanitized and bounded like every last_detail
 	Payload        map[string]any    // extra hook.received fields (never prompt text)
+	// Text fields; "" keeps the stored value. The caller sanitizes and bounds
+	// them (adapter.HookText).
+	Prompt      string // the prompt the agent just received -> last_prompt
+	LastMessage string // the agent's final reply of the turn -> last_message
+	Model       string // the model the agent reports -> model
+	TurnEnded   bool   // the hook ends a turn: turn_ended_at = now
 }
 
 // HookResult reports what RecordHook did.
@@ -69,6 +76,9 @@ func (ss *Sessions) RecordHook(ctx context.Context, in HookInput) (HookResult, e
 			if _, err := tx.ExecContext(ctx, `UPDATE sessions SET agent_session_id = ? WHERE id = ?`, in.AgentSessionID, cur.ID); err != nil {
 				return fmt.Errorf("store: session %d agent_session_id: %w", cur.ID, err)
 			}
+		}
+		if err := recordHookText(ctx, tx, cur.ID, now, in); err != nil {
+			return err
 		}
 		if in.State == "" && in.Detail != "" && !cur.State.IsTerminal() {
 			if _, err := tx.ExecContext(ctx, `UPDATE sessions SET last_detail = ? WHERE id = ? AND agent_state = ?`,
@@ -122,4 +132,24 @@ func (ss *Sessions) ActiveByPane(ctx context.Context, paneID string) ([]Session,
 		out = append(out, sess)
 	}
 	return out, rows.Err()
+}
+
+// recordHookText stores the hook's text fields on the session. It runs for
+// terminal sessions too: a StopFailure's last message is still worth
+// reading.
+func recordHookText(ctx context.Context, tx *sql.Tx, id int64, now time.Time, in HookInput) error {
+	for col, v := range map[string]string{"last_prompt": in.Prompt, "last_message": in.LastMessage, "model": in.Model} {
+		if v == "" {
+			continue
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE sessions SET `+col+` = ? WHERE id = ?`, v, id); err != nil {
+			return fmt.Errorf("store: session %d %s: %w", id, col, err)
+		}
+	}
+	if in.TurnEnded {
+		if _, err := tx.ExecContext(ctx, `UPDATE sessions SET turn_ended_at = ? WHERE id = ?`, ms(now), id); err != nil {
+			return fmt.Errorf("store: session %d turn_ended_at: %w", id, err)
+		}
+	}
+	return nil
 }

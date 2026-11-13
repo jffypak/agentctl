@@ -69,8 +69,8 @@ func TestMigration1000KeepsRows(t *testing.T) {
 	}
 	defer st.Close()
 	applied, err := st.AppliedMigrations(ctx)
-	if err != nil || len(applied) != 2 || applied[1] != 1000 {
-		t.Fatalf("applied = %v, %v; want [1 1000]", applied, err)
+	if err != nil || len(applied) != 3 || applied[1] != 1000 || applied[2] != 1001 {
+		t.Fatalf("applied = %v, %v; want [1 1000 1001]", applied, err)
 	}
 
 	a, err := st.Sessions().Get(ctx, 10)

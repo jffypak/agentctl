@@ -58,10 +58,22 @@ attach, accept it if you trust the folder, and detach.
 | Key | Action |
 |---|---|
 | `↑↓` / `j k` | Move between agents |
-| `↵` | Open the detail view (state, worktree, diff summary, recent output). `↵` again attaches: the popup closes and you land on the agent's pane. Detach to come back. |
+| `tab` / `⇧tab` | Switch tabs: All · Needs you · Unread · Running · Idle. Each tab shows its count. |
+| `↵` | Open the detail view (state, worktree, last reply, prompt, diff summary, recent output). `↵` again attaches: the popup closes and you land on the agent's pane. Detach to come back. |
 | `l` | Recent output. `f` shows the full scrollback in your pager. |
 | `/` | Filter. Type `closed` to list closed tasks. |
 | `q` / `esc` | Back, or quit. Quitting never stops an agent. |
+
+A `●` before a name means **unread**: the agent finished a turn and you
+have not looked at it since. The mark goes away when you open the detail
+or the logs, send a prompt, or attach. An agent open beside the list
+(`--split`) counts as seen.
+
+When the screen is 120 columns or wider, the list shows the selected
+agent's details on the right: its state, agent and model, branch,
+worktree, its last reply, and the last prompt it got. agentctl keeps only
+the newest reply and the newest prompt for each session (4 KB each, with
+terminal control codes removed) in its local registry.
 
 **5. Send a prompt.** Select the agent, press `p`, type, and press `ctrl+s`. The message
 shows `sent · awaiting ack` when it was pasted, or `queued · agent working`

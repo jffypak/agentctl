@@ -82,6 +82,8 @@ type Model struct {
 	applied  int       // seq of the Overview on screen
 
 	selected string // selected task id (stable across refreshes)
+	tab      tabID  // list tab (tabs.go)
+	docked   string // task docked beside the list (--split); it counts as viewed
 	filter   filterState
 	mode     mode
 	detail   detailModel
@@ -312,7 +314,7 @@ func (m Model) applyPoll(p seqPollMsg) (tea.Model, tea.Cmd) {
 	}
 	m.ov, m.loaded, m.applied, m.lastLoad = *p.ov, true, p.seq, time.Now()
 	m2, cmd := m.forward(refreshedMsg{ov: m.ov})
-	return m2, tea.Batch(next, cmd)
+	return m2, tea.Batch(next, cmd, m2.dockedViewed())
 }
 
 func (m Model) applyAttach(a attachMsg) (tea.Model, tea.Cmd) {
@@ -321,12 +323,13 @@ func (m Model) applyAttach(a attachMsg) (tea.Model, tea.Cmd) {
 		m.flash = flashMsg{text: controller.OneLine(a.err.Error()), isErr: true}
 		return m, nil
 	case a.docked != nil:
+		m.docked = a.docked.TaskID
 		if a.warn != "" {
 			m.flash = flashMsg{text: a.warn, isErr: true}
 			return m, nil
 		}
 		m.flash = flashMsg{text: "opened " + a.docked.TaskID + " beside the list · it goes back when you open another or quit"}
-		return m, nil
+		return m, func() tea.Msg { return reloadMsg{} } // its unread mark is gone
 	case a.res.Switched && m.sh.stay:
 		// a dashboard pane stays up; the hint is there when the user comes back
 		back := "tmux switch-client -l"
@@ -436,9 +439,15 @@ func (m Model) listKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.mode, m.selected = modeDetail, task.ID
 		var cmd tea.Cmd
 		m.detail, cmd = newDetail(m.sh, task)
-		return m, cmd
+		return m, tea.Batch(cmd, viewedCmd(m.sh, task))
 	case key.Matches(k, keys.Filter):
 		m.filter.editing = true
+		return m, nil
+	case key.Matches(k, keys.NextTab):
+		m.tab = m.tab.next(1)
+		return m, nil
+	case key.Matches(k, keys.PrevTab):
+		m.tab = m.tab.next(-1)
 		return m, nil
 	case key.Matches(k, keys.Back):
 		if m.filter.query() != "" {
@@ -464,11 +473,13 @@ func (m Model) taskKey(k tea.KeyPressMsg, task controller.TaskView) (Model, tea.
 	keys := m.sh.keys
 	switch {
 	case key.Matches(k, keys.Prompt):
-		return m.push(newComposeView(m.sh, task))
+		v, cmd := newComposeView(m.sh, task)
+		return m.push(v, tea.Batch(cmd, viewedCmd(m.sh, task)))
 	case key.Matches(k, keys.Diff):
 		return m.push(newDiffView(m.sh, task))
 	case key.Matches(k, keys.Logs):
-		return m.push(newLogsView(m.sh, task))
+		v, cmd := newLogsView(m.sh, task)
+		return m.push(v, tea.Batch(cmd, viewedCmd(m.sh, task)))
 	case key.Matches(k, keys.Close):
 		return m.push(newCloseConfirmView(m.sh, task))
 	}
@@ -509,9 +520,19 @@ func (m Model) filterKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// rows are the tasks currently listed (filter applied).
+// rows are the tasks currently listed (filter and tab applied).
 func (m Model) rows() []controller.TaskView {
-	return visibleRows(m.ov.Rows, m.filter.query())
+	all := visibleRows(m.ov.Rows, m.filter.query())
+	if m.tab == tabAll {
+		return all
+	}
+	out := all[:0:0]
+	for _, r := range all {
+		if m.tab.matches(r) {
+			out = append(out, r)
+		}
+	}
+	return out
 }
 
 // selectedTask is the highlighted row: the remembered id when still listed,

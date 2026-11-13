@@ -418,10 +418,11 @@ func TestBudgetBoundsAStuckHook(t *testing.T) {
 	}
 }
 
-// TestPromptTextNeverStored: only prompt_sha256 reaches the DB, WAL or SHM
-// files, and transcript_path (a FIFO here: opening it would block) is never
-// opened.
-func TestPromptTextNeverStored(t *testing.T) {
+// TestPromptTextOnlyInSessionText: the prompt text is kept in exactly one
+// place, sessions.last_prompt (for the task details). The hook.received
+// event carries only its sha256, no log file sees it, and transcript_path
+// (a FIFO here: opening it would block) is never opened.
+func TestPromptTextOnlyInSessionText(t *testing.T) {
 	f := newFixture(t, domain.OriginLaunched, domain.StateReady)
 	fifo := filepath.Join(f.p.Home, "transcript.jsonl")
 	if err := syscall.Mkfifo(fifo, 0o600); err != nil {
@@ -439,15 +440,19 @@ func TestPromptTextNeverStored(t *testing.T) {
 	if p := decode(t, recv[0].Payload); p["prompt_sha256"] != sha256Hex(canary) {
 		t.Fatalf("payload = %v", p)
 	}
-	for _, suffix := range []string{"", "-wal", "-shm"} {
-		data, err := os.ReadFile(f.p.DB + suffix)
-		if err != nil && !os.IsNotExist(err) {
-			t.Fatal(err)
-		}
-		for _, needle := range []string{"zebra-canary", "refactor the auth"} {
-			if bytes.Contains(data, []byte(needle)) {
-				t.Fatalf("%s contains prompt text %q", f.p.DB+suffix, needle)
-			}
+	ctx := context.Background()
+	var stored string
+	if err := f.st.DB().QueryRowContext(ctx, `SELECT last_prompt FROM sessions WHERE id = ?`, f.sess.ID).Scan(&stored); err != nil || stored != canary {
+		t.Fatalf("last_prompt = %q, %v", stored, err)
+	}
+	var inEvents int
+	if err := f.st.DB().QueryRowContext(ctx, `SELECT COUNT(*) FROM events WHERE payload LIKE '%zebra-canary%'`).Scan(&inEvents); err != nil || inEvents != 0 {
+		t.Fatalf("events holding the prompt = %d, %v", inEvents, err)
+	}
+	logs, _ := os.ReadDir(f.p.Logs)
+	for _, l := range logs {
+		if data, _ := os.ReadFile(filepath.Join(f.p.Logs, l.Name())); bytes.Contains(data, []byte("zebra-canary")) {
+			t.Fatalf("log %s contains the prompt", l.Name())
 		}
 	}
 }

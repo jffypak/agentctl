@@ -23,14 +23,17 @@ const (
 
 // hookPayload is the subset of a Codex hook payload agentctl reads (field
 // names from https://learn.chatgpt.com/docs/hooks and real 0.167.2 payloads).
-// transcript_path, tool_input, tool_response and last_assistant_message are
-// never decoded, kept, or opened; prompt is decoded only to be hashed.
+// transcript_path, tool_input and tool_response are never decoded, kept, or
+// opened. prompt and last_assistant_message are kept sanitized and capped
+// (adapter.HookText) for the task details.
 type hookPayload struct {
 	SessionID     string `json:"session_id"`
 	Cwd           string `json:"cwd"`
 	HookEventName string `json:"hook_event_name"`
-	Source        string `json:"source"`    // SessionStart: startup|resume|clear|compact|fork
-	Prompt        string `json:"prompt"`    // UserPromptSubmit: hashed, then dropped
+	Source        string `json:"source"`                 // SessionStart: startup|resume|clear|compact|fork
+	Prompt        string `json:"prompt"`                 // UserPromptSubmit: hashed, and kept for the details
+	LastMessage   string `json:"last_assistant_message"` // Stop
+	Model         string `json:"model"`
 	ToolName      string `json:"tool_name"` // PreToolUse, PostToolUse, PermissionRequest
 	Trigger       string `json:"trigger"`   // PreCompact
 	Reason        string `json:"reason"`    // SessionEnd
@@ -69,7 +72,13 @@ func (a *Adapter) ParseHook(payload []byte, _ adapter.HookEnv) (adapter.HookObse
 	if p.HookEventName == "UserPromptSubmit" && p.Prompt != "" {
 		sum := sha256.Sum256([]byte(p.Prompt))
 		obs.PromptSHA256 = hex.EncodeToString(sum[:])
+		obs.Prompt = adapter.HookText(p.Prompt)
 	}
+	if p.HookEventName == "Stop" {
+		obs.TurnEnded = true
+		obs.LastMessage = adapter.HookText(p.LastMessage)
+	}
+	obs.Model = adapter.Bound(adapter.HookLine(p.Model), maxAttrLen)
 	return obs, nil
 }
 

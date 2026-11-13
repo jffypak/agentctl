@@ -275,6 +275,10 @@ func keyMsg(k string) tea.KeyPressMsg {
 		return tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl}
 	case "space":
 		return tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}
+	case "tab":
+		return tea.KeyPressMsg{Code: tea.KeyTab}
+	case "shift+tab":
+		return tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift}
 	}
 	r := []rune(k)
 	return tea.KeyPressMsg{Code: r[0], Text: k}
@@ -344,20 +348,47 @@ func plain(s string) string { return ansiRE.ReplaceAllString(s, "") }
 
 // screen is the plain text of the current view, one string per line,
 // trailing spaces trimmed.
+// screen is the plain screen without the details pane: list checks see the
+// list column alone (paneOf returns the pane).
 func screen(m Model) []string {
 	lines := strings.Split(plain(m.View().Content), "\n")
 	for i, l := range lines {
+		if left, _, ok := strings.Cut(l, paneSep); ok && hasPane(m) {
+			l = left
+		}
 		lines[i] = strings.TrimRight(l, " ")
 	}
 	return lines
 }
 
+// paneOf is the details pane's text, one string per screen line ("" when
+// the screen has no pane).
+func paneOf(m Model) []string {
+	var out []string
+	for _, l := range strings.Split(plain(m.View().Content), "\n") {
+		if _, right, ok := strings.Cut(l, paneSep); ok && hasPane(m) {
+			out = append(out, strings.TrimRight(right, " "))
+		}
+	}
+	return out
+}
+
+func hasPane(m Model) bool {
+	_, ok := m.selectedTask()
+	return m.showTabs() && ok && paneWidth(m.width-2*margin) > 0
+}
+
 func screenText(m Model) string { return strings.Join(screen(m), "\n") }
 
 // lineWith returns the first raw (styled) line whose plain text contains s.
+// The details pane is ignored for the match (screen), not cut from the line.
 func lineWith(m Model, s string) string {
 	for _, l := range strings.Split(m.View().Content, "\n") {
-		if strings.Contains(plain(l), s) {
+		p := plain(l)
+		if left, _, ok := strings.Cut(p, paneSep); ok && hasPane(m) {
+			p = left
+		}
+		if strings.Contains(p, s) {
 			return l
 		}
 	}

@@ -85,6 +85,9 @@ func (d detailModel) Body(f frame) string {
 	agent := "—"
 	if t.HasSession {
 		agent = t.AgentType + " · " + string(t.Origin)
+		if t.Model != "" {
+			agent += " · " + safeLine(t.Model)
+		}
 	}
 	base := t.BaseRef
 	if sha := shortSHA(t.BaseSHA); sha != "" {
@@ -100,12 +103,47 @@ func (d detailModel) Body(f frame) string {
 	if t.HasSession && t.Identity.Socket != "" {
 		lines = append(lines, st.muted.Render(padRight("socket", fieldLabelWidth))+st.muted.Render(truncateLeft(t.Identity.Socket, valueW)))
 	}
+	lines = append(lines, d.textLines(f)...)
 	for _, section := range []string{d.messages.View(f), d.inspect.View(f)} {
 		if section != "" {
 			lines = append(lines, section)
 		}
 	}
 	return strings.Join(lines, "\n")
+}
+
+// Detail text geometry: the hook text is context here (the full output is
+// one key away), so it is kept short.
+const (
+	maxReplyLines  = 6
+	maxPromptLines = 3
+)
+
+// textLines: the agent's last message and the last prompt (wrapped, short),
+// only when hooks reported them.
+func (d detailModel) textLines(f frame) []string {
+	t, st := d.task, f.st
+	valueW := max(f.width-fieldLabelWidth, 1)
+	var lines []string
+	add := func(label, text string, n int) {
+		for i, l := range clipRows(wrapText(stripMarkdown(text), valueW), n, valueW) {
+			if i > 0 {
+				label = ""
+			}
+			lines = append(lines, st.muted.Render(padRight(label, fieldLabelWidth))+l)
+		}
+	}
+	if t.LastMessage != "" {
+		label := "reply"
+		if t.Unread {
+			label = unreadDot + " reply"
+		}
+		add(label, t.LastMessage, maxReplyLines)
+	}
+	if t.LastPrompt != "" {
+		add("prompt", t.LastPrompt, maxPromptLines)
+	}
+	return lines
 }
 
 // title is the task name and its attention section + label.

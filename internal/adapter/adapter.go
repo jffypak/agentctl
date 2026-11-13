@@ -81,6 +81,12 @@ type HookObservation struct {
 	Cwd            string            // cwd
 	State          domain.AgentState // "" = record only, no state change
 	Detail         string            // short human detail; stored sanitized
-	PromptSHA256   string            // UserPromptSubmit only; prompt text itself is never kept
+	PromptSHA256   string            // UserPromptSubmit only (delivery acks match on it)
 	Attrs          map[string]string // extra fields worth recording (notification_type, tool_name, source)
+	// Text for the task details, each already passed through HookText
+	// (Model through HookLine); "" = not in this hook.
+	Prompt      string // UserPromptSubmit prompt
+	LastMessage string // Stop / StopFailure last_assistant_message
+	Model       string // model, when the hook names it
+	TurnEnded   bool   // Stop / StopFailure: the agent finished a turn
 }

@@ -127,8 +127,10 @@ func attachCmd(sh *shared, taskID string) tea.Cmd {
 	}
 }
 
-// recordAttach records ui.action{attach} for an attach that happened.
+// recordAttach records ui.action{attach} for an attach that happened, and
+// that the user looked at the task (best effort: the attach happened).
 func recordAttach(sh *shared, taskID string, out attachMsg) attachMsg {
+	_ = sh.ctl.MarkViewed(sh.ctx, taskID)
 	if sh.runID != "" {
 		if err := sh.ctl.UIAction(sh.ctx, sh.runID, controller.UIActionAttach, taskID); err != nil {
 			out.warn = "could not record ui.action: " + controller.OneLine(err.Error())

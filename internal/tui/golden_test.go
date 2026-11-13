@@ -58,6 +58,21 @@ func TestGolden(t *testing.T) {
 			m := f.model(t, w, h, Options{})
 			return run(t, m, quotaCmd(m.sh))
 		}},
+		{"command_center", func(t *testing.T, w, h int) Model {
+			f := newFixture(t)
+			f.seedCommandCenter(t)
+			return press(t, f.model(t, w, h, Options{}), "j", "j", "j", "j", "j", "j", "j") // docs-site
+		}},
+		{"detail_text", func(t *testing.T, w, h int) Model {
+			f := newFixture(t)
+			f.seedCommandCenter(t)
+			return press(t, f.model(t, w, h, Options{}), "j", "j", "j", "j", "j", "j", "j", "enter") // docs-site
+		}},
+		{"tab_unread", func(t *testing.T, w, h int) Model {
+			f := newFixture(t)
+			f.seedCommandCenter(t)
+			return press(t, f.model(t, w, h, Options{}), "tab", "tab") // All -> Needs you -> Unread
+		}},
 		{"filter", func(t *testing.T, w, h int) Model {
 			f := newFixture(t)
 			f.seed(t, everyState)

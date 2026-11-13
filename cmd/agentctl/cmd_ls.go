@@ -124,6 +124,8 @@ type lsTaskJSON struct {
 	BaseRef    string                `json:"base_ref"`
 	BaseSHA    string                `json:"base_sha"`
 	LastDetail string                `json:"last_detail"`
+	Unread     bool                  `json:"unread"`
+	Model      string                `json:"model"`
 	CreatedAt  string                `json:"created_at"`
 	Session    *lsSessionJSON        `json:"session"`
 	Messages   domain.MessageSummary `json:"messages"`
@@ -161,7 +163,7 @@ func lsDocument(ov controller.Overview) lsJSON {
 			AgentState: string(r.AgentState), Confidence: string(r.Confidence),
 			StateSince: rfc3339(r.StateSince), AgeSeconds: int64(r.Age / time.Second),
 			Branch: r.Branch, Worktree: r.Worktree, BaseRef: r.BaseRef, BaseSHA: r.BaseSHA,
-			LastDetail: r.LastDetail, CreatedAt: rfc3339(r.CreatedAt), Messages: r.Messages,
+			LastDetail: r.LastDetail, Unread: r.Unread, Model: r.Model, CreatedAt: rfc3339(r.CreatedAt), Messages: r.Messages,
 		}
 		if r.HasSession {
 			s := &lsSessionJSON{

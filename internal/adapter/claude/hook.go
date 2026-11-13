@@ -26,21 +26,24 @@ const (
 
 // hookPayload is the subset of a Claude Code 2.1.x hook payload that agentctl
 // reads (field names from the hooks reference; see docs/notes/m1-hook-state.md).
-// It deliberately has no transcript_path, tool_input, tool_response or
-// last_assistant_message field: those are never decoded, kept, or opened.
-// prompt is decoded only to be hashed.
+// It deliberately has no transcript_path, tool_input or tool_response field:
+// those are never decoded, kept, or opened. prompt and
+// last_assistant_message are kept sanitized and capped (adapter.HookText)
+// for the task details.
 type hookPayload struct {
 	SessionID        string `json:"session_id"`
 	Cwd              string `json:"cwd"`
 	HookEventName    string `json:"hook_event_name"`
-	Source           string `json:"source"`            // SessionStart
-	Prompt           string `json:"prompt"`            // UserPromptSubmit: hashed, then dropped
-	ToolName         string `json:"tool_name"`         // PreToolUse, PostToolUse, PermissionRequest
-	NotificationType string `json:"notification_type"` // Notification
-	Message          string `json:"message"`           // Notification
-	Trigger          string `json:"trigger"`           // PreCompact
-	Reason           string `json:"reason"`            // SessionEnd
-	Error            string `json:"error"`             // StopFailure: "turn failed: <error>"
+	Source           string `json:"source"`                 // SessionStart
+	Prompt           string `json:"prompt"`                 // UserPromptSubmit: hashed, and kept for the details
+	LastMessage      string `json:"last_assistant_message"` // Stop, StopFailure
+	Model            string `json:"model"`                  // SessionStart
+	ToolName         string `json:"tool_name"`              // PreToolUse, PostToolUse, PermissionRequest
+	NotificationType string `json:"notification_type"`      // Notification
+	Message          string `json:"message"`                // Notification
+	Trigger          string `json:"trigger"`                // PreCompact
+	Reason           string `json:"reason"`                 // SessionEnd
+	Error            string `json:"error"`                  // StopFailure: "turn failed: <error>"
 }
 
 // ParseHook maps one Claude Code hook payload (stdin JSON) to an observation,
@@ -48,8 +51,7 @@ type hookPayload struct {
 // HookObservation.State == "" means "record only, no state change"; a
 // record-only observation with a Detail (SessionEnd) only refreshes
 // last_detail. It is
-// pure: no I/O, transcript_path is never opened, and of the prompt only its
-// sha256 is kept. A payload that is not a single JSON object with a valid
+// pure: no I/O, and transcript_path is never opened. A payload that is not a single JSON object with a valid
 // hook_event_name is an error.
 func (a *Adapter) ParseHook(payload []byte, _ adapter.HookEnv) (adapter.HookObservation, error) {
 	p, err := decodeHook(payload)
@@ -75,7 +77,14 @@ func (a *Adapter) ParseHook(payload []byte, _ adapter.HookEnv) (adapter.HookObse
 	if p.HookEventName == "UserPromptSubmit" && p.Prompt != "" {
 		sum := sha256.Sum256([]byte(p.Prompt))
 		obs.PromptSHA256 = hex.EncodeToString(sum[:])
+		obs.Prompt = adapter.HookText(p.Prompt)
 	}
+	switch p.HookEventName {
+	case "Stop", "StopFailure":
+		obs.TurnEnded = true
+		obs.LastMessage = adapter.HookText(p.LastMessage)
+	}
+	obs.Model = adapter.Bound(adapter.HookLine(p.Model), maxAttrLen)
 	return obs, nil
 }
 

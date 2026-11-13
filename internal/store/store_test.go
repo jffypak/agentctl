@@ -203,7 +203,7 @@ func TestMigratorAppliesUnappliedLowerVersion(t *testing.T) {
 		t.Fatalf("second migrate: %v", err)
 	}
 	applied, _ := st.AppliedMigrations(ctx)
-	want := []int{1, 101, 102, 103, 1000} // 1 and 1000 are embedded (openTest)
+	want := []int{1, 101, 102, 103, 1000, 1001} // 1, 1000 and 1001 are embedded (openTest)
 	if len(applied) != len(want) {
 		t.Fatalf("applied = %v, want %v", applied, want)
 	}

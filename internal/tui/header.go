@@ -54,11 +54,12 @@ func (m Model) body(f frame) string {
 	case !m.loaded:
 		return m.listBody(f)
 	}
-	return m.withQuota(f, m.listBody)
+	return m.withDetailsPane(f, func(f frame) string { return m.withQuota(f, m.listBody) })
 }
 
 // headerLines: `agents / <repo> · N running · M need you` (exactly
-// Overview.Header()), a rule, then at most one banner line and the filter line.
+// Overview.Header()), a rule, then at most one banner line and the filter
+// line. On the list, the tab line (tabs.go) comes last.
 func (m Model) headerLines(width int) []string {
 	lines := []string{m.headerText(), m.st.rule.Render(strings.Repeat("─", width))}
 	if b := m.banner(); b != "" {
@@ -67,17 +68,30 @@ func (m Model) headerLines(width int) []string {
 	if m.filter.active() && len(m.views) == 0 && m.mode == modeList {
 		lines = append(lines, m.filterLine(width))
 	}
+	if m.showTabs() {
+		lines = append(lines, m.tabsLine(width))
+	}
 	return lines
+}
+
+// showTabs: the tab line shows on the loaded list (not in the detail or a
+// pushed view).
+func (m Model) showTabs() bool {
+	return m.loaded && m.sh.ctl != nil && len(m.views) == 0 && m.mode == modeList
+}
+
+func (m Model) scopeName() string {
+	if m.ov.AllRepos || m.ov.Repo == "" {
+		return "all repos"
+	}
+	return m.ov.Repo
 }
 
 func (m Model) headerText() string {
 	if !m.loaded {
 		return m.st.scope.Render("agents")
 	}
-	scope := m.ov.Repo
-	if m.ov.AllRepos || scope == "" {
-		scope = "all repos"
-	}
+	scope := m.scopeName()
 	need := m.st.counts
 	if m.ov.Counts.NeedsYou > 0 {
 		need = m.st.countsNeed

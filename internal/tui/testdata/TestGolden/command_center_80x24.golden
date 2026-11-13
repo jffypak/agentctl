@@ -1,0 +1,24 @@
+ [1magents / repo[m[38;5;245m · 1 running · [m[1;38;5;215m6 need you[m
+ [38;5;245m──────────────────────────────────────────────────────────────────────────────[m
+ [1;7m All 12 [m [1;38;5;215m Needs you 6 [m [1m Unread 2 [m [38;5;245m Running 1 [m [38;5;245m Idle 2 [m                [38;5;245mtab/⇧tab[m
+ [1;38;5;215mNEEDS YOU[m
+     legacy-pane    [38;5;215mqueued · attach to deliver[m                             [38;5;245m  1h[m
+     flaky-ci       [38;5;215mdisconnected[m[38;5;245m · pane_missing[m                            [38;5;245m 12m[m
+     migrate-db     [38;5;215mfailed[m[38;5;245m · exit 1[m                                        [38;5;245m  9m[m
+     auth-tests     [38;5;215mawaiting input[m[38;5;245m · permission prompt: Bash(npm test --…[m  [38;5;245m  4m[m
+   [1;38;5;215m●[m api-docs       [38;5;215mmessage unconfirmed · attach to check[m[38;5;245m · turn finished[m  [38;5;245m  2m[m
+     silent-agent   [38;5;215msilent since launch · attach to check[m[38;5;245m · no hook with…[m  [38;5;245m 50s[m
+ [1mIDLE[m
+     old-spike      exited[38;5;245m · exit 0[m                                        [38;5;245m  3h[m
+ [1;38;5;215m>[m [1;38;5;215m●[m [1mdocs-site    [m  ready[38;5;245m · turn finished[m                                  [38;5;245m 30s[m
+ [1mRUNNING[m
+     payments       working[38;5;245m · Bash: go test ./...[m                          [38;5;245m 45s[m
+ [2;38;5;245mINITIALSTATE[m
+     [2;38;5;245madopted-shell[m  [2;38;5;245mno events yet[m                                          [38;5;245m  2d[m
+     [2;38;5;245mfresh-task   [m  [2;38;5;245mno events yet[m                                          [38;5;245m  5s[m
+ [2;38;5;245mUNKNOWN[m
+     [2;38;5;245mreserving    [m  [2;38;5;245mno session[m                                             [38;5;245m  1s[m
+
+
+ [38;5;245m──────────────────────────────────────────────────────────────────────────────[m
+ [1m↵[m [38;5;245mopen[m  [1mp[m [38;5;245mprompt[m  [1md[m [38;5;245mdiff[m  [1ml[m [38;5;245mlogs[m  [1mn[m [38;5;245mnew[m  [1ma[m [38;5;245madopt[m  [1mx[m [38;5;245mclose[m  [1m/[m [38;5;245mfilter[m  [1mq[m [38;5;245mquit[m
