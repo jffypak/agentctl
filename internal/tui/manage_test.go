@@ -364,7 +364,7 @@ func TestNewTaskFormValidatesAndCreates(t *testing.T) {
 	}
 	m = press(t, m, "ctrl+u")
 	m = typeText(t, m, "auth-tests")
-	if txt := screenText(m); !strings.Contains(txt, "creates branch agentctl/auth-tests") || strings.Contains(txt, "! ") {
+	if txt := screenText(m); !strings.Contains(txt, "creates branch jpark/auth-tests") || strings.Contains(txt, "! ") {
 		t.Fatalf("valid name:\n%s", txt)
 	}
 	m = press(t, m, "enter") // to the goal
@@ -423,7 +423,7 @@ func unwrapped(m Model) string {
 func TestNewTaskErrorsKeepTheForm(t *testing.T) {
 	t.Parallel()
 	f := newManageFixture(t)
-	f.repo.Git(t, "branch", "agentctl/dup")
+	f.repo.Git(t, "branch", "jpark/dup")
 	submit := func(m Model, name, goal string) Model {
 		m = typeText(t, press(t, m, "n"), name)
 		m = typeText(t, press(t, m, "enter"), goal)
@@ -437,7 +437,7 @@ func TestNewTaskErrorsKeepTheForm(t *testing.T) {
 		}
 	}
 	m := submit(f.managed(t, 120, 40, Options{}), "dup", "some goal")
-	check(m, "! branch agentctl/dup already exists in "+f.repo.Root, "dup", "some goal")
+	check(m, "! branch jpark/dup already exists in "+f.repo.Root, "dup", "some goal")
 	// the name field has focus again: typing fixes the name, enter retries
 	m = typeText(t, press(t, m, "backspace", "backspace", "backspace"), "fresh")
 	if !strings.Contains(screenText(m), "name   fresh") {

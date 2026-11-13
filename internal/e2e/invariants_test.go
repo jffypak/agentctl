@@ -82,7 +82,7 @@ func TestInv9_CloseNeverDeletesWorktreeOrBranch(t *testing.T) {
 	ui := r.startTUI("ui", nil)
 	ui.Select(t, "alpha")
 	ui.Keys(t, "x")
-	ui.WaitText(t, "close alpha? y/N", "keeps worktree", "keeps branch agentctl/alpha")
+	ui.WaitText(t, "close alpha? y/N", "keeps worktree", "keeps branch jpark/alpha")
 	ui.Keys(t, "y")
 	ui.WaitScreen(t, "alpha gone from the list", func(s string) bool {
 		return rowOf(s, "alpha") == "" && rowOf(s, "beta") != ""
@@ -99,7 +99,7 @@ func TestInv9_CloseNeverDeletesWorktreeOrBranch(t *testing.T) {
 		t.Fatal("close --stop left beta's session running")
 	}
 
-	branches := r.repo.Git(t, "branch", "--list", "agentctl/*")
+	branches := r.repo.Git(t, "branch", "--list", "jpark/*")
 	worktrees := r.repo.Git(t, "worktree", "list", "--porcelain")
 	for _, tk := range []lsTask{alpha, beta} {
 		b, err := os.ReadFile(filepath.Join(tk.Worktree, "wip.txt"))

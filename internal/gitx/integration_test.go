@@ -24,7 +24,7 @@ func TestMainRepoFromRootSubdirAndLinkedWorktree(t *testing.T) {
 		t.Fatal(err)
 	}
 	wt := filepath.Join(repo.WorktreesDir(), "linked")
-	if err := g.AddWorktree(ctx, repo.Root, wt, "agentctl/linked", repo.HeadSHA(t)); err != nil {
+	if err := g.AddWorktree(ctx, repo.Root, wt, "jpark/linked", repo.HeadSHA(t)); err != nil {
 		t.Fatal(err)
 	}
 	for _, dir := range []string{repo.Root, sub, wt} {
@@ -75,19 +75,19 @@ func TestBranchExistsAndAddWorktree(t *testing.T) {
 	g, ctx := newGit(env), context.Background()
 	base := repo.HeadSHA(t)
 
-	ok, err := g.BranchExists(ctx, repo.Root, "agentctl/demo")
+	ok, err := g.BranchExists(ctx, repo.Root, "jpark/demo")
 	if err != nil || ok {
 		t.Fatalf("BranchExists before = %v %v", ok, err)
 	}
 	wt := filepath.Join(repo.WorktreesDir(), "demo")
-	if err := g.AddWorktree(ctx, repo.Root, wt, "agentctl/demo", base); err != nil {
+	if err := g.AddWorktree(ctx, repo.Root, wt, "jpark/demo", base); err != nil {
 		t.Fatal(err)
 	}
-	ok, err = g.BranchExists(ctx, repo.Root, "agentctl/demo")
+	ok, err = g.BranchExists(ctx, repo.Root, "jpark/demo")
 	if err != nil || !ok {
 		t.Fatalf("BranchExists after = %v %v", ok, err)
 	}
-	if got := testenv.GitIn(t, env, wt, "rev-parse", "--abbrev-ref", "HEAD"); got != "agentctl/demo" {
+	if got := testenv.GitIn(t, env, wt, "rev-parse", "--abbrev-ref", "HEAD"); got != "jpark/demo" {
 		t.Fatalf("worktree branch = %q", got)
 	}
 	if got := testenv.GitIn(t, env, wt, "rev-parse", "HEAD"); got != base {
@@ -95,11 +95,11 @@ func TestBranchExistsAndAddWorktree(t *testing.T) {
 	}
 
 	wts, err := g.ListWorktrees(ctx, repo.Root)
-	if err != nil || len(wts) != 2 || wts[0].Path != repo.Root || wts[1].Path != wt || wts[1].Branch != "agentctl/demo" {
+	if err != nil || len(wts) != 2 || wts[0].Path != repo.Root || wts[1].Path != wt || wts[1].Branch != "jpark/demo" {
 		t.Fatalf("ListWorktrees = %+v %v", wts, err)
 	}
 
-	err = g.AddWorktree(ctx, repo.Root, filepath.Join(repo.WorktreesDir(), "other"), "agentctl/demo", base)
+	err = g.AddWorktree(ctx, repo.Root, filepath.Join(repo.WorktreesDir(), "other"), "jpark/demo", base)
 	if !errors.Is(err, gitx.ErrBranchExists) {
 		t.Fatalf("AddWorktree existing branch = %v, want ErrBranchExists", err)
 	}
@@ -110,7 +110,7 @@ func TestBranchExistsAndAddWorktree(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(occupied, "f"), []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	err = g.AddWorktree(ctx, repo.Root, occupied, "agentctl/occupied", base)
+	err = g.AddWorktree(ctx, repo.Root, occupied, "jpark/occupied", base)
 	if !errors.Is(err, gitx.ErrWorktreePathExists) {
 		t.Fatalf("AddWorktree existing path = %v, want ErrWorktreePathExists", err)
 	}
@@ -123,7 +123,7 @@ func TestToplevelAndMergeBase(t *testing.T) {
 	g, ctx := newGit(env), context.Background()
 	base := repo.HeadSHA(t)
 	wt := filepath.Join(repo.WorktreesDir(), "adopted")
-	if err := g.AddWorktree(ctx, repo.Root, wt, "agentctl/adopted", base); err != nil {
+	if err := g.AddWorktree(ctx, repo.Root, wt, "jpark/adopted", base); err != nil {
 		t.Fatal(err)
 	}
 	sub := filepath.Join(wt, "pkg")

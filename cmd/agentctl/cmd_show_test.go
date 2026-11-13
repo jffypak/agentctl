@@ -70,7 +70,7 @@ func TestShowPrintsStateBlockAndLast40Lines(t *testing.T) {
 	for _, want := range []string{
 		"task       demo · INITIALSTATE · no events yet",
 		"state      starting · confidence none",
-		"branch     agentctl/demo · base main @ ",
+		"branch     jpark/demo · base main @ ",
 		"worktree   " + wt,
 		"session    #1 claude · launched · tmux agentctl-demo",
 		"identity   socket " + f.srv.Socket + " · server pid ",

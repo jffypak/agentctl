@@ -71,7 +71,7 @@ func atSeedSession(t *testing.T, ctl *Controller, id string, identity domain.Ide
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ctl.store.Tasks().Reserve(ctx, store.Task{ID: id, RepoID: repo.ID, Name: id, WorktreePath: "/w/" + id, Branch: "agentctl/" + id}); err != nil {
+	if _, err := ctl.store.Tasks().Reserve(ctx, store.Task{ID: id, RepoID: repo.ID, Name: id, WorktreePath: "/w/" + id, Branch: "jpark/" + id}); err != nil {
 		t.Fatal(err)
 	}
 	s, err := ctl.store.Sessions().Create(ctx, store.NewSession{TaskID: id, AgentType: "claude", Origin: domain.OriginLaunched,

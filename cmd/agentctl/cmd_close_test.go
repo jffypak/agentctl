@@ -52,7 +52,7 @@ func TestCloseHidesTaskKeepsSessionWorktreeBranch(t *testing.T) {
 	wt := filepath.Join(f.repo.WorktreesDir(), "demo")
 
 	r := runCmd(t, f.env, f.repo.Root, "close", "demo")
-	want := "closed demo · tmux session agentctl-demo untouched · worktree kept at " + wt + " · branch agentctl/demo kept\n"
+	want := "closed demo · tmux session agentctl-demo untouched · worktree kept at " + wt + " · branch jpark/demo kept\n"
 	if r.code != 0 || r.stdout != want || r.stderr != "" {
 		t.Fatalf("close = %+v\nwant %q", r, want)
 	}
@@ -69,7 +69,7 @@ func TestCloseHidesTaskKeepsSessionWorktreeBranch(t *testing.T) {
 	if !strings.Contains(f.repo.Git(t, "worktree", "list", "--porcelain"), "worktree "+wt+"\n") {
 		t.Fatal("worktree removed")
 	}
-	if f.repo.Git(t, "branch", "--list", "agentctl/demo") == "" {
+	if f.repo.Git(t, "branch", "--list", "jpark/demo") == "" {
 		t.Fatal("branch removed")
 	}
 	if got := piEventTypes(t, f.env, "demo"); got[len(got)-1] != "task.closed" {
@@ -129,7 +129,7 @@ func TestCloseStopRequiresConfirmationOrYes(t *testing.T) {
 	if _, ok := f.srv.Snapshot(t).Find(quick["tmux_pane_id"].(string)); ok {
 		t.Fatal("--yes left the session running")
 	}
-	if f.repo.Git(t, "branch", "--list", "agentctl/quick") == "" {
+	if f.repo.Git(t, "branch", "--list", "jpark/quick") == "" {
 		t.Fatal("branch removed by close --stop")
 	}
 }

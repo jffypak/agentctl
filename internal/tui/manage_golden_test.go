@@ -146,7 +146,7 @@ func TestManageGolden(t *testing.T) {
 }
 
 var goldenStopPlan = controller.ClosePlan{
-	TaskID: "auth-tests", Worktree: "/src/repo-worktrees/auth-tests", Branch: "agentctl/auth-tests", Stop: true,
+	TaskID: "auth-tests", Worktree: "/src/repo-worktrees/auth-tests", Branch: "jpark/auth-tests", Stop: true,
 	HasSession: true, SessionName: "agentctl-auth-tests", Origin: domain.OriginLaunched, AgentState: domain.StateAwaitingInput,
 	Identity: domain.Identity{Socket: "/tmp/tmux-501/default", ServerPID: 100, SessionID: "$1", PaneID: "%1", PanePID: 4000},
 }

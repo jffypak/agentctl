@@ -3,7 +3,7 @@
  [1;38;5;215mstop and close auth-tests? y/N[m
 
    kills tmux session agentctl-auth-tests (pane %1, pid 4000): the agent stops now
-   then closes the task; worktree and branch agentctl/auth-tests are kept
+   then closes the task; worktree and branch jpark/auth-tests are kept
 
 
 

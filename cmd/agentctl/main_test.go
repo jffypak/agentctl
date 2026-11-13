@@ -141,7 +141,7 @@ func TestNewThenLsTextAndJSON(t *testing.T) {
 	t.Parallel()
 	f := newCLIFixture(t)
 	r := runCmd(t, f.env, f.repo.Root, "new", "demo", "--goal", "write the tests")
-	if r.code != 0 || strings.Count(r.stdout, "\n") != 1 || !strings.HasPrefix(r.stdout, "started demo · agentctl/demo · ") || r.stderr != "" {
+	if r.code != 0 || strings.Count(r.stdout, "\n") != 1 || !strings.HasPrefix(r.stdout, "started demo · jpark/demo · ") || r.stderr != "" {
 		t.Fatalf("new = %+v", r)
 	}
 	// flags before the name work too
@@ -163,7 +163,7 @@ func TestNewThenLsTextAndJSON(t *testing.T) {
 	row := strings.Fields(lines[3])
 	wt := filepath.Join(f.repo.WorktreesDir(), "demo")
 	if len(row) != 7 || row[0] != "demo" || row[1] != "INITIALSTATE" || row[2] != "starting" || row[3] != "none" ||
-		!strings.HasSuffix(row[4], "s") || row[5] != "agentctl/demo" || row[6] != wt {
+		!strings.HasSuffix(row[4], "s") || row[5] != "jpark/demo" || row[6] != wt {
 		t.Fatalf("row = %q", lines[3])
 	}
 
@@ -217,7 +217,7 @@ func TestNewErrorsAreOneLineExit1NoPartialRow(t *testing.T) {
 	if r := runCmd(t, f.env, f.repo.Root, "new", "demo", "--goal", "first"); r.code != 0 {
 		t.Fatalf("seed new = %+v", r)
 	}
-	f.repo.Git(t, "branch", "agentctl/br")
+	f.repo.Git(t, "branch", "jpark/br")
 	if err := os.MkdirAll(filepath.Join(f.repo.WorktreesDir(), "wt"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -237,7 +237,7 @@ func TestNewErrorsAreOneLineExit1NoPartialRow(t *testing.T) {
 		{"invalid slug", f.env, f.repo.Root, []string{"new", "Bad.Name", "--goal", "g"}, "invalid task name"},
 		{"slug with slash", f.env, f.repo.Root, []string{"new", "a/b", "--goal", "g"}, "invalid task name"},
 		{"task exists", f.env, f.repo.Root, []string{"new", "demo", "--goal", "g"}, `task "demo" already exists`},
-		{"branch exists", f.env, f.repo.Root, []string{"new", "br", "--goal", "g"}, "branch agentctl/br already exists"},
+		{"branch exists", f.env, f.repo.Root, []string{"new", "br", "--goal", "g"}, "branch jpark/br already exists"},
 		{"worktree path exists", f.env, f.repo.Root, []string{"new", "wt", "--goal", "g"}, "worktree path " + filepath.Join(f.repo.WorktreesDir(), "wt") + " already exists"},
 		{"goal looks like a flag", f.env, f.repo.Root, []string{"new", "a6", "--goal", "--dangerously-skip-permissions"}, "goal must not start with '-'"},
 	}

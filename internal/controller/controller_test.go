@@ -76,7 +76,7 @@ func eventTypes(t *testing.T, c *Controller, task string) []string {
 }
 
 // TestNewTaskLaunchesWorktreeAndSession is the walking-skeleton integration
-// acceptance: worktree on agentctl/demo from HEAD, session agentctl-demo with
+// acceptance: worktree on jpark/demo from HEAD, session agentctl-demo with
 // cwd in the worktree, env vars present, remain-on-exit on, stored identity
 // equal to list-panes/display-message, state starting, events task.created +
 // session.started.
@@ -91,10 +91,10 @@ func TestNewTaskLaunchesWorktreeAndSession(t *testing.T) {
 		t.Fatal(err)
 	}
 	wantWT := filepath.Join(f.repo.WorktreesDir(), "demo")
-	if res.Worktree != wantWT || res.Branch != "agentctl/demo" || res.BaseSHA != head || res.BaseRef != "main" || res.State != domain.StateStarting {
+	if res.Worktree != wantWT || res.Branch != "jpark/demo" || res.BaseSHA != head || res.BaseRef != "main" || res.State != domain.StateStarting {
 		t.Fatalf("result = %+v", res)
 	}
-	if got := testenv.GitIn(t, f.env, wantWT, "rev-parse", "--abbrev-ref", "HEAD"); got != "agentctl/demo" {
+	if got := testenv.GitIn(t, f.env, wantWT, "rev-parse", "--abbrev-ref", "HEAD"); got != "jpark/demo" {
 		t.Fatalf("worktree branch = %q", got)
 	}
 	if got := testenv.GitIn(t, f.env, wantWT, "rev-parse", "HEAD"); got != head {
@@ -382,7 +382,7 @@ func TestOverviewSortsBySectionThenStateSince(t *testing.T) {
 	repo, _ := ctl.store.Repos().Upsert(ctx, "/r/main", "main")
 	mk := func(id string, path ...domain.AgentState) {
 		t.Helper()
-		if _, err := ctl.store.Tasks().Reserve(ctx, store.Task{ID: id, RepoID: repo.ID, Name: id, WorktreePath: "/w/" + id, Branch: "agentctl/" + id}); err != nil {
+		if _, err := ctl.store.Tasks().Reserve(ctx, store.Task{ID: id, RepoID: repo.ID, Name: id, WorktreePath: "/w/" + id, Branch: "jpark/" + id}); err != nil {
 			t.Fatal(err)
 		}
 		s, err := ctl.store.Sessions().Create(ctx, store.NewSession{TaskID: id, AgentType: "claude", Origin: domain.OriginLaunched,
@@ -411,7 +411,7 @@ func TestOverviewSortsBySectionThenStateSince(t *testing.T) {
 	mk("ask", domain.StateAwaitingInput)
 	mk("run-new", domain.StateWorking)
 	mk("exited", domain.StateStopped)
-	if _, err := ctl.store.Tasks().Reserve(ctx, store.Task{ID: "pending", RepoID: repo.ID, Name: "pending", WorktreePath: "/w/p", Branch: "agentctl/p"}); err != nil {
+	if _, err := ctl.store.Tasks().Reserve(ctx, store.Task{ID: "pending", RepoID: repo.ID, Name: "pending", WorktreePath: "/w/p", Branch: "jpark/p"}); err != nil {
 		t.Fatal(err)
 	}
 	ov, err := ctl.Overview(ctx, OverviewQuery{AllRepos: true})

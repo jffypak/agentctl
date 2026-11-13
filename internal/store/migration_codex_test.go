@@ -49,7 +49,7 @@ func TestMigration1000KeepsRows(t *testing.T) {
 	}
 	exec(`INSERT INTO repos (id, root_path, name, created_at) VALUES (1, '/r', 'r', 1)`)
 	exec(`INSERT INTO tasks (id, repo_id, name, goal, state, worktree_path, branch, created_at, updated_at)
-	      VALUES ('a', 1, 'a', 'g', 'running', '/r-w/a', 'agentctl/a', 1, 1),
+	      VALUES ('a', 1, 'a', 'g', 'running', '/r-w/a', 'jpark/a', 1, 1),
 	             ('b', 1, 'b', '', 'running', '/r', 'main', 1, 1)`)
 	exec(`INSERT INTO sessions (id, task_id, agent_type, origin, tmux_socket, tmux_server_pid, tmux_pane_id, pane_pid,
 	      agent_session_id, agent_state, state_confidence, state_since, last_detail, created_at)

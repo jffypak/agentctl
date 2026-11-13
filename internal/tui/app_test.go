@@ -131,7 +131,7 @@ func TestMoveKeysAndFilterOnNameGoalBranch(t *testing.T) {
 	filters := map[string][]string{
 		"pay":           {"payments"},   // name
 		"OAuth":         {"auth-tests"}, // goal, case-insensitive
-		"agentctl/docs": {"docs-site"},  // branch
+		"jpark/docs": {"docs-site"},  // branch
 		"tests oauth":   {"auth-tests"}, // every term must match
 		"zzz":           nil,            // no match
 		"docs":          {"api-docs", "docs-site"},
@@ -180,7 +180,7 @@ func TestDetailShowsEveryField(t *testing.T) {
 		"needs you  awaiting input",
 		"agent      claude · launched",
 		"worktree   /src/repo-worktrees/auth-tests",
-		"branch     agentctl/auth-tests",
+		"branch     jpark/auth-tests",
 		"base       main @ 1a2b3c4",
 		"tmux       agentctl-auth-tests · $1 %1 · pane pid 4000",
 		"socket     /tmp/tmux-501/default",

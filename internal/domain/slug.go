@@ -12,7 +12,7 @@ const MaxSlugLen = 40
 var ErrInvalidSlug = errors.New("invalid task name")
 
 // ValidateSlug enforces task names of the form [a-z0-9][a-z0-9-]{0,39}. Task
-// names become a branch (agentctl/<name>), a directory, and a tmux session
+// names become a branch (jpark/<name>), a directory, and a tmux session
 // name (agentctl-<name>), so '.', ':', '/', whitespace and a leading '-' are
 // all rejected. Errors are one line and say how to fix the name.
 func ValidateSlug(s string) error {

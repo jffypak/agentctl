@@ -66,7 +66,7 @@ func (f *fixture) seed(id string, origin domain.Origin, state domain.AgentState,
 	if err != nil {
 		f.t.Fatal(err)
 	}
-	if _, err := f.st.Tasks().Reserve(ctx, store.Task{ID: id, RepoID: repo.ID, Name: id, Goal: f.goal, WorktreePath: "/w/" + id, Branch: "agentctl/" + id}); err != nil {
+	if _, err := f.st.Tasks().Reserve(ctx, store.Task{ID: id, RepoID: repo.ID, Name: id, Goal: f.goal, WorktreePath: "/w/" + id, Branch: "jpark/" + id}); err != nil {
 		f.t.Fatal(err)
 	}
 	initial := state
@@ -535,7 +535,7 @@ func TestHookWaitsForALaunchingSession(t *testing.T) {
 	f := newFixture(t, domain.OriginLaunched, domain.StateStarting)
 	ctx := context.Background()
 	repo, _ := f.st.Repos().Upsert(ctx, "/repos/main", "main")
-	if _, err := f.st.Tasks().Reserve(ctx, store.Task{ID: "late", RepoID: repo.ID, Name: "late", WorktreePath: "/w/late", Branch: "agentctl/late"}); err != nil {
+	if _, err := f.st.Tasks().Reserve(ctx, store.Task{ID: "late", RepoID: repo.ID, Name: "late", WorktreePath: "/w/late", Branch: "jpark/late"}); err != nil {
 		t.Fatal(err)
 	}
 	env := f.env("late")
@@ -559,7 +559,7 @@ func TestHookWaitsForALaunchingSession(t *testing.T) {
 	old := sessionWait
 	sessionWait = 50 * time.Millisecond
 	defer func() { sessionWait = old }()
-	if _, err := f.st.Tasks().Reserve(ctx, store.Task{ID: "never", RepoID: repo.ID, Name: "never", WorktreePath: "/w/never", Branch: "agentctl/never"}); err != nil {
+	if _, err := f.st.Tasks().Reserve(ctx, store.Task{ID: "never", RepoID: repo.ID, Name: "never", WorktreePath: "/w/never", Branch: "jpark/never"}); err != nil {
 		t.Fatal(err)
 	}
 	if r := f.run(f.env("never"), payload("Stop")); r.Orphan != OrphanNoSession {

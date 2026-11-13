@@ -37,7 +37,7 @@ agentctl new auth-tests --goal "Write integration tests for the OAuth login flow
 ```
 
 This creates the worktree `../myrepo-worktrees/auth-tests` on the branch
-`agentctl/auth-tests`. It starts `claude --settings <agentctl hooks> "<goal>"` in
+`jpark/auth-tests`. It starts `claude --settings <agentctl hooks> "<goal>"` in
 the tmux session `agentctl-auth-tests`, and the agent shows as `starting`. You
 can also press `n` in the popup to do this. The first time Claude Code opens a
 new worktree it asks whether you trust the folder, and no hooks fire until you
@@ -163,7 +163,7 @@ attach to start`.
 | `… is not inside a git repository` | `cd` into the repository (or one of its worktrees) and run the command again. agentctl registers tasks against the main checkout. |
 | `… has no commits yet` | Make an initial commit. Worktrees branch from `HEAD`. |
 | `agent command "claude" not found on PATH` | Install Claude Code, or make `claude` reachable from the shell tmux starts. `AGENTCTL_AGENT_CMD='["/path/to/claude"]'` overrides the command. For Codex: install Codex CLI, or set `AGENTCTL_CODEX_CMD`. |
-| `branch agentctl/<name> already exists` | Pick another task name, or delete the old branch yourself if you are done with it (agentctl never deletes branches). |
+| `branch jpark/<name> already exists` | Pick another task name, or delete the old branch yourself if you are done with it (agentctl never deletes branches). |
 | `worktree path … already exists` | Pick another task name, or move that directory out of `../<repo>-worktrees/`. |
 | `tmux session agentctl-<name> already exists` | Pick another name, or close that session. |
 | `task "<name>" already exists` | Names are unique per registry. `agentctl ls --closed` lists every task. |

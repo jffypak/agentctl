@@ -95,7 +95,7 @@ func newHookFixture(t *testing.T) *hookFixture {
 	}
 	defer st.Close()
 	repo, _ := st.Repos().Upsert(ctx, "/repos/main", "main")
-	if _, err := st.Tasks().Reserve(ctx, store.Task{ID: "demo", RepoID: repo.ID, Name: "demo", WorktreePath: "/w", Branch: "agentctl/demo"}); err != nil {
+	if _, err := st.Tasks().Reserve(ctx, store.Task{ID: "demo", RepoID: repo.ID, Name: "demo", WorktreePath: "/w", Branch: "jpark/demo"}); err != nil {
 		t.Fatal(err)
 	}
 	sess, err := st.Sessions().Create(ctx, store.NewSession{

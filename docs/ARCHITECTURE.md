@@ -51,7 +51,7 @@ path instead of jumping into panes.
 
 - **Happy path (new task):** `prefix a` opens the popup (`display-popup -E agentctl`).
   `n` asks for name + goal. agentctl creates worktree `../<repo>-worktrees/<task>`
-  on branch `agentctl/<task>`, starts tmux session `agentctl-<task>` running
+  on branch `jpark/<task>`, starts tmux session `agentctl-<task>` running
   `claude --settings <hooks.json> "<goal>"`, and the agent shows as `starting`.
   The user presses `q` and goes back to work.
 - **Happy path (check in):** reopen the popup. NEEDS YOU lists
@@ -201,7 +201,7 @@ The goal is passed as a single argv element and never through a shell.
 
 `new` resolves the *main* repo with `git rev-parse --git-common-dir` (running it
 inside a worktree registers against the main repo), records `base_ref` and
-`base_sha`, and then runs `git worktree add -b agentctl/<task>
+`base_sha`, and then runs `git worktree add -b jpark/<task>
 ../<repo>-worktrees/<task> <base_sha>`. If tmux fails after the worktree exists,
 the task is kept with session `failed` and the worktree is left in place. An
 adopted task's base is `merge-base(HEAD, main checkout HEAD)`, falling back to

@@ -45,7 +45,7 @@ func TestAC1_TwoAgentsSwitchFromTUI(t *testing.T) {
 		t.Fatalf("agents share a worktree or session: %+v %+v", alpha, beta)
 	}
 	for _, tk := range []lsTask{alpha, beta} {
-		if tk.Branch != "agentctl/"+tk.ID || tk.Worktree != filepath.Join(r.repo.WorktreesDir(), tk.ID) {
+		if tk.Branch != "jpark/"+tk.ID || tk.Worktree != filepath.Join(r.repo.WorktreesDir(), tk.ID) {
 			t.Fatalf("%s: branch %s worktree %s", tk.ID, tk.Branch, tk.Worktree)
 		}
 		if _, err := os.Stat(filepath.Join(tk.Worktree, "README.md")); err != nil {

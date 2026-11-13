@@ -52,7 +52,7 @@ func seedTask(t *testing.T, st *Store, id string) Task {
 	}
 	task, err := st.Tasks().Reserve(ctx, Task{
 		ID: id, RepoID: repo.ID, Name: id, Goal: "do " + id,
-		WorktreePath: "/repos/main-worktrees/" + id, Branch: "agentctl/" + id,
+		WorktreePath: "/repos/main-worktrees/" + id, Branch: "jpark/" + id,
 		BaseRef: "main", BaseSHA: "abc123",
 	})
 	if err != nil {
@@ -342,7 +342,7 @@ func TestSessionsCreateAppendsEventsAtomically(t *testing.T) {
 		Identity: domain.Identity{Socket: "/s", ServerPID: 1, SessionID: "$0", PaneID: "%0", PanePID: 2},
 		State:    domain.StateStarting, Confidence: domain.ConfidenceNone,
 		Events: []EventInput{
-			{Type: domain.EventTaskCreated, Payload: map[string]any{"branch": "agentctl/demo"}},
+			{Type: domain.EventTaskCreated, Payload: map[string]any{"branch": "jpark/demo"}},
 			{Type: domain.EventSessionStarted},
 		},
 	})
@@ -622,7 +622,7 @@ func TestOverviewJoinsSessionsAndMessageCounts(t *testing.T) {
 		}
 	}
 	other, _ := st.Repos().Upsert(ctx, "/repos/other", "other")
-	if _, err := st.Tasks().Reserve(ctx, Task{ID: "z", RepoID: other.ID, Name: "z", WorktreePath: "/w", Branch: "agentctl/z"}); err != nil {
+	if _, err := st.Tasks().Reserve(ctx, Task{ID: "z", RepoID: other.ID, Name: "z", WorktreePath: "/w", Branch: "jpark/z"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := st.DB().Exec(`UPDATE tasks SET state='closed', closed_at=1 WHERE id='c'`); err != nil {

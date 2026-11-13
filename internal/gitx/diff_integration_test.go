@@ -46,7 +46,7 @@ func newInspectRepo(t *testing.T) inspectRepo {
 	base := repo.HeadSHA(t)
 
 	wt := filepath.Join(repo.WorktreesDir(), "task")
-	repo.Git(t, "worktree", "add", "-q", "-b", "agentctl/task", wt, base)
+	repo.Git(t, "worktree", "add", "-q", "-b", "jpark/task", wt, base)
 	in := func(args ...string) string { return testenv.GitIn(t, env, wt, args...) }
 	write := func(rel, content string) {
 		p := filepath.Join(wt, rel)
@@ -66,7 +66,7 @@ func newInspectRepo(t *testing.T) inspectRepo {
 	in("checkout", "-q", "-b", "side", base)
 	write("conf.txt", "side\n")
 	in("commit", "-q", "-a", "-m", "side")
-	in("checkout", "-q", "agentctl/task")
+	in("checkout", "-q", "jpark/task")
 	write("conf.txt", "task\n")
 	in("commit", "-q", "-a", "-m", "task conf")
 	merge := exec.Command("git", "merge", "-q", "side")

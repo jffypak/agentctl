@@ -159,7 +159,7 @@ func (f *fixture) seed(t *testing.T, specs []seedSpec) {
 	}
 	for i, s := range specs {
 		if _, err := f.st.Tasks().Reserve(ctx, store.Task{ID: s.id, RepoID: repo.ID, Name: s.id, Goal: s.goal,
-			WorktreePath: "/src/repo-worktrees/" + s.id, Branch: "agentctl/" + s.id, BaseRef: "main",
+			WorktreePath: "/src/repo-worktrees/" + s.id, Branch: "jpark/" + s.id, BaseRef: "main",
 			BaseSHA: "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b"}); err != nil {
 			t.Fatal(err)
 		}

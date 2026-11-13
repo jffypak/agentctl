@@ -17,7 +17,7 @@ func TestArgBuilders(t *testing.T) {
 		{"common dir", CommonDirArgs(), []string{"rev-parse", "--path-format=absolute", "--git-common-dir"}},
 		{"symbolic head", SymbolicHeadArgs(), []string{"symbolic-ref", "-q", "--short", "HEAD"}},
 		{"head sha", HeadSHAArgs(), []string{"rev-parse", "--verify", "-q", "HEAD^{commit}"}},
-		{"branch exists", BranchExistsArgs("agentctl/demo"), []string{"show-ref", "--verify", "--quiet", "refs/heads/agentctl/demo"}},
+		{"branch exists", BranchExistsArgs("jpark/demo"), []string{"show-ref", "--verify", "--quiet", "refs/heads/jpark/demo"}},
 		{"worktree list", WorktreeListArgs(), []string{"worktree", "list", "--porcelain", "-z"}},
 		{"toplevel", ToplevelArgs(), []string{"rev-parse", "--show-toplevel"}},
 		{"merge-base", MergeBaseArgs("HEAD", "abc"), []string{"merge-base", "HEAD", "abc"}},
@@ -27,19 +27,19 @@ func TestArgBuilders(t *testing.T) {
 			t.Errorf("%s = %q, want %q", c.name, c.got, c.want)
 		}
 	}
-	got, err := WorktreeAddArgs("/r-worktrees/demo", "agentctl/demo", "0123abcd")
+	got, err := WorktreeAddArgs("/r-worktrees/demo", "jpark/demo", "0123abcd")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := []string{"worktree", "add", "-b", "agentctl/demo", "/r-worktrees/demo", "0123abcd"}; !reflect.DeepEqual(got, want) {
+	if want := []string{"worktree", "add", "-b", "jpark/demo", "/r-worktrees/demo", "0123abcd"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("WorktreeAddArgs = %q, want %q", got, want)
 	}
 	for _, bad := range [][3]string{
-		{"relative/path", "agentctl/x", "abc"},
+		{"relative/path", "jpark/x", "abc"},
 		{"/p", "", "abc"},
 		{"/p", "-b", "abc"},
-		{"/p", "agentctl/x", ""},
-		{"/p", "agentctl/x", "--orphan"},
+		{"/p", "jpark/x", ""},
+		{"/p", "jpark/x", "--orphan"},
 	} {
 		if _, err := WorktreeAddArgs(bad[0], bad[1], bad[2]); err == nil {
 			t.Errorf("WorktreeAddArgs(%q) accepted", bad)
@@ -64,7 +64,7 @@ func TestEnvSetsOptionalLocksAndStripsRepoOverrides(t *testing.T) {
 
 func TestParseWorktreeList(t *testing.T) {
 	out := "worktree /r\x00HEAD 1111\x00branch refs/heads/main\x00\x00" +
-		"worktree /r-worktrees/a b\x00HEAD 2222\x00branch refs/heads/agentctl/a\x00locked\x00\x00" +
+		"worktree /r-worktrees/a b\x00HEAD 2222\x00branch refs/heads/jpark/a\x00locked\x00\x00" +
 		"worktree /r-worktrees/d\x00HEAD 3333\x00detached\x00\x00"
 	wts, err := ParseWorktreeList([]byte(out))
 	if err != nil {
@@ -72,7 +72,7 @@ func TestParseWorktreeList(t *testing.T) {
 	}
 	want := []Worktree{
 		{Path: "/r", Head: "1111", Branch: "main"},
-		{Path: "/r-worktrees/a b", Head: "2222", Branch: "agentctl/a", Locked: true},
+		{Path: "/r-worktrees/a b", Head: "2222", Branch: "jpark/a", Locked: true},
 		{Path: "/r-worktrees/d", Head: "3333", Detached: true},
 	}
 	if !reflect.DeepEqual(wts, want) {
@@ -93,7 +93,7 @@ func TestClassify(t *testing.T) {
 		want   error
 	}{
 		{"fatal: not a git repository (or any of the parent directories): .git", ErrNotARepo},
-		{"fatal: a branch named 'agentctl/x' already exists", ErrBranchExists},
+		{"fatal: a branch named 'jpark/x' already exists", ErrBranchExists},
 		{"fatal: '/r-worktrees/x' already exists", ErrWorktreePathExists},
 	}
 	for _, c := range cases {

@@ -381,9 +381,9 @@ fi
 for wt in "${wt_alpha}" "${wt_beta}"; do
 	[[ -d ${wt} ]] || check_failed "worktree ${wt} was deleted"
 done
-branches=$(git -C "${repo}" branch --list 'agentctl/*')
+branches=$(git -C "${repo}" branch --list 'jpark/*')
 for a in alpha beta; do
-	[[ ${branches} == *"agentctl/${a}"* ]] || check_failed "branch agentctl/${a} was deleted"
+	[[ ${branches} == *"jpark/${a}"* ]] || check_failed "branch jpark/${a} was deleted"
 done
 ac ls --closed
 

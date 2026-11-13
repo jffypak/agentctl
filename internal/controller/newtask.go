@@ -20,7 +20,7 @@ import (
 const MaxGoalLen = 64 << 10
 
 // BranchPrefix prefixes every task branch.
-const BranchPrefix = "agentctl/"
+const BranchPrefix = "jpark/"
 
 // NewTaskRequest is `agentctl new <name> --goal <goal>` run in Cwd.
 type NewTaskRequest struct {
@@ -47,7 +47,7 @@ type NewTaskResult struct {
 	Detail      string
 }
 
-// NewTask creates a worktree on agentctl/<name> from the cwd's HEAD and
+// NewTask creates a worktree on jpark/<name> from the cwd's HEAD and
 // launches the agent in tmux session agentctl-<name>.
 //
 // Every check that can fail runs before anything is written, so the listed

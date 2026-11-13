@@ -45,7 +45,7 @@ func TestREADMEQuickstartAndTroubleshooting(t *testing.T) {
 		"git missing":      "git not found on PATH",
 		"not a git repo":   "is not inside a git repository",
 		"claude missing":   "agent command \"claude\" not found on PATH",
-		"branch exists":    "branch agentctl/<name> already exists",
+		"branch exists":    "branch jpark/<name> already exists",
 		"worktree exists":  "worktree path … already exists",
 		"session exists":   "tmux session agentctl-<name> already exists",
 		"no commits":       "has no commits yet",

@@ -33,7 +33,7 @@ func TestCloseHidesTaskAndLeavesSessionWorktreeBranch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Stopped || res.TaskID != "demo" || res.Worktree != wt || res.Branch != "agentctl/demo" || res.SessionName != "agentctl-demo" {
+	if res.Stopped || res.TaskID != "demo" || res.Worktree != wt || res.Branch != "jpark/demo" || res.SessionName != "agentctl-demo" {
 		t.Fatalf("result = %+v", res)
 	}
 	if !piPaneAlive(t, f.srv, sess.Identity) {
@@ -45,7 +45,7 @@ func TestCloseHidesTaskAndLeavesSessionWorktreeBranch(t *testing.T) {
 	if !strings.Contains(f.repo.Git(t, "worktree", "list", "--porcelain"), "worktree "+wt+"\n") {
 		t.Fatal("worktree gone")
 	}
-	if f.repo.Git(t, "branch", "--list", "agentctl/demo") == "" {
+	if f.repo.Git(t, "branch", "--list", "jpark/demo") == "" {
 		t.Fatal("branch gone")
 	}
 	if got := eventTypes(t, f.ctl, "demo"); got[len(got)-1] != domain.EventTaskClosed {
@@ -118,7 +118,7 @@ func TestCloseStopKillsVerifiedLaunchedSession(t *testing.T) {
 		t.Fatalf("events: %v / %v", ch, cl)
 	}
 	// worktree and branch still kept
-	if f.repo.Git(t, "branch", "--list", "agentctl/demo") == "" {
+	if f.repo.Git(t, "branch", "--list", "jpark/demo") == "" {
 		t.Fatal("branch gone")
 	}
 }
@@ -152,7 +152,7 @@ func TestCloseStopRefusesAdoptedAndUnverifiedSessions(t *testing.T) {
 		t.Fatal(err)
 	}
 	demo, _ := f.ctl.store.Tasks().Get(ctx, "demo")
-	if _, err := f.ctl.store.Tasks().Reserve(ctx, store.Task{ID: "empty", RepoID: demo.RepoID, WorktreePath: "/w/empty", Branch: "agentctl/empty"}); err != nil {
+	if _, err := f.ctl.store.Tasks().Reserve(ctx, store.Task{ID: "empty", RepoID: demo.RepoID, WorktreePath: "/w/empty", Branch: "jpark/empty"}); err != nil {
 		t.Fatal(err)
 	}
 	before := piDump(t, f.ctl)
