@@ -31,6 +31,7 @@ const testAgentctl = "/opt/agentctl/bin/agentctl"
 type recRunner struct {
 	mu    sync.Mutex
 	panes []tmux.Pane
+	keys  string // list-keys output
 	reqs  []tmux.Request
 }
 
@@ -45,6 +46,9 @@ func (r *recRunner) Run(_ context.Context, req tmux.Request) (tmux.Result, error
 			fmt.Fprintf(&b, "100\t%s\t0\t%s\t%d\t0\t\t\t%s\tclaude\t/w\n", p.SessionID, p.PaneID, p.PanePID, p.SessionName)
 		}
 		return tmux.Result{Stdout: []byte(b.String())}, nil
+	}
+	if req.Commands[0][0] == "list-keys" {
+		return tmux.Result{Stdout: []byte(r.keys)}, nil
 	}
 	return tmux.Result{}, nil
 }

@@ -96,6 +96,20 @@ or remove them with git yourself.
 opening the popup to your first action (the target is under 60 s), and attaches
 per prompt sent.
 
+### Dashboard pane
+
+To keep agentctl on screen all the time, run it in its own pane with `--stay`:
+
+```sh
+tmux split-window -h -l 35% 'agentctl tui --stay'
+```
+
+With `--stay`, `↵` on an agent still moves you to the agent's pane, but
+agentctl does not exit. Press the tmux key for `switch-client -l` (last
+session) to come back to the dashboard. The tmux default is `prefix L`.
+agentctl reads your key from tmux and shows it in the hint after each switch.
+Press `q` in the list to quit.
+
 ### Other commands
 
 `agentctl ls [--json] [--closed]` lists tasks by attention section.

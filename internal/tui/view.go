@@ -23,6 +23,7 @@ type shared struct {
 	runID   string // ui_run_id of this TUI run ("" in tests that do not record)
 	cwd     string // scopes the list and NewTask
 	binding string // `agentctl tmux-binding` line (empty state)
+	stay    bool   // Options.Stay: keep running after a switch-client attach
 }
 
 // frame is the space and styling a view renders into.

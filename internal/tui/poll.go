@@ -32,6 +32,9 @@ type (
 		res  controller.AttachResult
 		err  error
 		warn string // the attach happened but ui.action could not be recorded
+		// returnKey: after a --stay switch, the user's tmux key for
+		// switch-client -l ("" if none or the lookup failed)
+		returnKey string
 	}
 	// execDoneMsg: the interactive tmux attach returned (the user detached).
 	execDoneMsg struct{ err error }
@@ -106,6 +109,9 @@ func attachCmd(sh *shared, taskID string) tea.Cmd {
 			return attachMsg{err: err}
 		}
 		out := attachMsg{res: res}
+		if res.Switched && sh.stay {
+			out.returnKey, _ = sh.ctl.ReturnKey(sh.ctx) // a failed lookup only loses the key from the hint
+		}
 		if sh.runID != "" {
 			if err := sh.ctl.UIAction(sh.ctx, sh.runID, controller.UIActionAttach, taskID); err != nil {
 				out.warn = "could not record ui.action: " + controller.OneLine(err.Error())

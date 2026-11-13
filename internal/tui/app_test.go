@@ -508,3 +508,45 @@ func TestRefreshFollowsTheSelectedTask(t *testing.T) {
 		t.Fatalf("payments not in NEEDS YOU: %v", rows)
 	}
 }
+
+// TestSwitchedAttachStays: with Options.Stay (agentctl tui --stay, a
+// dashboard pane) a switch-client attach keeps the TUI running and names the
+// user's tmux key for switch-client -l; without it the TUI quits
+// (TestAttachFromDetail).
+func TestSwitchedAttachStays(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct{ name, keys, hint string }{
+		{"custom key", "bind-key -r -T prefix L resize-pane -R 10\nbind-key -T prefix b switch-client -l\n",
+			"switched to auth-tests · prefix b returns here"},
+		{"no key", "bind-key -T prefix L resize-pane -R 10\n",
+			"switched to auth-tests · tmux switch-client -l returns here"},
+	} {
+		f := newFixture(t)
+		f.seed(t, everyState)
+		f.rec.panes = []tmux.Pane{{SessionID: "$1", PaneID: "%1", PanePID: 4000, SessionName: "agentctl-auth-tests"}}
+		f.rec.keys = tc.keys
+		inside := openController(t, f.env.With("TMUX=/tmp/tmux-501/default,100,0"), f.rec)
+		m := New(context.Background(), Options{Controller: inside, Cwd: f.repo.Root, Stay: true})
+		m = update(t, m, loadCmd(m.sh)())
+		m = press(t, m, "j", "j", "j", "enter") // auth-tests
+		m, cmd := pressCmd(t, m, "enter")
+		msgs := collect(cmd)
+		if len(msgs) != 1 {
+			t.Fatalf("%s: attach produced %v", tc.name, msgs)
+		}
+		if a, ok := msgs[0].(attachMsg); !ok || !a.res.Switched {
+			t.Fatalf("%s: attach = %+v", tc.name, msgs[0])
+		}
+		next, quit := m.Update(msgs[0])
+		if isQuit(quit) {
+			t.Fatalf("%s: switched attach quit with Stay set", tc.name)
+		}
+		m = next.(Model)
+		if !strings.Contains(screenText(m), tc.hint) {
+			t.Fatalf("%s: want hint %q:\n%s", tc.name, tc.hint, screenText(m))
+		}
+		if cmds := f.rec.commands(); cmds[len(cmds)-2] != "switch-client" || cmds[len(cmds)-1] != "list-keys" {
+			t.Fatalf("%s: tmux calls = %v", tc.name, cmds)
+		}
+	}
+}

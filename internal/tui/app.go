@@ -37,6 +37,10 @@ type Options struct {
 	Warning string
 	// NoColor drops every color (NO_COLOR); bold and faint remain.
 	NoColor bool
+	// Stay keeps the TUI running after an attach moves the user's client
+	// to the agent (agentctl tui --stay: a dashboard in its own pane). By
+	// default the TUI quits then, which closes a popup.
+	Stay bool
 	// RunID is the ui_run_id actions are recorded under. Run sets it from
 	// Controller.UIOpened; it stays empty in tests that do not record.
 	RunID string
@@ -92,7 +96,7 @@ func New(ctx context.Context, opts Options) Model {
 	}
 	m := Model{
 		sh: &shared{
-			ctx: ctx, ctl: opts.Controller, keys: keys, runID: opts.RunID, cwd: opts.Cwd, binding: opts.Binding,
+			ctx: ctx, ctl: opts.Controller, keys: keys, runID: opts.RunID, cwd: opts.Cwd, binding: opts.Binding, stay: opts.Stay,
 		},
 		noColor: opts.NoColor, dark: true, st: newStyles(true, opts.NoColor),
 		width: 80, height: 24,
@@ -300,6 +304,14 @@ func (m Model) applyAttach(a attachMsg) (tea.Model, tea.Cmd) {
 	switch {
 	case a.err != nil:
 		m.flash = flashMsg{text: controller.OneLine(a.err.Error()), isErr: true}
+		return m, nil
+	case a.res.Switched && m.sh.stay:
+		// a dashboard pane stays up; the hint is there when the user comes back
+		back := "tmux switch-client -l"
+		if a.returnKey != "" {
+			back = "prefix " + a.returnKey
+		}
+		m.flash = flashMsg{text: "switched to " + a.res.TaskID + " · " + back + " returns here"}
 		return m, nil
 	case a.res.Switched:
 		return m, tea.Quit // the user's client is on the agent now; a popup closes

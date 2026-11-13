@@ -15,20 +15,23 @@ import (
 // popup or terminal closed) ends only this process: agents live in their tmux
 // sessions (invariant 2). A registry that cannot be opened is shown as a
 // banner rather than a crash; the command then exits 1 with the same line.
+// --stay keeps the TUI running after an attach moves the user's client to
+// an agent, so it can live in its own pane as a dashboard.
 func cmdTUI(ctx context.Context, sys *system, args []string) int {
 	fs := newFlagSet(sys, "tui")
+	stay := fs.Bool("stay", false, "keep running after attaching to an agent (for a dashboard pane)")
 	pos, err := parseInterspersed(fs, args)
 	if err != nil {
 		return flagExit(err)
 	}
 	if len(pos) != 0 {
-		return sys.usageError("tui", "usage: agentctl [tui]")
+		return sys.usageError("tui", "usage: agentctl [tui] [--stay]")
 	}
 	ctx, stop := signal.NotifyContext(ctx, syscall.SIGHUP)
 	defer stop()
 
 	opts := tui.Options{
-		Cwd: sys.cwd, NoColor: sys.getenv("NO_COLOR") != "",
+		Cwd: sys.cwd, NoColor: sys.getenv("NO_COLOR") != "", Stay: *stay,
 		Input: sys.stdin, Output: sys.stdout, Environ: sys.environ,
 	}
 	if binding, err := controller.TmuxBinding(sys.executable); err == nil {

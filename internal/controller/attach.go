@@ -82,6 +82,17 @@ func (c *Controller) Attach(ctx context.Context, taskID string) (AttachResult, e
 	return res, nil
 }
 
+// ReturnKey is the user's tmux prefix key for `switch-client -l` (back to the
+// last session) on the server agentctl runs inside ($TMUX), "" if there is
+// none or agentctl is not inside tmux. A --stay TUI names it after a switch.
+func (c *Controller) ReturnKey(ctx context.Context) (string, error) {
+	socket := tmux.SocketFromTMUX(c.Getenv("TMUX"))
+	if socket == "" {
+		return "", nil
+	}
+	return c.tmuxClient(socket).ReturnKey(ctx)
+}
+
 // attachableSession loads the task's newest session and refuses, before any
 // tmux call, the cases where stored state already rules an attach out.
 func (c *Controller) attachableSession(ctx context.Context, taskID string) (store.Session, error) {

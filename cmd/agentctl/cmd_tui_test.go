@@ -34,7 +34,7 @@ func TestTmuxBindingLine(t *testing.T) {
 func TestTUIUsage(t *testing.T) {
 	t.Parallel()
 	env := testenv.NewEnv(t)
-	if r := runCmd(t, env, t.TempDir(), "tui", "extra"); r.code != 2 || !strings.Contains(r.stderr, "usage: agentctl [tui]") {
+	if r := runCmd(t, env, t.TempDir(), "tui", "extra"); r.code != 2 || !strings.Contains(r.stderr, "usage: agentctl [tui] [--stay]") {
 		t.Fatalf("tui extra = %+v", r)
 	}
 }
