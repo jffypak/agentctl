@@ -182,7 +182,7 @@ func TestDetailShowsEveryField(t *testing.T) {
 		"worktree   /src/repo-worktrees/auth-tests",
 		"branch     jpark/auth-tests",
 		"base       main @ 1a2b3c4",
-		"tmux       agentctl-auth-tests · $1 %1 · pane pid 4000",
+		"tmux       jpark-auth-tests · $1 %1 · pane pid 4000",
 		"socket     /tmp/tmux-501/default",
 		"↵ attach",
 	} {
@@ -353,7 +353,7 @@ func TestAttachFromDetail(t *testing.T) {
 	}
 
 	// same server: switch-client to the pane, record ui.action{attach}, quit
-	f.rec.panes = []tmux.Pane{{SessionID: "$1", PaneID: "%1", PanePID: 4000, SessionName: "agentctl-auth-tests"}}
+	f.rec.panes = []tmux.Pane{{SessionID: "$1", PaneID: "%1", PanePID: 4000, SessionName: "jpark-auth-tests"}}
 	inside := openController(t, f.env.With("TMUX=/tmp/tmux-501/default,100,0"), f.rec)
 	run1, err := inside.UIOpened(context.Background())
 	if err != nil {
@@ -523,7 +523,7 @@ func TestSwitchedAttachStays(t *testing.T) {
 	} {
 		f := newFixture(t)
 		f.seed(t, everyState)
-		f.rec.panes = []tmux.Pane{{SessionID: "$1", PaneID: "%1", PanePID: 4000, SessionName: "agentctl-auth-tests"}}
+		f.rec.panes = []tmux.Pane{{SessionID: "$1", PaneID: "%1", PanePID: 4000, SessionName: "jpark-auth-tests"}}
 		f.rec.keys = tc.keys
 		inside := openController(t, f.env.With("TMUX=/tmp/tmux-501/default,100,0"), f.rec)
 		m := New(context.Background(), Options{Controller: inside, Cwd: f.repo.Root, Stay: true})

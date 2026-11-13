@@ -11,7 +11,7 @@
  [38;5;245mworktree   [m/src/repo-worktrees/auth-tests
  [38;5;245mbranch     [mjpark/auth-tests
  [38;5;245mbase       [mmain @ 1a2b3c4
- [38;5;245mtmux       [magentctl-auth-tests · $1 %1 · pane pid 4000
+ [38;5;245mtmux       [mjpark-auth-tests · $1 %1 · pane pid 4000
  [38;5;245msocket     [m[38;5;245m/tmp/tmux-501/default[m
  [38;5;245mdiff       [m[38;5;245mloading…[m
  [38;5;245moutput     [m[38;5;245mloading…[m

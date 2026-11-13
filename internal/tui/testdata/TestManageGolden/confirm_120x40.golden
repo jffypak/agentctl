@@ -5,7 +5,7 @@
    hides it from the list (/closed shows it again); nothing is deleted
    keeps worktree /src/repo-worktrees/auth-tests
    keeps branch jpark/auth-tests
-   the agent keeps running in tmux session agentctl-auth-tests
+   the agent keeps running in tmux session jpark-auth-tests
 
  [38;5;245mx close and stop… kills the agent's tmux session (asks again)[m
 

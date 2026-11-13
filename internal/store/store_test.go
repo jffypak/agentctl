@@ -66,7 +66,7 @@ func seedSession(t *testing.T, st *Store, taskID string, state domain.AgentState
 	sess, err := st.Sessions().Create(context.Background(), NewSession{
 		TaskID: taskID, AgentType: "claude", Origin: domain.OriginLaunched,
 		Identity:    domain.Identity{Socket: "/tmp/tmux-1/default", ServerPID: 10, SessionID: "$1", PaneID: "%1", PanePID: 20},
-		SessionName: "agentctl-" + taskID,
+		SessionName: "jpark-" + taskID,
 		State:       state, Confidence: domain.ConfidenceNone,
 	})
 	if err != nil {

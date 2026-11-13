@@ -62,7 +62,7 @@ func TestNewTaskCodexUsesCodexArgv(t *testing.T) {
 		t.Fatalf("codex argv = %q\nwant %q", got, want)
 	}
 	s := piSession(t, ctl, "cx")
-	if s.AgentType != codex.Name || s.Origin != domain.OriginLaunched || s.State != domain.StateStarting || res.SessionName != "agentctl-cx" {
+	if s.AgentType != codex.Name || s.Origin != domain.OriginLaunched || s.State != domain.StateStarting || res.SessionName != "jpark-cx" {
 		t.Fatalf("session = %+v", s)
 	}
 	if ev := piEvents(t, ctl, "cx", domain.EventSessionStarted); len(ev) != 1 || ev[0]["agent_type"] != "codex" {

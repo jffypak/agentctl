@@ -204,7 +204,7 @@ func TestNewThenLsTextAndJSON(t *testing.T) {
 			t.Errorf("session JSON missing %q", key)
 		}
 	}
-	if sess["tmux_socket"] != f.srv.Socket || sess["tmux_session_name"] != "agentctl-demo" {
+	if sess["tmux_socket"] != f.srv.Socket || sess["tmux_session_name"] != "jpark-demo" {
 		t.Fatalf("session = %v", sess)
 	}
 }
@@ -290,7 +290,7 @@ func TestNewIgnoresCallerTMUXWhenSocketIsExplicit(t *testing.T) {
 	}
 	found := false
 	for _, p := range f.srv.Snapshot(t).Panes {
-		found = found || p.SessionName == "agentctl-demo"
+		found = found || p.SessionName == "jpark-demo"
 	}
 	if !found {
 		t.Fatal("session not on the isolated server")

@@ -86,7 +86,7 @@ func LaunchArgv(prefix []string, agentctlPath, goal string) ([]string, error) {
 	return argv, nil
 }
 
-// Start creates detached session agentctl-<task> in the worktree running
+// Start creates detached session jpark-<task> in the worktree running
 // `<codex cmd> <hook flags> <goal>` with AGENTCTL_TASK_ID and AGENTCTL_HOME
 // exported and remain-on-exit on, in one tmux invocation (like claude.Start).
 func (a *Adapter) Start(ctx context.Context, spec adapter.LaunchSpec) (adapter.Handle, error) {

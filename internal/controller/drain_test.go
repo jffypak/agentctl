@@ -51,7 +51,7 @@ func newPQRig(t *testing.T, tun Tunables, fakeEnv ...string) *pqRig {
 	log := filepath.Join(dir, "input.jsonl")
 	argv := append([]string{"/usr/bin/env", "FAKEAGENT_LOG=" + log, "FAKEAGENT_WORK_MS=50"}, fakeEnv...)
 	argv = append(argv, fake, "--settings", settings)
-	created, err := srv.Client().NewSession(context.Background(), tmux.NewSessionSpec{Name: "agentctl-demo", Dir: repo.Root, Argv: argv})
+	created, err := srv.Client().NewSession(context.Background(), tmux.NewSessionSpec{Name: "jpark-demo", Dir: repo.Root, Argv: argv})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +74,7 @@ func newPQRig(t *testing.T, tun Tunables, fakeEnv ...string) *pqRig {
 		t.Fatal(err)
 	}
 	r.sess, err = ctl.store.Sessions().Create(ctx, store.NewSession{
-		TaskID: "demo", AgentType: "claude", Origin: domain.OriginLaunched, SessionName: "agentctl-demo",
+		TaskID: "demo", AgentType: "claude", Origin: domain.OriginLaunched, SessionName: "jpark-demo",
 		Identity: domain.Identity{Socket: srv.Socket, ServerPID: created.ServerPID, SessionID: created.SessionID, PaneID: created.PaneID, PanePID: created.PanePID},
 		State:    domain.StateStarting, Confidence: domain.ConfidenceNone,
 	})

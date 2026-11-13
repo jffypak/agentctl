@@ -93,7 +93,7 @@ func TestAdoptCandidatesExcludeRegisteredPanesByIdentity(t *testing.T) {
 		t.Fatalf("--all = %+v %v, want work + editor (still never the registered demo pane)", all, err)
 	}
 	for _, p := range all.Panes {
-		if p.SessionName == "agentctl-demo" {
+		if p.SessionName == "jpark-demo" {
 			t.Fatal("registered pane listed")
 		}
 	}
@@ -250,7 +250,7 @@ func TestAdoptAfterRestartTreatsReusedPaneAsNew(t *testing.T) {
 	ctx := context.Background()
 	old := piSession(t, f.ctl, "demo")
 	f.srv.Restart(t)
-	reused := f.userPane(t, "agentctl-demo", f.repo.Root, "/bin/sleep", "600")
+	reused := f.userPane(t, "jpark-demo", f.repo.Root, "/bin/sleep", "600")
 	if reused.PaneID != old.Identity.PaneID {
 		t.Fatalf("expected %%N reuse, got %s vs %s", reused.PaneID, old.Identity.PaneID)
 	}

@@ -575,7 +575,7 @@ func TestCloseConfirmDefaultsToNo(t *testing.T) {
 
 	// y closes; the agent keeps running; ui.action{close}
 	c := open()
-	if txt := screenText(c); !strings.Contains(txt, "x close and stop…") || !strings.Contains(txt, "the agent keeps running in tmux session agentctl-auth-tests") {
+	if txt := screenText(c); !strings.Contains(txt, "x close and stop…") || !strings.Contains(txt, "the agent keeps running in tmux session jpark-auth-tests") {
 		t.Fatalf("confirm:\n%s", txt)
 	}
 	c = pressRun(t, c, "y")
@@ -598,7 +598,7 @@ func TestCloseAndStopNeedsASecondConfirmation(t *testing.T) {
 	m := pressRun(t, f.managed(t, 120, 40, Options{}), "x")
 	m = press(t, m, "x")
 	if txt := screenText(m); !strings.Contains(txt, "stop and close auth-tests? y/N") ||
-		!strings.Contains(txt, "kills tmux session agentctl-auth-tests") {
+		!strings.Contains(txt, "kills tmux session jpark-auth-tests") {
 		t.Fatalf("second confirmation:\n%s", txt)
 	}
 	for _, k := range []string{"enter", "x", "esc", "n"} {

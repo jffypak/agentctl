@@ -180,7 +180,7 @@ func TestReconcileServerRestartReusedPaneIsIdentityMismatch(t *testing.T) {
 	demo := piNewTask(t, f.ctl, f.repo, "demo")
 	f.srv.Restart(t)
 	// Same session name, same $N and %N, new server pid and pane pid.
-	intruder, err := f.srv.Client().NewSession(ctx, tmux.NewSessionSpec{Name: "agentctl-demo", Dir: f.repo.Root, Argv: []string{"/bin/sleep", "600"}})
+	intruder, err := f.srv.Client().NewSession(ctx, tmux.NewSessionSpec{Name: "jpark-demo", Dir: f.repo.Root, Argv: []string{"/bin/sleep", "600"}})
 	if err != nil {
 		t.Fatal(err)
 	}

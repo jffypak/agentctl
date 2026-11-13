@@ -13,7 +13,7 @@ import (
 )
 
 // Start ensures the hook settings file exists (EnsureSettings, settings.go),
-// then creates detached session agentctl-<task> in the worktree running
+// then creates detached session jpark-<task> in the worktree running
 // `<agent cmd> --settings <file> <goal>` with AGENTCTL_TASK_ID and
 // AGENTCTL_HOME exported and remain-on-exit on, all in one tmux invocation.
 // The returned identity comes from that same invocation.

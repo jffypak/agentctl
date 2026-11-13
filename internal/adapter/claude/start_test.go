@@ -27,7 +27,7 @@ func TestLaunchArgvAndNames(t *testing.T) {
 	if len(prefix) != 3 {
 		t.Fatal("LaunchArgv mutated its prefix")
 	}
-	if claude.SessionName("demo") != "agentctl-demo" || claude.SettingsPath("/h") != "/h/hooks/claude-settings.json" {
+	if claude.SessionName("demo") != "jpark-demo" || claude.SettingsPath("/h") != "/h/hooks/claude-settings.json" {
 		t.Fatal("names")
 	}
 	if claude.New(claude.Config{}).Name() != "claude" {
@@ -50,7 +50,7 @@ func TestStartLaunchesInWorktreeWithIdentity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if h.SessionName != "agentctl-demo" || h.Identity.Socket != srv.Socket || h.Identity.ServerPID != srv.PID(t) {
+	if h.SessionName != "jpark-demo" || h.Identity.Socket != srv.Socket || h.Identity.ServerPID != srv.PID(t) {
 		t.Fatalf("handle = %+v", h)
 	}
 	p, ok := srv.Snapshot(t).Find(h.Identity.PaneID)

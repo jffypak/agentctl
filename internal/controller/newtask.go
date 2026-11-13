@@ -48,7 +48,7 @@ type NewTaskResult struct {
 }
 
 // NewTask creates a worktree on jpark/<name> from the cwd's HEAD and
-// launches the agent in tmux session agentctl-<name>.
+// launches the agent in tmux session jpark-<name>.
 //
 // Every check that can fail runs before anything is written, so the listed
 // errors leave no partial row. The task row is then reserved (the

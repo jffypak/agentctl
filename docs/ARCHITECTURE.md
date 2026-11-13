@@ -51,7 +51,7 @@ path instead of jumping into panes.
 
 - **Happy path (new task):** `prefix a` opens the popup (`display-popup -E agentctl`).
   `n` asks for name + goal. agentctl creates worktree `../<repo>-worktrees/<task>`
-  on branch `jpark/<task>`, starts tmux session `agentctl-<task>` running
+  on branch `jpark/<task>`, starts tmux session `jpark-<task>` running
   `claude --settings <hooks.json> "<goal>"`, and the agent shows as `starting`.
   The user presses `q` and goes back to work.
 - **Happy path (check in):** reopen the popup. NEEDS YOU lists
@@ -189,7 +189,7 @@ type AgentAdapter interface {
 Adapters report observations. They never mark tasks verified (Phase 2) or approved.
 
 **Launch.** `tmux new-session -d -P -F '#{session_id} #{pane_id} #{pane_pid}'
--s agentctl-<task> -c <worktree> -e AGENTCTL_TASK_ID=<task> -e AGENTCTL_HOME=<home>
+-s jpark-<task> -c <worktree> -e AGENTCTL_TASK_ID=<task> -e AGENTCTL_HOME=<home>
 -- claude --settings <home>/hooks/claude-settings.json "<goal>"`, then
 `set-option -t <session> remain-on-exit on`. That keeps a crashed agent's pane
 around so its exit status and final output can be read (state `failed`). Both

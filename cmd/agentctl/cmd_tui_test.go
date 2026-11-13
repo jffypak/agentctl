@@ -131,7 +131,7 @@ func TestTUIQuitLeavesAgentsAlive(t *testing.T) {
 			out, _ := f.srv.TryRun("capture-pane", "-p", "-S", "-200", "-t", p.target)
 			t.Errorf("%s: TUI exit status %s, want 0; pane:\n%s", quit, status, out)
 		}
-		for _, agent := range []string{"agentctl-one", "agentctl-two"} {
+		for _, agent := range []string{"jpark-one", "jpark-two"} {
 			if _, err := f.srv.TryRun("has-session", "-t", "="+agent); err != nil {
 				t.Fatalf("after %s: %s is gone: %v", quit, agent, err)
 			}

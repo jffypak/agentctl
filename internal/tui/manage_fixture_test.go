@@ -198,7 +198,7 @@ func (f *manageFixture) seedPanes(specs []seedSpec) {
 			continue
 		}
 		f.tm.add(fakePane{Pane: tmux.Pane{SessionID: fmt.Sprintf("$%d", i+1), PaneID: fmt.Sprintf("%%%d", i+1),
-			PanePID: 4000 + i, SessionName: "agentctl-" + s.id, CurrentCommand: "claude", CurrentPath: "/w"}})
+			PanePID: 4000 + i, SessionName: "jpark-" + s.id, CurrentCommand: "claude", CurrentPath: "/w"}})
 	}
 }
 

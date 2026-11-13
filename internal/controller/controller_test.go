@@ -76,7 +76,7 @@ func eventTypes(t *testing.T, c *Controller, task string) []string {
 }
 
 // TestNewTaskLaunchesWorktreeAndSession is the walking-skeleton integration
-// acceptance: worktree on jpark/demo from HEAD, session agentctl-demo with
+// acceptance: worktree on jpark/demo from HEAD, session jpark-demo with
 // cwd in the worktree, env vars present, remain-on-exit on, stored identity
 // equal to list-panes/display-message, state starting, events task.created +
 // session.started.
@@ -106,7 +106,7 @@ func TestNewTaskLaunchesWorktreeAndSession(t *testing.T) {
 		t.Fatal(err)
 	}
 	if sess.State != domain.StateStarting || sess.Confidence != domain.ConfidenceNone || sess.Origin != domain.OriginLaunched ||
-		sess.AgentType != "claude" || sess.SessionName != "agentctl-demo" {
+		sess.AgentType != "claude" || sess.SessionName != "jpark-demo" {
 		t.Fatalf("session = %+v", sess)
 	}
 	snap := f.srv.Snapshot(t)
@@ -115,7 +115,7 @@ func TestNewTaskLaunchesWorktreeAndSession(t *testing.T) {
 		t.Fatalf("stored pane %s not in list-panes %+v", sess.Identity.PaneID, snap.Panes)
 	}
 	if sess.Identity.Socket != f.srv.Socket || sess.Identity.ServerPID != snap.ServerPID ||
-		sess.Identity.SessionID != pane.SessionID || sess.Identity.PanePID != pane.PanePID || pane.SessionName != "agentctl-demo" {
+		sess.Identity.SessionID != pane.SessionID || sess.Identity.PanePID != pane.PanePID || pane.SessionName != "jpark-demo" {
 		t.Fatalf("stored identity %+v != list-panes %+v (server %d, socket %s)", sess.Identity, pane, snap.ServerPID, f.srv.Socket)
 	}
 	disp := f.srv.Run(t, "display-message", "-p", "-t", sess.Identity.PaneID, "#{pid} #{session_id} #{pane_id} #{pane_pid} #{socket_path}")
@@ -279,12 +279,12 @@ func TestNewTaskConcurrentSameNameExactlyOneWins(t *testing.T) {
 	}
 	n := 0
 	for _, p := range f.srv.Snapshot(t).Panes {
-		if p.SessionName == "agentctl-x" {
+		if p.SessionName == "jpark-x" {
 			n++
 		}
 	}
 	if n != 1 {
-		t.Fatalf("agentctl-x panes = %d, want 1", n)
+		t.Fatalf("jpark-x panes = %d, want 1", n)
 	}
 }
 

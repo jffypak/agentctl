@@ -52,7 +52,7 @@ func TestCloseHidesTaskKeepsSessionWorktreeBranch(t *testing.T) {
 	wt := filepath.Join(f.repo.WorktreesDir(), "demo")
 
 	r := runCmd(t, f.env, f.repo.Root, "close", "demo")
-	want := "closed demo · tmux session agentctl-demo untouched · worktree kept at " + wt + " · branch jpark/demo kept\n"
+	want := "closed demo · tmux session jpark-demo untouched · worktree kept at " + wt + " · branch jpark/demo kept\n"
 	if r.code != 0 || r.stdout != want || r.stderr != "" {
 		t.Fatalf("close = %+v\nwant %q", r, want)
 	}
@@ -100,7 +100,7 @@ func TestCloseStopRequiresConfirmationOrYes(t *testing.T) {
 	demo, quick := piPane(t, f, "demo"), piPane(t, f, "quick")
 	for _, answer := range []string{"", "\n", "n\n", "no\n", "yes please\n"} {
 		r := piRun(t, f.env, f.repo.Root, answer, "close", "demo", "--stop")
-		if r.code != 1 || r.stdout != "" || !strings.Contains(r.stderr, "Stop tmux session agentctl-demo ("+demo["tmux_pane_id"].(string)+") and close demo? The worktree and branch are kept. [y/N] ") ||
+		if r.code != 1 || r.stdout != "" || !strings.Contains(r.stderr, "Stop tmux session jpark-demo ("+demo["tmux_pane_id"].(string)+") and close demo? The worktree and branch are kept. [y/N] ") ||
 			!strings.HasSuffix(r.stderr, "agentctl: close --stop aborted; nothing changed\n") {
 			t.Fatalf("answer %q: %+v", answer, r)
 		}
@@ -112,7 +112,7 @@ func TestCloseStopRequiresConfirmationOrYes(t *testing.T) {
 		}
 	}
 	r := piRun(t, f.env, f.repo.Root, "y\n", "close", "demo", "--stop")
-	if r.code != 0 || !strings.HasPrefix(r.stdout, "stopped tmux session agentctl-demo and closed demo · worktree kept at ") {
+	if r.code != 0 || !strings.HasPrefix(r.stdout, "stopped tmux session jpark-demo and closed demo · worktree kept at ") {
 		t.Fatalf("confirmed = %+v", r)
 	}
 	if _, ok := f.srv.Snapshot(t).Find(demo["tmux_pane_id"].(string)); ok {
@@ -123,7 +123,7 @@ func TestCloseStopRequiresConfirmationOrYes(t *testing.T) {
 	}
 
 	r = piRun(t, f.env, f.repo.Root, "", "close", "quick", "--stop", "--yes")
-	if r.code != 0 || r.stderr != "" || !strings.HasPrefix(r.stdout, "stopped tmux session agentctl-quick and closed quick") {
+	if r.code != 0 || r.stderr != "" || !strings.HasPrefix(r.stdout, "stopped tmux session jpark-quick and closed quick") {
 		t.Fatalf("--yes = %+v", r)
 	}
 	if _, ok := f.srv.Snapshot(t).Find(quick["tmux_pane_id"].(string)); ok {
@@ -157,7 +157,7 @@ func TestCloseStopRefusesAdoptedAndMismatchedSessions(t *testing.T) {
 
 	// server restart: demo's $N/%N now belong to an intruder with the same name
 	f.srv.Restart(t)
-	intruder, err := f.srv.Client().NewSession(ctx, tmux.NewSessionSpec{Name: "agentctl-demo", Dir: f.repo.Root, Argv: []string{"/bin/sleep", "600"}})
+	intruder, err := f.srv.Client().NewSession(ctx, tmux.NewSessionSpec{Name: "jpark-demo", Dir: f.repo.Root, Argv: []string{"/bin/sleep", "600"}})
 	if err != nil {
 		t.Fatal(err)
 	}

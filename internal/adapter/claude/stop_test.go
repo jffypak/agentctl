@@ -53,9 +53,9 @@ func TestStopRefusesAReusedPaneAfterServerRestart(t *testing.T) {
 	env := testenv.NewEnv(t)
 	srv := testenv.NewTmuxServer(t, env)
 	a := claude.New(claude.Config{Runner: srv.Runner()})
-	stale := paneHandle(t, srv, "agentctl-demo", "/bin/sleep", "600")
+	stale := paneHandle(t, srv, "jpark-demo", "/bin/sleep", "600")
 	srv.Restart(t)
-	intruder := paneHandle(t, srv, "agentctl-demo", "/bin/sleep", "600")
+	intruder := paneHandle(t, srv, "jpark-demo", "/bin/sleep", "600")
 	if intruder.Identity.PaneID != stale.Identity.PaneID {
 		t.Fatalf("expected %%N reuse: %s vs %s", intruder.Identity.PaneID, stale.Identity.PaneID)
 	}
@@ -72,7 +72,7 @@ func TestStopRefusesWhenTheProbeFails(t *testing.T) {
 	t.Parallel()
 	env := testenv.NewEnv(t)
 	srv := testenv.NewTmuxServer(t, env)
-	h := paneHandle(t, srv, "agentctl-demo", "/bin/sleep", "600")
+	h := paneHandle(t, srv, "jpark-demo", "/bin/sleep", "600")
 	broken := claude.New(claude.Config{Runner: brokenRunner{}})
 	if err := broken.Stop(context.Background(), h); !errors.Is(err, claude.ErrStopRefused) {
 		t.Fatalf("Stop with a failing probe = %v, want ErrStopRefused", err)

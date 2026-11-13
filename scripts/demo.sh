@@ -204,15 +204,15 @@ settled() {
 	s=$(state_of "$1")
 	if [[ ${s} == awaiting_input && ${DEMO_AGENT} == claude && ${hinted} != *" $1:${s} "* ]]; then
 		hinted+=" $1:${s} "
-		log "$1 is waiting for you (permission prompt?): tmux -L ${DEMO_SOCKET} attach -t agentctl-$1, answer it, then detach (prefix d)"
+		log "$1 is waiting for you (permission prompt?): tmux -L ${DEMO_SOCKET} attach -t jpark-$1, answer it, then detach (prefix d)"
 	fi
 	if [[ ${s} == unknown && ${DEMO_AGENT} == claude && ${hinted} != *" $1:${s} "* ]]; then
 		hinted+=" $1:${s} "
 		if [[ $(show_field "$1" detail) == "folder trust: attach to answer" ]]; then
 			# agentctl spots the dialog within one poll and never answers it
-			log "$1 is on Claude's folder-trust dialog: tmux -L ${DEMO_SOCKET} attach -t agentctl-$1, choose \"Yes, I trust this folder\", then detach (prefix d)"
+			log "$1 is on Claude's folder-trust dialog: tmux -L ${DEMO_SOCKET} attach -t jpark-$1, choose \"Yes, I trust this folder\", then detach (prefix d)"
 		else
-			log "$1 is unknown (no hook within 30s): login dialog? tmux -L ${DEMO_SOCKET} attach -t agentctl-$1"
+			log "$1 is unknown (no hook within 30s): login dialog? tmux -L ${DEMO_SOCKET} attach -t jpark-$1"
 		fi
 	fi
 	[[ ${s} == ready ]]
@@ -320,7 +320,7 @@ fi
 # ---- 6. findings (before close: the panes are still there) ------------------------
 log "6. findings"
 for a in alpha beta; do
-	cmd=$(tm display-message -p -t "=agentctl-${a}:" '#{pane_current_command}' 2>/dev/null || echo "?")
+	cmd=$(tm display-message -p -t "=jpark-${a}:" '#{pane_current_command}' 2>/dev/null || echo "?")
 	printf 'pane_current_command %s: %s\n' "${a}" "${cmd}"
 	if [[ ${DEMO_AGENT} == claude && ${cmd} != claude ]]; then
 		finding "pane_current_command of a claude pane is '${cmd}', not 'claude' (adopt picker: AGENTCTL_ADOPT_COMMANDS)"
@@ -357,7 +357,7 @@ if [[ ${DEMO_PAUSE} == 1 ]]; then
 Manual checks (the agents are still running):
   tmux -L ${DEMO_SOCKET} attach -t demo-shell
   1. popup: press prefix a (the agentctl binding is installed on this server);
-     select beta, enter, enter. Do you land on agentctl-beta's pane when the
+     select beta, enter, enter. Do you land on jpark-beta's pane when the
      popup closes? (open question: switch-client from display-popup)
   2. hooks: did your own ~/.claude or project hooks still run next to the
      --settings ones? (open question: --settings merge)
@@ -372,10 +372,10 @@ fi
 log "7. close alpha --stop, close beta"
 ac close alpha --stop --yes
 ac close beta
-if tm has-session -t "=agentctl-alpha" 2>/dev/null; then
+if tm has-session -t "=jpark-alpha" 2>/dev/null; then
 	check_failed "close --stop left alpha's session running"
 fi
-if ! tm has-session -t "=agentctl-beta" 2>/dev/null; then
+if ! tm has-session -t "=jpark-beta" 2>/dev/null; then
 	check_failed "a plain close stopped beta's agent"
 fi
 for wt in "${wt_alpha}" "${wt_beta}"; do

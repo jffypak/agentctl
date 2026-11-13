@@ -104,7 +104,7 @@ func TestAdoptListThenAdoptByPaneID(t *testing.T) {
 	if len(row) != 4 || row[0] != work.PaneID || row[1] != "work:0" || row[2] != "sleep" || row[3] != sub {
 		t.Fatalf("candidate row %q", lines[3])
 	}
-	if strings.Count(r.stdout, "%") != 2 || strings.Contains(r.stdout, "agentctl-demo") {
+	if strings.Count(r.stdout, "%") != 2 || strings.Contains(r.stdout, "jpark-demo") {
 		t.Fatalf("registered pane listed or extra rows:\n%s", r.stdout)
 	}
 	if !strings.Contains(r.stdout, "adopt one with: agentctl adopt "+work.PaneID+" --name <name>") {

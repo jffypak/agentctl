@@ -31,7 +31,7 @@ func TestStayDashboard(t *testing.T) {
 		ui.Keys(t, "Enter")
 		ui.WaitText(t, name+"  IDLE · ready", "↵ attach")
 		ui.Keys(t, "Enter")
-		want := "agentctl-" + name
+		want := "jpark-" + name
 		testenv.WaitFor(t, stateWait, "the client on "+want, func() (bool, string) {
 			got := client.Session(t)
 			return got == want, got

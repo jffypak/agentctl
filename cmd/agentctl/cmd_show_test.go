@@ -72,7 +72,7 @@ func TestShowPrintsStateBlockAndLast40Lines(t *testing.T) {
 		"state      starting · confidence none",
 		"branch     jpark/demo · base main @ ",
 		"worktree   " + wt,
-		"session    #1 claude · launched · tmux agentctl-demo",
+		"session    #1 claude · launched · tmux jpark-demo",
 		"identity   socket " + f.srv.Socket + " · server pid ",
 		" · pane %0 · pane pid ",
 		"pane       alive",

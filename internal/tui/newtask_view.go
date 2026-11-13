@@ -16,7 +16,7 @@ import (
 // newTaskView is key n: a name + goal form. The name is checked as it is
 // typed (domain.ValidateSlug). Submitting runs controller.NewTask in a
 // tea.Cmd with Cwd sh.cwd (worktree ../<repo>-worktrees/<name>, branch
-// jpark/<name>, agent in tmux session agentctl-<name>); keys are ignored
+// jpark/<name>, agent in tmux session jpark-<name>); keys are ignored
 // until it answers. Every refusal (branch exists, not a repo, agent missing,
 // …) is shown inline with both fields kept. On success the form closes and
 // the new row is selected (starting), and ui.action{new} is recorded.

@@ -205,7 +205,7 @@ func TestRandomKeysNeverPanic(t *testing.T) {
 	t.Parallel()
 	f := newFixture(t)
 	f.seed(t, everyState)
-	f.rec.panes = []tmux.Pane{{SessionID: "$1", PaneID: "%1", PanePID: 4000, SessionName: "agentctl-auth-tests"}}
+	f.rec.panes = []tmux.Pane{{SessionID: "$1", PaneID: "%1", PanePID: 4000, SessionName: "jpark-auth-tests"}}
 	keys := []string{"j", "k", "up", "down", "enter", "esc", "q", "/", "p", "d", "l", "n", "a", "x", "c", "f", "y",
 		"backspace", "space", "ctrl+u", "z", "1", "é", "界", "closed"}
 	for _, seed := range []uint64{1, 42} {

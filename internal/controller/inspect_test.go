@@ -403,7 +403,7 @@ func seedSession(t *testing.T, st *store.Store, repo *testenv.Repo, id domain.Id
 		t.Fatal(err)
 	}
 	if _, err := st.Sessions().Create(ctx, store.NewSession{TaskID: "demo", AgentType: "claude", Origin: domain.OriginLaunched,
-		Identity: id, SessionName: "agentctl-demo", State: domain.StateStarting, Confidence: domain.ConfidenceNone}); err != nil {
+		Identity: id, SessionName: "jpark-demo", State: domain.StateStarting, Confidence: domain.ConfidenceNone}); err != nil {
 		t.Fatal(err)
 	}
 }

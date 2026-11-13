@@ -71,7 +71,7 @@ func TestAC1_TwoAgentsSwitchFromTUI(t *testing.T) {
 		if st := ui.WaitExit(t); st != "0" {
 			t.Fatalf("switch %d: TUI exit status %s\n%s", i, st, ui.History())
 		}
-		want := "agentctl-" + name
+		want := "jpark-" + name
 		testenv.WaitFor(t, stateWait, "the client on "+want, func() (bool, string) {
 			got := client.Session(t)
 			return got == want, got

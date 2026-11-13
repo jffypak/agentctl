@@ -16,7 +16,7 @@ import (
 const Name = "claude"
 
 // SessionPrefix prefixes every launched tmux session name.
-const SessionPrefix = "agentctl-"
+const SessionPrefix = "jpark-"
 
 // Config wires the adapter's dependencies.
 type Config struct {

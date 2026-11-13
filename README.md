@@ -38,7 +38,7 @@ agentctl new auth-tests --goal "Write integration tests for the OAuth login flow
 
 This creates the worktree `../myrepo-worktrees/auth-tests` on the branch
 `jpark/auth-tests`. It starts `claude --settings <agentctl hooks> "<goal>"` in
-the tmux session `agentctl-auth-tests`, and the agent shows as `starting`. You
+the tmux session `jpark-auth-tests`, and the agent shows as `starting`. You
 can also press `n` in the popup to do this. The first time Claude Code opens a
 new worktree it asks whether you trust the folder, and no hooks fire until you
 answer. agentctl spots the dialog within one poll and lists the agent under
@@ -165,7 +165,7 @@ attach to start`.
 | `agent command "claude" not found on PATH` | Install Claude Code, or make `claude` reachable from the shell tmux starts. `AGENTCTL_AGENT_CMD='["/path/to/claude"]'` overrides the command. For Codex: install Codex CLI, or set `AGENTCTL_CODEX_CMD`. |
 | `branch jpark/<name> already exists` | Pick another task name, or delete the old branch yourself if you are done with it (agentctl never deletes branches). |
 | `worktree path … already exists` | Pick another task name, or move that directory out of `../<repo>-worktrees/`. |
-| `tmux session agentctl-<name> already exists` | Pick another name, or close that session. |
+| `tmux session jpark-<name> already exists` | Pick another name, or close that session. |
 | `task "<name>" already exists` | Names are unique per registry. `agentctl ls --closed` lists every task. |
 | `cannot open registry …` | The banner names the path. Check its permissions, or point `AGENTCTL_HOME` at a writable directory. |
 | `silent since launch · attach to check` with `folder trust: attach to answer` | Claude is showing its folder-trust dialog (each new worktree is a new path). agentctl never answers it: attach (`↵ ↵`), pick "Yes, I trust this folder" if you do, then detach. Prompts sent meanwhile stay queued. |

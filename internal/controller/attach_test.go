@@ -75,7 +75,7 @@ func atSeedSession(t *testing.T, ctl *Controller, id string, identity domain.Ide
 		t.Fatal(err)
 	}
 	s, err := ctl.store.Sessions().Create(ctx, store.NewSession{TaskID: id, AgentType: "claude", Origin: domain.OriginLaunched,
-		Identity: identity, SessionName: "agentctl-" + id, State: initial, Confidence: domain.ConfidenceNone})
+		Identity: identity, SessionName: "jpark-" + id, State: initial, Confidence: domain.ConfidenceNone})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -239,10 +239,10 @@ func TestAttachIntegrationControlMode(t *testing.T) {
 	if err != nil || !res.Switched {
 		t.Fatalf("Attach = %+v, %v", res, err)
 	}
-	if got := client.Session(t); got != "agentctl-demo" {
-		t.Fatalf("list-clients client_session = %q, want agentctl-demo", got)
+	if got := client.Session(t); got != "jpark-demo" {
+		t.Fatalf("list-clients client_session = %q, want jpark-demo", got)
 	}
-	if active := f.srv.Run(t, "display-message", "-p", "-t", "=agentctl-demo:", "#{pane_id}"); active != res.PaneID {
+	if active := f.srv.Run(t, "display-message", "-p", "-t", "=jpark-demo:", "#{pane_id}"); active != res.PaneID {
 		t.Fatalf("active pane = %s, want %s", active, res.PaneID)
 	}
 
@@ -281,6 +281,6 @@ func TestAttachIntegrationExecPath(t *testing.T) {
 	term.Run(t, args...)
 	testenv.WaitFor(t, 0, "attached client on the agent server", func() (bool, string) {
 		out, _ := f.srv.TryRun("list-clients", "-F", "#{client_session}")
-		return out == "agentctl-demo", out
+		return out == "jpark-demo", out
 	})
 }

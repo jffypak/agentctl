@@ -47,7 +47,7 @@ func TestREADMEQuickstartAndTroubleshooting(t *testing.T) {
 		"claude missing":   "agent command \"claude\" not found on PATH",
 		"branch exists":    "branch jpark/<name> already exists",
 		"worktree exists":  "worktree path … already exists",
-		"session exists":   "tmux session agentctl-<name> already exists",
+		"session exists":   "tmux session jpark-<name> already exists",
 		"no commits":       "has no commits yet",
 		"registry":         "cannot open registry",
 		"silent launch":    "silent since launch · attach to check",

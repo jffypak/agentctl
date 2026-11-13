@@ -53,7 +53,7 @@ func TestAC2_CloseTUIAgentsSurviveReopenRecovers(t *testing.T) {
 	ui.Select(t, "alpha")
 	ui.Keys(t, "Enter")
 	ui.WaitText(t, "alpha  IDLE · ready",
-		fmt.Sprintf("agentctl-alpha · %s %s · pane pid %d", a.Session.SessionID, a.Session.PaneID, a.Session.PanePID),
+		fmt.Sprintf("jpark-alpha · %s %s · pane pid %d", a.Session.SessionID, a.Session.PaneID, a.Session.PanePID),
 		"output     alive")
 
 	// the recovered mapping is live: a prompt from the reopened TUI lands in alpha

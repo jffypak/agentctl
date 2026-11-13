@@ -33,7 +33,7 @@ func TestCloseHidesTaskAndLeavesSessionWorktreeBranch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Stopped || res.TaskID != "demo" || res.Worktree != wt || res.Branch != "jpark/demo" || res.SessionName != "agentctl-demo" {
+	if res.Stopped || res.TaskID != "demo" || res.Worktree != wt || res.Branch != "jpark/demo" || res.SessionName != "jpark-demo" {
 		t.Fatalf("result = %+v", res)
 	}
 	if !piPaneAlive(t, f.srv, sess.Identity) {
@@ -195,7 +195,7 @@ func TestCloseStopRefusesIdentityMismatch(t *testing.T) {
 	ctx := context.Background()
 	sess := piNewTask(t, f.ctl, f.repo, "demo")
 	f.srv.Restart(t)
-	intruder, err := f.srv.Client().NewSession(ctx, tmux.NewSessionSpec{Name: "agentctl-demo", Dir: f.repo.Root, Argv: []string{"/bin/sleep", "600"}})
+	intruder, err := f.srv.Client().NewSession(ctx, tmux.NewSessionSpec{Name: "jpark-demo", Dir: f.repo.Root, Argv: []string{"/bin/sleep", "600"}})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -177,7 +177,7 @@ func (f *fixture) seed(t *testing.T, specs []seedSpec) {
 		}
 		sess, err := f.st.Sessions().Create(ctx, store.NewSession{TaskID: s.id, AgentType: "claude", Origin: s.origin,
 			Identity:    domain.Identity{Socket: "/tmp/tmux-501/default", ServerPID: 100, SessionID: fmt.Sprintf("$%d", i+1), PaneID: fmt.Sprintf("%%%d", i+1), PanePID: 4000 + i},
-			SessionName: "agentctl-" + s.id, State: initial, Confidence: domain.ConfidenceNone})
+			SessionName: "jpark-" + s.id, State: initial, Confidence: domain.ConfidenceNone})
 		if err != nil {
 			t.Fatal(err)
 		}
