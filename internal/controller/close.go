@@ -79,6 +79,11 @@ func (c *Controller) CloseTask(ctx context.Context, req CloseRequest) (CloseResu
 		if err != nil {
 			return CloseResult{ClosePlan: plan}, err
 		}
+		// a pane docked beside a dashboard sits in that dashboard's session;
+		// the kill's identity guard needs it back in its own
+		if err := c.undockPane(ctx, sess.Identity); err != nil {
+			return CloseResult{ClosePlan: plan}, userErr(ErrStopRefused, err, "refusing to stop %q: cannot move its pane back from the dashboard: %v; nothing was killed and the task is still open", plan.TaskID, err)
+		}
 		if err := agent.Stop(ctx, h); err != nil {
 			if errors.Is(err, claude.ErrStopRefused) {
 				return CloseResult{ClosePlan: plan}, userErr(ErrStopRefused, err, "refusing to stop %q: %v; nothing was killed and the task is still open", plan.TaskID, err)

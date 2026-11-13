@@ -110,5 +110,9 @@
         ]
       }
     ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "'/opt/agentctl/bin/agentctl' statusline"
   }
 }

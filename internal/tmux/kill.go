@@ -2,8 +2,10 @@ package tmux
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/jffypak/agentctl/internal/domain"
 )
@@ -50,4 +52,30 @@ func isTmuxID(s string, prefix byte) bool {
 	}
 	_, err := strconv.ParseUint(s[1:], 10, 32)
 	return err == nil && s[1] != '+'
+}
+
+// KillPlaceholderCommand removes a dock placeholder pane (dock.go). The
+// guard runs inside the server: only a pane with this exact id that carries
+// OptPlaceholder is killed, so an agent or a user pane is never removed.
+func KillPlaceholderCommand(pane string) ([]string, error) {
+	if !isTmuxID(pane, '%') {
+		return nil, fmt.Errorf("tmux: refusing to kill: malformed pane id %q", pane)
+	}
+	guard := fmt.Sprintf("#{&&:#{==:#{pane_id},%s},#{==:#{%s},1}}", pane, OptPlaceholder)
+	return []string{"if-shell", "-F", "-t", pane, guard, "kill-pane -t '" + pane + "'"}, nil
+}
+
+// KillPlaceholder removes the placeholder pane if, and only if, it still is
+// one. A missing pane is not an error.
+func (c Client) KillPlaceholder(ctx context.Context, pane string) error {
+	cmd, err := KillPlaceholderCommand(pane)
+	if err != nil {
+		return err
+	}
+	_, err = c.run(ctx, nil, cmd)
+	var te *Error
+	if errors.As(err, &te) && strings.HasPrefix(te.Stderr, "can't find pane") {
+		return nil
+	}
+	return err
 }

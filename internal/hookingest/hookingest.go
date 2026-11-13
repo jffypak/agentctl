@@ -328,7 +328,7 @@ func receivedPayload(obs adapter.HookObservation, how string) map[string]any {
 }
 
 // SettingsSnippet is what `agentctl hooks-snippet` prints: exactly the hook
-// settings `agentctl new` writes, for users to merge into their own Claude
+// settings `agentctl new` writes (without its status line), for users to merge into their own Claude
 // settings so adopted panes report state.
 func SettingsSnippet(agentctlPath string) ([]byte, error) {
 	return claude.SettingsJSON(agentctlPath)

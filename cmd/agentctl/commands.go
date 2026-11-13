@@ -19,7 +19,7 @@ type command struct {
 }
 
 var commands = []command{
-	{"tui", "tui [--stay]: open the attention-sorted TUI (same as bare agentctl)", cmdTUI},
+	{"tui", "tui [--stay] [--split]: open the attention-sorted TUI (same as bare agentctl)", cmdTUI},
 	{"new", "new <name> [--agent claude|codex] --goal <goal>: worktree + tmux session running the agent", cmdNew},
 	{"adopt", "adopt [%pane --name <name>]: register an existing agent pane", cmdAdopt},
 	{"ls", "ls [--json] [--closed]: list tasks by attention section", cmdLs},
@@ -28,6 +28,7 @@ var commands = []command{
 	{"send", "send <name> <message>: deliver or queue a prompt", cmdSend},
 	{"close", "close <name> [--stop]: hide a task (worktree and branch kept)", cmdClose},
 	{"hook", "hook: Claude Code hook entry point (reads stdin, prints nothing)", cmdHook},
+	{"statusline", "statusline: Claude Code status line that saves quota (reads stdin)", cmdStatusLine},
 	{"deliver", "deliver --session <id>: background delivery after a hook", cmdDeliver},
 	{"stats", "stats [--json]: time from popup open to first action", cmdStats},
 	{"codex", "codex [--name <name>] [codex args…]: run Codex here and track it", cmdCodex},

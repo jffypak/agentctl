@@ -110,6 +110,42 @@ session) to come back to the dashboard. The tmux default is `prefix L`.
 agentctl reads your key from tmux and shows it in the hint after each switch.
 Press `q` in the list to quit.
 
+To open agents next to the dashboard instead, in the same window, use
+`--split` (it includes `--stay`):
+
+```sh
+agentctl tui --split
+```
+
+`↵` on an agent moves the agent's pane into the dashboard's window, to the
+right of the list, and puts a placeholder pane in the agent's own session.
+When you open a different agent, the first one goes back to its session.
+When you quit with `q`, every agent goes back and the placeholder closes.
+The agent keeps its pane id, so prompts and `close --stop` still work while
+it sits next to the dashboard. Do not close the dashboard's whole window
+while an agent is open in it: tmux closes every pane in that window,
+including the agent's.
+
+### Quota
+
+When there is space under the list, agentctl shows how much of your 5-hour
+and weekly quota is left for Claude and Codex, and when each one resets:
+
+```
+ QUOTA   5h left           week left
+ claude  58%  in 2h10m     82%  in 3d4h
+ codex   15%  in 45m       84%  in 5d0h  as of 12m ago
+```
+
+Codex quota comes from Codex's newest session file
+(`$CODEX_HOME/sessions`, default `~/.codex/sessions`). Claude Code sends
+its quota only to a status line command, so every Claude session that
+agentctl starts uses `agentctl statusline` as its status line. That command
+saves the quota and then runs the status line in your own Claude settings,
+if you have one. Claude Code sends quota only on Pro, Max and Ultra plans,
+and only after the session's first reply. `as of …` shows when the numbers
+are more than 2 minutes old.
+
 ### Other commands
 
 `agentctl ls [--json] [--closed]` lists tasks by attention section.

@@ -45,6 +45,19 @@ func TestGolden(t *testing.T) {
 			m := f.model(t, w, h, Options{})
 			return run(t, m, preflightCmd(m.sh))
 		}},
+		{"quota", func(t *testing.T, w, h int) Model {
+			f := newFixture(t)
+			f.seed(t, everyState)
+			f.seedQuota(t)
+			m := f.model(t, w, h, Options{})
+			return run(t, m, quotaCmd(m.sh))
+		}},
+		{"quota_empty", func(t *testing.T, w, h int) Model {
+			f := newFixture(t)
+			f.seedQuota(t)
+			m := f.model(t, w, h, Options{})
+			return run(t, m, quotaCmd(m.sh))
+		}},
 		{"filter", func(t *testing.T, w, h int) Model {
 			f := newFixture(t)
 			f.seed(t, everyState)

@@ -35,6 +35,8 @@ type (
 		// returnKey: after a --stay switch, the user's tmux key for
 		// switch-client -l ("" if none or the lookup failed)
 		returnKey string
+		// docked: --split opened the agent beside the TUI (res is unset)
+		docked *controller.DockResult
 	}
 	// execDoneMsg: the interactive tmux attach returned (the user detached).
 	execDoneMsg struct{ err error }
@@ -104,6 +106,15 @@ func tick(d time.Duration, msg tea.Msg) tea.Cmd {
 // once the attach is going to happen (switched, or about to exec).
 func attachCmd(sh *shared, taskID string) tea.Cmd {
 	return func() tea.Msg {
+		if sh.split {
+			d, err := sh.ctl.Dock(sh.ctx, taskID)
+			switch {
+			case err == nil:
+				return recordAttach(sh, taskID, attachMsg{docked: &d})
+			case !errors.Is(err, controller.ErrDockUnavailable):
+				return attachMsg{err: err}
+			} // not in the agent's tmux server: attach as usual
+		}
 		res, err := sh.ctl.Attach(sh.ctx, taskID)
 		if err != nil {
 			return attachMsg{err: err}
@@ -112,11 +123,16 @@ func attachCmd(sh *shared, taskID string) tea.Cmd {
 		if res.Switched && sh.stay {
 			out.returnKey, _ = sh.ctl.ReturnKey(sh.ctx) // a failed lookup only loses the key from the hint
 		}
-		if sh.runID != "" {
-			if err := sh.ctl.UIAction(sh.ctx, sh.runID, controller.UIActionAttach, taskID); err != nil {
-				out.warn = "could not record ui.action: " + controller.OneLine(err.Error())
-			}
-		}
-		return out
+		return recordAttach(sh, taskID, out)
 	}
+}
+
+// recordAttach records ui.action{attach} for an attach that happened.
+func recordAttach(sh *shared, taskID string, out attachMsg) attachMsg {
+	if sh.runID != "" {
+		if err := sh.ctl.UIAction(sh.ctx, sh.runID, controller.UIActionAttach, taskID); err != nil {
+			out.warn = "could not record ui.action: " + controller.OneLine(err.Error())
+		}
+	}
+	return out
 }

@@ -129,12 +129,12 @@ func TestMoveKeysAndFilterOnNameGoalBranch(t *testing.T) {
 	}
 
 	filters := map[string][]string{
-		"pay":           {"payments"},   // name
-		"OAuth":         {"auth-tests"}, // goal, case-insensitive
-		"jpark/docs": {"docs-site"},  // branch
-		"tests oauth":   {"auth-tests"}, // every term must match
-		"zzz":           nil,            // no match
-		"docs":          {"api-docs", "docs-site"},
+		"pay":         {"payments"},   // name
+		"OAuth":       {"auth-tests"}, // goal, case-insensitive
+		"jpark/docs":  {"docs-site"},  // branch
+		"tests oauth": {"auth-tests"}, // every term must match
+		"zzz":         nil,            // no match
+		"docs":        {"api-docs", "docs-site"},
 	}
 	for q, want := range filters {
 		fm := press(t, f.model(t, 120, 40, Options{}), "/")

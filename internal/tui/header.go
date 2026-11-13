@@ -51,8 +51,10 @@ func (m Model) body(f frame) string {
 		return ""
 	case m.mode == modeDetail:
 		return m.detail.Body(f)
+	case !m.loaded:
+		return m.listBody(f)
 	}
-	return m.listBody(f)
+	return m.withQuota(f, m.listBody)
 }
 
 // headerLines: `agents / <repo> · N running · M need you` (exactly

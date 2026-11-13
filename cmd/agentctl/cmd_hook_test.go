@@ -43,8 +43,13 @@ func TestHooksSnippetMatchesGeneratedSettings(t *testing.T) {
 	if !reflect.DeepEqual(snippet["hooks"], generated["hooks"]) || snippet["hooks"] == nil {
 		t.Fatalf("snippet hooks differ from %s:\n%s\nvs\n%s", p.ClaudeSettings, r.stdout, file)
 	}
-	if r.stdout != string(file) {
-		t.Fatal("snippet is not byte-identical to the generated file")
+	// the launch file adds only the agentctl status line, which the snippet
+	// leaves out so merging it never replaces the user's own
+	if _, ok := snippet["statusLine"]; ok || len(snippet) != 1 {
+		t.Fatalf("snippet has more than hooks:\n%s", r.stdout)
+	}
+	if sl, _ := generated["statusLine"].(map[string]any); sl["command"] != "'/opt/agentctl/bin/agentctl' statusline" || len(generated) != 2 {
+		t.Fatalf("generated settings status line: %s", file)
 	}
 	if !strings.Contains(r.stdout, `"'/opt/agentctl/bin/agentctl' hook"`) {
 		t.Fatalf("snippet command: %s", r.stdout)

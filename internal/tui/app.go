@@ -41,6 +41,10 @@ type Options struct {
 	// to the agent (agentctl tui --stay: a dashboard in its own pane). By
 	// default the TUI quits then, which closes a popup.
 	Stay bool
+	// Split opens an agent beside the TUI, in the TUI's own tmux window,
+	// instead of switching the client to the agent's session (agentctl tui
+	// --split; implies Stay). Outside tmux it falls back to a plain attach.
+	Split bool
 	// RunID is the ui_run_id actions are recorded under. Run sets it from
 	// Controller.UIOpened; it stays empty in tests that do not record.
 	RunID string
@@ -83,6 +87,8 @@ type Model struct {
 	detail   detailModel
 	views    []view // pushed views, top last
 
+	quota []controller.QuotaSnapshot // newest per agent; empty hides the panel
+
 	openErr, loadErr, preflightErr, reconcileErr, warning string
 	flash                                                 flashMsg
 }
@@ -96,7 +102,7 @@ func New(ctx context.Context, opts Options) Model {
 	}
 	m := Model{
 		sh: &shared{
-			ctx: ctx, ctl: opts.Controller, keys: keys, runID: opts.RunID, cwd: opts.Cwd, binding: opts.Binding, stay: opts.Stay,
+			ctx: ctx, ctl: opts.Controller, keys: keys, runID: opts.RunID, cwd: opts.Cwd, binding: opts.Binding, stay: opts.Stay || opts.Split, split: opts.Split,
 		},
 		noColor: opts.NoColor, dark: true, st: newStyles(true, opts.NoColor),
 		width: 80, height: 24,
@@ -174,7 +180,8 @@ func withoutTmux(env []string) []string {
 }
 
 // Init starts the first load, the pane reconcile loop, the preflight check
-// (tmux / git / agent on PATH) and the background-color query.
+// (tmux / git / agent on PATH), the quota loop and the background-color
+// query.
 func (m Model) Init() tea.Cmd {
 	if m.sh.ctl == nil {
 		return tea.RequestBackgroundColor
@@ -184,6 +191,7 @@ func (m Model) Init() tea.Cmd {
 		wrapPoll(loadCmd(m.sh), 0, true),
 		preflightCmd(m.sh),
 		tick(m.sh.ctl.Tunables().Reconcile, reconcileTickMsg{}),
+		quotaCmd(m.sh),
 	)
 }
 
@@ -249,6 +257,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.reconcileErr = "reconcile: " + controller.OneLine(msg.err.Error())
 		}
 		return m, tick(m.sh.ctl.Tunables().Reconcile, reconcileTickMsg{})
+	case quotaTickMsg:
+		if m.sh.ctl == nil {
+			return m, nil
+		}
+		return m, quotaCmd(m.sh)
+	case quotaMsg:
+		return m.applyQuota(msg)
 	case preflightMsg:
 		m.preflightErr = ""
 		if msg.err != nil {
@@ -304,6 +319,13 @@ func (m Model) applyAttach(a attachMsg) (tea.Model, tea.Cmd) {
 	switch {
 	case a.err != nil:
 		m.flash = flashMsg{text: controller.OneLine(a.err.Error()), isErr: true}
+		return m, nil
+	case a.docked != nil:
+		if a.warn != "" {
+			m.flash = flashMsg{text: a.warn, isErr: true}
+			return m, nil
+		}
+		m.flash = flashMsg{text: "opened " + a.docked.TaskID + " beside the list · it goes back when you open another or quit"}
 		return m, nil
 	case a.res.Switched && m.sh.stay:
 		// a dashboard pane stays up; the hint is there when the user comes back

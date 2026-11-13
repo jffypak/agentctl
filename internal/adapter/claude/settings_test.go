@@ -152,8 +152,9 @@ func TestHookCommandShellQuotes(t *testing.T) {
 	}
 }
 
-// TestSettingsJSONIsTheFileContent: hooks-snippet prints SettingsJSON, so it
-// must be exactly what EnsureSettings writes.
+// TestSettingsJSONIsTheFileContent: hooks-snippet prints SettingsJSON, which
+// must be exactly what EnsureSettings writes minus the status line, so
+// merging the snippet never replaces a user's own status line.
 func TestSettingsJSONIsTheFileContent(t *testing.T) {
 	home := testenv.TempHome(t)
 	path, err := claude.New(claude.Config{AgentctlPath: goldenAgentctl}).EnsureSettings(home)
@@ -161,9 +162,27 @@ func TestSettingsJSONIsTheFileContent(t *testing.T) {
 		t.Fatal(err)
 	}
 	file, _ := os.ReadFile(path)
+	launch, err := claude.LaunchSettingsJSON(goldenAgentctl)
+	if err != nil || string(launch) != string(file) {
+		t.Fatalf("LaunchSettingsJSON differs from the file (%v):\n%s", err, launch)
+	}
 	snippet, err := claude.SettingsJSON(goldenAgentctl)
-	if err != nil || string(snippet) != string(file) {
-		t.Fatalf("SettingsJSON differs from the file (%v):\n%s", err, snippet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var withLine, without map[string]json.RawMessage
+	if json.Unmarshal(file, &withLine) != nil || json.Unmarshal(snippet, &without) != nil {
+		t.Fatal("settings are not JSON objects")
+	}
+	if _, ok := without["statusLine"]; ok {
+		t.Fatalf("snippet has a statusLine:\n%s", snippet)
+	}
+	if string(withLine["hooks"]) != string(without["hooks"]) || len(withLine) != 2 {
+		t.Fatalf("snippet hooks differ from the file:\n%s", snippet)
+	}
+	var sl struct{ Type, Command string }
+	if err := json.Unmarshal(withLine["statusLine"], &sl); err != nil || sl.Type != "command" || sl.Command != "'"+goldenAgentctl+"' statusline" {
+		t.Fatalf("statusLine = %+v (%v)", sl, err)
 	}
 }
 

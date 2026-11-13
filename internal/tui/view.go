@@ -24,6 +24,7 @@ type shared struct {
 	cwd     string // scopes the list and NewTask
 	binding string // `agentctl tmux-binding` line (empty state)
 	stay    bool   // Options.Stay: keep running after a switch-client attach
+	split   bool   // Options.Split: dock the agent beside the TUI instead
 }
 
 // frame is the space and styling a view renders into.

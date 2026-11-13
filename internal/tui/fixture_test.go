@@ -305,7 +305,7 @@ func collect(cmd tea.Cmd) []tea.Msg {
 		return nil
 	}
 	switch msg := cmd().(type) {
-	case nil, tea.QuitMsg, pollTickMsg, reconcileTickMsg:
+	case nil, tea.QuitMsg, pollTickMsg, reconcileTickMsg, quotaTickMsg:
 		return nil
 	case tea.BatchMsg:
 		var out []tea.Msg

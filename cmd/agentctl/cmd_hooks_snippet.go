@@ -10,7 +10,8 @@ import (
 // cmdHooksSnippet: agentctl hooks-snippet
 //
 // Prints (stdout, JSON only) exactly the hook settings `agentctl new` writes
-// to <home>/hooks/claude-settings.json. Merging its "hooks" object into your
+// to <home>/hooks/claude-settings.json, without that file's status line (so
+// merging it never replaces your own). Merging its "hooks" object into your
 // own Claude settings is how an adopted pane gets hook-driven state; the hook
 // then matches the pane by identity (no AGENTCTL_TASK_ID needed).
 func cmdHooksSnippet(_ context.Context, sys *system, args []string) int {

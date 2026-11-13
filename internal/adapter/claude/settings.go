@@ -35,10 +35,17 @@ func shellQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
-// settingsFile is the generated Claude Code settings: hooks only. No matcher
-// means "match everything" for every event.
+// settingsFile is the generated Claude Code settings: the hooks (no matcher
+// means "match everything" for every event) and, in the launch file only,
+// the status line that captures quota (statusline.go).
 type settingsFile struct {
-	Hooks map[string][]matcherGroup `json:"hooks"`
+	Hooks      map[string][]matcherGroup `json:"hooks"`
+	StatusLine *statusLine               `json:"statusLine,omitempty"`
+}
+
+type statusLine struct {
+	Type    string `json:"type"`
+	Command string `json:"command"`
 }
 
 type matcherGroup struct {
@@ -51,15 +58,30 @@ type hookHandler struct {
 	Timeout int    `json:"timeout"`
 }
 
-// SettingsJSON renders the settings file for agentctlPath. It is
+// SettingsJSON renders the hook settings for agentctlPath. It is
 // deterministic (sorted keys, two-space indent, trailing newline), so the same
 // path always yields the same bytes. `agentctl hooks-snippet` prints exactly
 // this for users to merge into their own Claude settings.
 func SettingsJSON(agentctlPath string) ([]byte, error) {
+	return renderSettings(agentctlPath, false)
+}
+
+// LaunchSettingsJSON is SettingsJSON plus the `agentctl statusline` status
+// line: the file every session agentctl launches gets with --settings. The
+// snippet leaves the status line out, so merging it never replaces a user's
+// own status line.
+func LaunchSettingsJSON(agentctlPath string) ([]byte, error) {
+	return renderSettings(agentctlPath, true)
+}
+
+func renderSettings(agentctlPath string, withStatusLine bool) ([]byte, error) {
 	if err := validateAgentctlPath(agentctlPath); err != nil {
 		return nil, err
 	}
 	doc := settingsFile{Hooks: map[string][]matcherGroup{}}
+	if withStatusLine {
+		doc.StatusLine = &statusLine{Type: "command", Command: StatusLineCommand(agentctlPath)}
+	}
 	for _, ev := range hookEvents {
 		doc.Hooks[ev] = []matcherGroup{{Hooks: []hookHandler{{
 			Type: "command", Command: HookCommand(agentctlPath), Timeout: HookTimeoutSeconds,
@@ -88,7 +110,7 @@ func validateAgentctlPath(p string) error {
 // current, and returns its path. Start calls it before every launch.
 //
 // The file holds one command hook per mapped event (HookCommand of
-// a.cfg.AgentctlPath, timeout 5). When the file already has exactly the
+// a.cfg.AgentctlPath, timeout 5) and the agentctl status line. When the file already has exactly the
 // rendered bytes and mode 0600 it is left alone; otherwise it is written to a
 // temp file in the same directory (mode 0600) and renamed over the old one,
 // so a concurrent reader (a launching claude) never sees a partial file.
@@ -96,7 +118,7 @@ func (a *Adapter) EnsureSettings(home string) (string, error) {
 	if !filepath.IsAbs(home) {
 		return "", fmt.Errorf("claude: agentctl home %q is not absolute", home)
 	}
-	want, err := SettingsJSON(a.cfg.AgentctlPath)
+	want, err := LaunchSettingsJSON(a.cfg.AgentctlPath)
 	if err != nil {
 		return "", err
 	}
