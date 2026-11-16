@@ -49,6 +49,9 @@ type Options struct {
 	// (controller.AutoAdopt; agentctl tui does unless --no-auto-adopt).
 	// sh.keys.AdoptAll runs the same pass on demand either way.
 	AutoAdopt bool
+	// ThisRepo starts the list scoped to the repo containing Cwd (agentctl
+	// tui --this-repo). By default it lists every repo; keys.Scope switches.
+	ThisRepo bool
 	// RunID is the ui_run_id actions are recorded under. Run sets it from
 	// Controller.UIOpened; it stays empty in tests that do not record.
 	RunID string
@@ -116,6 +119,7 @@ func New(ctx context.Context, opts Options) Model {
 		warning:   controller.OneLine(opts.Warning),
 		autoAdopt: opts.AutoAdopt,
 	}
+	m.sh.thisRepo.Store(opts.ThisRepo)
 	if opts.Controller == nil {
 		err := opts.OpenErr
 		if err == nil {
@@ -473,6 +477,8 @@ func (m Model) listKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.push(newNewTaskView(m.sh))
 	case key.Matches(k, keys.Adopt):
 		return m.push(newAdoptView(m.sh))
+	case key.Matches(k, keys.Scope):
+		return m.toggleScope()
 	case key.Matches(k, keys.AdoptAll):
 		if m.sh.ctl == nil {
 			return m, nil

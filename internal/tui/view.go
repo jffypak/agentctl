@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"sync/atomic"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
@@ -25,6 +26,9 @@ type shared struct {
 	binding string // `agentctl tmux-binding` line (empty state)
 	stay    bool   // Options.Stay: keep running after a switch-client attach
 	split   bool   // Options.Split: dock the agent beside the TUI instead
+	// thisRepo scopes the list to the repo containing cwd (Options.ThisRepo,
+	// toggled by keys.Scope). Poll commands read it from their goroutine.
+	thisRepo atomic.Bool
 }
 
 // frame is the space and styling a view renders into.

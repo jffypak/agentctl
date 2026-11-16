@@ -122,7 +122,7 @@ func (r *rig) startTUI(session string, env testenv.Env) *testenv.TUI {
 		env = r.env
 	}
 	u := r.srv.StartTUI(r.t, r.bin, env, testenv.TUIOptions{Session: session, Cwd: r.repo.Root})
-	u.WaitText(r.t, "agents / repo")
+	u.WaitText(r.t, "agents / all repos")
 	return u
 }
 

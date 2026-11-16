@@ -294,7 +294,7 @@ for v in XDG_CONFIG_HOME XDG_STATE_HOME AGENTCTL_AGENT_CMD; do
 done
 tm new-session -d -s demo-ui -c "${repo}" -x 120 -y 40 "${ui_env[@]}" -e TERM=xterm-256color -- "${AGENTCTL_BIN}" tui \; \
 	set-option -w remain-on-exit on
-if wait_for 30 "the TUI header" pane_has demo-ui:. "agents / demo-repo"; then
+if wait_for 30 "the TUI header" pane_has demo-ui:. "agents / all repos"; then
 	tm send-keys -t demo-ui:. d
 	wait_for 30 "the diff view" pane_has demo-ui:. "vs main @" || check_failed "the TUI diff view did not open"
 	tm send-keys -t demo-ui:. Escape

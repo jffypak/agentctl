@@ -24,6 +24,7 @@ const (
 	ActClose         = "close"          // close confirmation (m2-tui-manage)
 	ActDelete        = "delete"         // close dialog: delete the task, its worktree and its branch
 	ActAdoptAll      = "adopt_all"      // list: adopt every unregistered agent pane
+	ActScope         = "scope"          // list: switch between all repos and the current repo
 	ActCancelMessage = "cancel_message" // detail: cancel the selected queued message (m2-prompt-queue)
 	ActSend          = "send"           // composer: send (m2-prompt-queue)
 	ActFullCapture   = "full_capture"   // logs view: write + page the full capture (m2-tui-manage)
@@ -35,7 +36,7 @@ const (
 // Actions lists every action name in a stable order.
 func Actions() []string {
 	return []string{ActUp, ActDown, ActOpen, ActBack, ActQuit, ActForceQuit, ActFilter, ActPrompt, ActDiff,
-		ActLogs, ActNew, ActAdopt, ActClose, ActDelete, ActAdoptAll, ActCancelMessage, ActSend, ActFullCapture, ActConfirm,
+		ActLogs, ActNew, ActAdopt, ActClose, ActDelete, ActAdoptAll, ActScope, ActCancelMessage, ActSend, ActFullCapture, ActConfirm,
 		ActNextTab, ActPrevTab}
 }
 
@@ -46,7 +47,7 @@ func Actions() []string {
 type KeyMap struct {
 	Up, Down, Open, Back, Quit, ForceQuit, Filter key.Binding
 	Prompt, Diff, Logs, New, Adopt, Close         key.Binding
-	Delete, AdoptAll                              key.Binding
+	Delete, AdoptAll, Scope                       key.Binding
 	CancelMessage, Send, FullCapture, Confirm     key.Binding
 	NextTab, PrevTab                              key.Binding
 }
@@ -73,6 +74,7 @@ func DefaultKeyMap() KeyMap {
 		Close:         b("x", "close", "x"),
 		Delete:        b("R", "delete", "R"),
 		AdoptAll:      b("A", "adopt all", "A"),
+		Scope:         b("s", "this repo", "s"),
 		CancelMessage: b("c", "cancel message", "c"),
 		Send:          b("ctrl+s", "send", "ctrl+s"),
 		FullCapture:   b("f", "full capture", "f"),
@@ -115,6 +117,8 @@ func (k *KeyMap) field(action string) *key.Binding {
 		return &k.Delete
 	case ActAdoptAll:
 		return &k.AdoptAll
+	case ActScope:
+		return &k.Scope
 	case ActCancelMessage:
 		return &k.CancelMessage
 	case ActSend:

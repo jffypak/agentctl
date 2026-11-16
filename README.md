@@ -64,6 +64,7 @@ attach, accept it if you trust the folder, and detach.
 | `/` | Filter. Type `closed` to list closed tasks. |
 | `x` | Close the selected task. In the dialog, `R` deletes it instead (see step 7). |
 | `A` | Adopt every Claude pane agentctl doesn't track yet (see "Other commands"). |
+| `s` | Switch between every repo (the default) and only the repo you opened agentctl in. `agentctl tui --this-repo` starts with only that repo. |
 | `q` / `esc` | Back, or quit. Quitting never stops an agent. |
 
 A `●` before a name means **unread**: the agent finished a turn and you

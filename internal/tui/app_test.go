@@ -44,12 +44,23 @@ func TestHeaderAndSectionsInAttentionOrder(t *testing.T) {
 	f := newFixture(t)
 	f.seed(t, everyState)
 	m := f.model(t, 120, 40, Options{})
-	ov, err := f.ctl.Overview(context.Background(), controller.OverviewQuery{Cwd: f.repo.Root})
+	ov, err := f.ctl.Overview(context.Background(), controller.OverviewQuery{Cwd: f.repo.Root, AllRepos: true})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := screen(m)[0]; strings.TrimSpace(got) != ov.Header() || ov.Header() != "agents / repo · 1 running · 6 need you" {
+	if got := screen(m)[0]; strings.TrimSpace(got) != ov.Header() || ov.Header() != "agents / all repos · 1 running · 6 need you" {
 		t.Fatalf("header = %q, Overview.Header() = %q", got, ov.Header())
+	}
+	// s scopes the list to the repo containing the TUI's cwd, and back
+	scoped := update(t, press(t, m, "s"), loadCmd(m.sh)())
+	if got := strings.TrimSpace(screen(scoped)[0]); got != "agents / repo · 1 running · 6 need you" {
+		t.Fatalf("after s, header = %q", got)
+	}
+	if again := update(t, press(t, scoped, "s"), loadCmd(m.sh)()); !strings.Contains(screen(again)[0], "agents / all repos") {
+		t.Fatalf("second s, header = %q", screen(again)[0])
+	}
+	if thisRepo := f.model(t, 120, 40, Options{ThisRepo: true}); !strings.Contains(screen(thisRepo)[0], "agents / repo ·") {
+		t.Fatalf("ThisRepo header = %q", screen(thisRepo)[0])
 	}
 	order, rows := sectionsOf(m)
 	if !slices.Equal(order, []string{"NEEDS YOU", "IDLE", "RUNNING", "INITIALSTATE", "UNKNOWN"}) {

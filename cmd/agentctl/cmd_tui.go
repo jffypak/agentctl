@@ -25,19 +25,20 @@ func cmdTUI(ctx context.Context, sys *system, args []string) int {
 	fs := newFlagSet(sys, "tui")
 	stay := fs.Bool("stay", false, "keep running after attaching to an agent (for a dashboard pane)")
 	split := fs.Bool("split", false, "open agents in a pane beside the TUI (implies --stay)")
+	thisRepo := fs.Bool("this-repo", false, "start listing only the current repo's tasks (s switches)")
 	noAutoAdopt := fs.Bool("no-auto-adopt", false, "do not adopt unregistered agent panes at startup (A still does)")
 	pos, err := parseInterspersed(fs, args)
 	if err != nil {
 		return flagExit(err)
 	}
 	if len(pos) != 0 {
-		return sys.usageError("tui", "usage: agentctl [tui] [--stay] [--split] [--no-auto-adopt]")
+		return sys.usageError("tui", "usage: agentctl [tui] [--stay] [--split] [--this-repo] [--no-auto-adopt]")
 	}
 	ctx, stop := signal.NotifyContext(ctx, syscall.SIGHUP)
 	defer stop()
 
 	opts := tui.Options{
-		Cwd: sys.cwd, NoColor: sys.getenv("NO_COLOR") != "", Stay: *stay, Split: *split, AutoAdopt: !*noAutoAdopt,
+		Cwd: sys.cwd, NoColor: sys.getenv("NO_COLOR") != "", Stay: *stay, Split: *split, AutoAdopt: !*noAutoAdopt, ThisRepo: *thisRepo,
 		Input: sys.stdin, Output: sys.stdout, Environ: sys.environ,
 	}
 	if binding, err := controller.TmuxBinding(sys.executable); err == nil {

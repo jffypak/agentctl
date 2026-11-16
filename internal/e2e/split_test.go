@@ -64,7 +64,7 @@ func TestSplitDashboard(t *testing.T) {
 	ui := r.srv.StartTUI(t, r.bin, r.env, testenv.TUIOptions{Session: "dash", Cwd: r.repo.Root, Args: []string{"tui", "--split"}})
 	ui.Target = r.srv.Run(t, "display-message", "-p", "-t", ui.Target, "#{pane_id}") // the dock moves focus off the TUI
 	host := ui.Target
-	ui.WaitText(t, "agents / repo", "alpha", "beta")
+	ui.WaitText(t, "agents / all repos", "alpha", "beta")
 
 	open := func(name string) {
 		t.Helper()

@@ -35,7 +35,7 @@ func (m Model) hints() []key.Binding {
 		return append([]key.Binding{help(k.Open, "attach"), k.Prompt, k.Diff, k.Logs, k.Close},
 			append(m.detail.messages.Hints(), help(k.Back, "back"))...)
 	}
-	return []key.Binding{k.Open, k.Prompt, k.Diff, k.Logs, k.New, k.Adopt, k.Close, k.Filter, k.Quit, arrows("move")}
+	return []key.Binding{k.Open, k.Prompt, k.Diff, k.Logs, k.New, k.Adopt, k.Close, k.Filter, m.scopeHint(), k.Quit, arrows("move")}
 }
 
 // help relabels a binding's description for one context.

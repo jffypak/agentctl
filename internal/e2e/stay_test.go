@@ -21,7 +21,7 @@ func TestStayDashboard(t *testing.T) {
 	client := r.srv.AttachControlClient(t, "=home")
 
 	ui := r.srv.StartTUI(t, r.bin, r.env, testenv.TUIOptions{Session: "dash", Cwd: r.repo.Root, Args: []string{"tui", "--stay"}})
-	ui.WaitText(t, "agents / repo", "alpha", "beta")
+	ui.WaitText(t, "agents / all repos", "alpha", "beta")
 	for i, name := range []string{"alpha", "beta"} {
 		if i > 0 {
 			ui.Keys(t, "Escape") // detail -> list (a lone ESC)

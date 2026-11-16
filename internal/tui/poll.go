@@ -81,9 +81,10 @@ func pollCmd(sh *shared, after int64, force bool) tea.Cmd {
 	}
 }
 
-// overview always includes closed tasks; the filter decides what shows.
+// overview always includes closed tasks; the filter decides what shows. It
+// lists every repo unless sh.thisRepo scopes it to the repo containing cwd.
 func overview(sh *shared) (controller.Overview, error) {
-	return sh.ctl.Overview(sh.ctx, controller.OverviewQuery{Cwd: sh.cwd, IncludeClosed: true})
+	return sh.ctl.Overview(sh.ctx, controller.OverviewQuery{Cwd: sh.cwd, AllRepos: !sh.thisRepo.Load(), IncludeClosed: true})
 }
 
 // reconcileCmd verifies panes and drains deliverable messages (both are
