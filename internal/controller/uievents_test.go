@@ -72,7 +72,7 @@ func TestUIEventValidation(t *testing.T) {
 	if err := ctl.UIClosed(ctx, ""); err == nil {
 		t.Fatal("empty run id accepted for ui.closed")
 	}
-	if len(UIActions()) != 7 {
+	if len(UIActions()) != 8 {
 		t.Fatalf("actions = %v", UIActions())
 	}
 }

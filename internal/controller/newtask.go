@@ -83,10 +83,8 @@ func (c *Controller) NewTask(ctx context.Context, req NewTaskRequest) (NewTaskRe
 		}
 		return NewTaskResult{}, userErr(ErrNotARepo, err, "cannot resolve the git repository for %s: %v", req.Cwd, err)
 	}
-	if exists, err := c.store.Tasks().Exists(ctx, name); err != nil {
+	if err := c.checkNameFree(ctx, name); err != nil {
 		return NewTaskResult{}, err
-	} else if exists {
-		return NewTaskResult{}, taskExists(name)
 	}
 	head, err := c.git.Head(ctx, req.Cwd)
 	if err != nil {
@@ -200,6 +198,21 @@ func validateGoal(g string) error {
 
 func taskExists(name string) error {
 	return userErr(ErrTaskExists, nil, "task %q already exists (pick another name; `agentctl ls --closed` lists every task)", name)
+}
+
+// checkNameFree refuses a name that a task still holds. A closed task holds
+// its name until it is deleted, so the error says how to free it.
+func (c *Controller) checkNameFree(ctx context.Context, name string) error {
+	task, err := c.store.Tasks().Get(ctx, name)
+	switch {
+	case errors.Is(err, store.ErrNotFound):
+		return nil
+	case err != nil:
+		return err
+	case task.State == domain.TaskClosed:
+		return userErr(ErrTaskExists, nil, "task %q is closed but still holds its name; `agentctl close --delete %s` deletes it (x then R in the TUI), then the name is free", name, name)
+	}
+	return taskExists(name)
 }
 
 func branchExists(branch, root string) error {

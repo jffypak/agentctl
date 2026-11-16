@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"strconv"
 )
 
 // RepoInfo identifies a main repository (never a linked worktree).
@@ -140,4 +141,29 @@ func (g Git) MergeBase(ctx context.Context, dir, a, b string) (string, error) {
 		return "", err
 	}
 	return trim(out), nil
+}
+
+// CountCommitsArgs counts the commits reachable from ref but not from notRef.
+func CountCommitsArgs(ref, notRef string) []string {
+	return []string{"rev-list", "--count", ref, "--not", notRef}
+}
+
+// CountCommits returns how many commits ref has that notRef lacks, evaluated
+// in dir. A delete warns with it before it drops a task branch.
+func (g Git) CountCommits(ctx context.Context, dir, ref, notRef string) (int, error) {
+	if err := checkArg("revision", ref); err != nil {
+		return 0, err
+	}
+	if err := checkArg("revision", notRef); err != nil {
+		return 0, err
+	}
+	out, err := g.run(ctx, dir, CountCommitsArgs(ref, notRef)...)
+	if err != nil {
+		return 0, err
+	}
+	n, err := strconv.Atoi(trim(out))
+	if err != nil {
+		return 0, fmt.Errorf("gitx: rev-list --count printed %q", trim(out))
+	}
+	return n, nil
 }

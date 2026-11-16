@@ -8,7 +8,7 @@
    the agent keeps running in tmux session jpark-auth-tests
 
  [38;5;245mx close and stop… kills the agent's tmux session (asks again)[m
-
+ [38;5;245mR delete… removes the task, its worktree and branch so the name is free (asks again)[m
 
 
 
@@ -37,4 +37,4 @@
 
 
  [38;5;245m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[m
- [1my[m [38;5;245mclose[m  [1mx[m [38;5;245mclose and stop…[m  [1mother keys[m [38;5;245mcancel[m
+ [1my[m [38;5;245mclose[m  [1mx[m [38;5;245mclose and stop…[m  [1mR[m [38;5;245mdelete…[m  [1mother keys[m [38;5;245mcancel[m

@@ -62,6 +62,8 @@ attach, accept it if you trust the folder, and detach.
 | `↵` | Open the detail view (state, worktree, last reply, prompt, diff summary, recent output). `↵` again attaches: the popup closes and you land on the agent's pane. Detach to come back. |
 | `l` | Recent output. `f` shows the full scrollback in your pager. |
 | `/` | Filter. Type `closed` to list closed tasks. |
+| `x` | Close the selected task. In the dialog, `R` deletes it instead (see step 7). |
+| `A` | Adopt every Claude pane agentctl doesn't track yet (see "Other commands"). |
 | `q` / `esc` | Back, or quit. Quitting never stops an agent. |
 
 A `●` before a name means **unread**: the agent finished a turn and you
@@ -69,8 +71,8 @@ have not looked at it since. The mark goes away when you open the detail
 or the logs, send a prompt, or attach. An agent open beside the list
 (`--split`) counts as seen.
 
-When the screen is 120 columns or wider, the list shows the selected
-agent's details on the right: its state, agent and model, branch,
+When the screen is 120 columns or wider, the screen splits in half: the
+list on the left, and the selected agent's details on the right: its state, agent and model, branch,
 worktree, its last reply, and the last prompt it got. agentctl keeps only
 the newest reply and the newest prompt for each session (4 KB each, with
 terminal control codes removed) in its local registry.
@@ -94,15 +96,30 @@ agentctl diff auth-tests           # full diff (pager on a terminal)
 agentctl show auth-tests           # state block + last 40 lines of output
 ```
 
-**7. Close the task.** Press `x` then `y` in the popup, or run:
+**7. Close or delete the task.** Press `x` then `y` in the popup, or run:
 
 ```sh
 agentctl close auth-tests          # hides the task; the agent keeps running
 agentctl close auth-tests --stop   # also stops the agent's tmux session (asks y/N)
+agentctl close auth-tests --delete # deletes the task, its worktree and its branch (asks y/N)
 ```
 
-Closing never deletes anything. The worktree and the branch stay, and you merge
-or remove them with git yourself.
+A plain close deletes nothing. The worktree and the branch stay, and the
+closed task keeps its name, so you cannot use that name again yet.
+
+To delete a task, press `x` then `R` (or `x` on a closed task), or use
+`close --delete`. agentctl shows what it will do and waits for `y`:
+
+- It stops the agent, if agentctl started it and it still runs.
+- It removes the worktree. It warns you first if the worktree has
+  uncommitted or untracked files.
+- It deletes the branch. It warns you first if the branch has commits that
+  are not on the base branch.
+- It frees the name, so you can start a new task with that name.
+
+agentctl removes the worktree and the branch only for a task it created with
+`agentctl new`. For an adopted task it deletes only its own records, and it
+refuses while that agent still runs.
 
 **How long does triage take?** `agentctl stats` prints the median time from
 opening the popup to your first action (the target is under 60 s), and attaches
@@ -162,7 +179,11 @@ are more than 2 minutes old.
 
 `agentctl ls [--json] [--closed]` lists tasks by attention section.
 `agentctl adopt` lists running claude panes that agentctl doesn't track yet, and
-`agentctl adopt %7 --name x` registers one. An adopted pane shows `unknown`
+`agentctl adopt %7 --name x` registers one. `agentctl adopt --auto` registers
+all of them, from every repository, and names each one after its directory
+(`-2`, `-3`, … when the name is taken). The TUI does the same when it starts,
+and again when you press `A`. `agentctl tui --no-auto-adopt` turns off the
+pass at startup. An adopted pane shows `unknown`
 until its hooks report. To enable them, merge `agentctl hooks-snippet` into that
 agent's Claude settings. `agentctl help` lists everything.
 
@@ -211,10 +232,12 @@ attach to start`.
 | `… is not inside a git repository` | `cd` into the repository (or one of its worktrees) and run the command again. agentctl registers tasks against the main checkout. |
 | `… has no commits yet` | Make an initial commit. Worktrees branch from `HEAD`. |
 | `agent command "claude" not found on PATH` | Install Claude Code, or make `claude` reachable from the shell tmux starts. `AGENTCTL_AGENT_CMD='["/path/to/claude"]'` overrides the command. For Codex: install Codex CLI, or set `AGENTCTL_CODEX_CMD`. |
-| `branch jpark/<name> already exists` | Pick another task name, or delete the old branch yourself if you are done with it (agentctl never deletes branches). |
+| `branch jpark/<name> already exists` | Pick another task name, or delete the old branch yourself if you are done with it. |
 | `worktree path … already exists` | Pick another task name, or move that directory out of `../<repo>-worktrees/`. |
 | `tmux session jpark-<name> already exists` | Pick another name, or close that session. |
 | `task "<name>" already exists` | Names are unique per registry. `agentctl ls --closed` lists every task. |
+| `task "<name>" is closed but still holds its name` | Run `agentctl close --delete <name>`, or press `x` on the closed task in the TUI (`/closed` lists it). Then use the name again. |
+| `refusing to delete …: its agent still runs` | agentctl did not start that agent, so it will not stop it. Exit the agent, then delete again. |
 | `cannot open registry …` | The banner names the path. Check its permissions, or point `AGENTCTL_HOME` at a writable directory. |
 | `silent since launch · attach to check` with `folder trust: attach to answer` | Claude is showing its folder-trust dialog (each new worktree is a new path). agentctl never answers it: attach (`↵ ↵`), pick "Yes, I trust this folder" if you do, then detach. Prompts sent meanwhile stay queued. |
 | Agent stays `starting`, then `silent since launch · attach to check` | No hook arrived within 30 s and no folder-trust dialog was seen. Attach (`↵ ↵`): Claude is usually waiting on its login dialog. |

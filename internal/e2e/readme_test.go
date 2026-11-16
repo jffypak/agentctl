@@ -31,7 +31,7 @@ func TestREADMEQuickstartAndTroubleshooting(t *testing.T) {
 		"**4. Open the popup**", "prefix a",
 		"**5. Send a prompt.**", "agentctl send ",
 		"**6. Review the diff.**", "agentctl diff ",
-		"**7. Close the task.**", "agentctl close ",
+		"**7. Close or delete the task.**", "agentctl close ", "close --delete",
 		"agentctl stats",
 	} {
 		i := strings.Index(quick[at:], step)
@@ -59,7 +59,9 @@ func TestREADMEQuickstartAndTroubleshooting(t *testing.T) {
 		"attach refused":   "attach refused",
 		"stop refused":     "refusing to stop",
 		"hooks fail open":  "hook-errors.log",
-		"no destructive":   "never deletes",
+		"no destructive":   "A plain close deletes nothing",
+		"delete refused":   "refusing to delete",
+		"closed name":      "still holds its name",
 		"agents outlive":   "Quitting never stops an agent",
 		"hermetic testing": "Tests never touch your tmux server",
 	} {

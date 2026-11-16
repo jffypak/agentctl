@@ -24,11 +24,12 @@ const (
 	UIActionNew    = "new"
 	UIActionAdopt  = "adopt"
 	UIActionClose  = "close"
+	UIActionDelete = "delete" // task_id is empty: the deleted task's name is free again
 )
 
 // UIActions lists every recordable action.
 func UIActions() []string {
-	return []string{UIActionAttach, UIActionPrompt, UIActionDiff, UIActionLogs, UIActionNew, UIActionAdopt, UIActionClose}
+	return []string{UIActionAttach, UIActionPrompt, UIActionDiff, UIActionLogs, UIActionNew, UIActionAdopt, UIActionClose, UIActionDelete}
 }
 
 // UIOpened records ui.opened for a new TUI run and returns its ui_run_id.

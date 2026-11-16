@@ -409,8 +409,15 @@ These are used by the acceptance pass. A violation is a failing review.
 8. **Tests are hermetic.** Every tmux call goes through `internal/tmux` with an
    explicit socket. No test touches the user's tmux server, `~/.claude`, or real
    `$HOME` state.
-9. **No destructive git.** Phase 1 never deletes worktrees or branches and never
-   runs `reset --hard` or force operations. Close only marks a task closed.
+9. **No destructive git without a confirmed delete.** agentctl never runs
+   `reset --hard`, `clean` or `push`. A plain close only marks a task closed.
+   Only a confirmed delete (`close --delete`, or `R` in the TUI close dialog)
+   removes a worktree (`worktree remove --force`) and deletes a branch
+   (`branch -D`), and only for a task that `agentctl new` created. The
+   confirmation names the worktree and the branch and warns about uncommitted
+   files and unmerged commits first. Those commands live only in
+   `internal/gitx/delete.go` (archtest `gitx-nondestructive`). A delete frees
+   the task's name: its rows go, and its events move to `<name>~<ms>`.
 10. **Domain is pure.** `internal/domain` imports no I/O packages. State
     transitions and attention classification are table-tested there.
 

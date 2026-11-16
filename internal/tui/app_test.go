@@ -226,7 +226,7 @@ func TestUnknownIsHonestAndStoppedIsExited(t *testing.T) {
 	if !strings.Contains(lineWith(m, "NEEDS YOU"), "38;5;"+accentDark) || !strings.Contains(lineWith(m, "auth-tests"), "38;5;"+accentDark) {
 		t.Errorf("NEEDS YOU does not use the accent: %q", lineWith(m, "NEEDS YOU"))
 	}
-	if row := lineWith(m, "silent-agent"); !strings.Contains(plain(row), "silent since launch · attach to check") || !strings.Contains(row, "38;5;"+accentDark) {
+	if row := lineWith(m, "silent-agent"); !strings.Contains(plain(row), "silent since launch") || !strings.Contains(row, "38;5;"+accentDark) {
 		t.Errorf("launched agent silent since launch is not NEEDS YOU: %q", plain(row))
 	}
 	if strings.Contains(lineWith(m, "payments"), "38;5;"+accentDark) {

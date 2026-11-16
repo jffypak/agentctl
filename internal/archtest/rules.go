@@ -246,18 +246,30 @@ var GitxForbiddenTokens = map[string]bool{
 	"-f": true, "clean": true, "push": true, "rm": true,
 }
 
+// GitxDeleteFile is the one gitx file that may spell GitxDeleteTokens: the
+// confirmed `close --delete` (worktree remove --force, worktree prune,
+// branch -D). Every other token stays forbidden there too.
+const GitxDeleteFile = "internal/gitx/delete.go"
+
+// GitxDeleteTokens are the tokens GitxDeleteFile may spell.
+var GitxDeleteTokens = map[string]bool{"remove": true, "prune": true, "-D": true, "--force": true}
+
 func ruleGitxNonDestructive() Rule {
 	return Rule{
 		ID:  "gitx-nondestructive",
-		Doc: "internal/gitx never contains reset --hard, worktree remove, branch -D, --force, clean -f, or push",
+		Doc: "internal/gitx never contains reset --hard, worktree remove, branch -D, --force, clean -f, or push, except worktree remove/prune and branch -D in delete.go",
 		Check: func(m *Module) []Violation {
 			var out []Violation
 			for _, f := range m.Files {
 				if !f.in("internal/gitx") {
 					continue
 				}
+				deleteFile := f.Rel == GitxDeleteFile
 				f.stringLits(func(s string, pos token.Pos) {
 					for _, tok := range tokens(s) {
+						if deleteFile && GitxDeleteTokens[tok] {
+							continue
+						}
 						if GitxForbiddenTokens[tok] || strings.HasPrefix(tok, "--force") {
 							out = append(out, Violation{"gitx-nondestructive", f.pos(pos), "destructive git vocabulary " + strconv.Quote(tok)})
 						}

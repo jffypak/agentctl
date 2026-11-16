@@ -45,6 +45,10 @@ type Options struct {
 	// instead of switching the client to the agent's session (agentctl tui
 	// --split; implies Stay). Outside tmux it falls back to a plain attach.
 	Split bool
+	// AutoAdopt adopts every unregistered agent pane once at startup
+	// (controller.AutoAdopt; agentctl tui does unless --no-auto-adopt).
+	// sh.keys.AdoptAll runs the same pass on demand either way.
+	AutoAdopt bool
 	// RunID is the ui_run_id actions are recorded under. Run sets it from
 	// Controller.UIOpened; it stays empty in tests that do not record.
 	RunID string
@@ -89,7 +93,8 @@ type Model struct {
 	detail   detailModel
 	views    []view // pushed views, top last
 
-	quota []controller.QuotaSnapshot // newest per agent; empty hides the panel
+	quota     []controller.QuotaSnapshot // newest per agent; empty hides the panel
+	autoAdopt bool                       // Options.AutoAdopt: one AutoAdopt pass in Init
 
 	openErr, loadErr, preflightErr, reconcileErr, warning string
 	flash                                                 flashMsg
@@ -108,7 +113,8 @@ func New(ctx context.Context, opts Options) Model {
 		},
 		noColor: opts.NoColor, dark: true, st: newStyles(true, opts.NoColor),
 		width: 80, height: 24,
-		warning: controller.OneLine(opts.Warning),
+		warning:   controller.OneLine(opts.Warning),
+		autoAdopt: opts.AutoAdopt,
 	}
 	if opts.Controller == nil {
 		err := opts.OpenErr
@@ -188,13 +194,17 @@ func (m Model) Init() tea.Cmd {
 	if m.sh.ctl == nil {
 		return tea.RequestBackgroundColor
 	}
-	return tea.Batch(
+	cmds := []tea.Cmd{
 		tea.RequestBackgroundColor,
 		wrapPoll(loadCmd(m.sh), 0, true),
 		preflightCmd(m.sh),
 		tick(m.sh.ctl.Tunables().Reconcile, reconcileTickMsg{}),
 		quotaCmd(m.sh),
-	)
+	}
+	if m.autoAdopt {
+		cmds = append(cmds, autoAdoptCmd(m.sh, false))
+	}
+	return tea.Batch(cmds...)
 }
 
 // seqPollMsg is a poll result tagged with its launch sequence number (stale
@@ -275,6 +285,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case flashMsg:
 		m.flash = msg
 		return m, nil
+	case autoAdoptMsg:
+		return m.applyAutoAdopt(msg)
 	case reloadMsg:
 		if m.sh.ctl == nil {
 			return m, nil
@@ -461,6 +473,12 @@ func (m Model) listKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.push(newNewTaskView(m.sh))
 	case key.Matches(k, keys.Adopt):
 		return m.push(newAdoptView(m.sh))
+	case key.Matches(k, keys.AdoptAll):
+		if m.sh.ctl == nil {
+			return m, nil
+		}
+		m.flash = flashMsg{text: "looking for agent panes to adopt…"}
+		return m, autoAdoptCmd(m.sh, true)
 	}
 	if hasTask {
 		return m.taskKey(k, task)

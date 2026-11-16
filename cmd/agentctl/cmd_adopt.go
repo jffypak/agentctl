@@ -10,23 +10,25 @@ import (
 	"github.com/jffypak/agentctl/internal/controller"
 )
 
-const adoptUsage = "usage: agentctl adopt [--all]  |  agentctl adopt %<pane> --name <name>"
+const adoptUsage = "usage: agentctl adopt [--all]  |  agentctl adopt %<pane> --name <name>  |  agentctl adopt --auto"
 
 // cmdAdopt: `agentctl adopt [--all]` lists unregistered candidate panes;
 // `agentctl adopt %N --name <name>` registers one (origin adopted, state
-// unknown/none, events task.created + session.adopted). Nothing is ever
-// adopted implicitly: the user names the pane.
+// unknown/none, events task.created + session.adopted); `agentctl adopt
+// --auto` registers every default candidate, named after its directory.
 func cmdAdopt(ctx context.Context, sys *system, args []string) int {
 	fs := newFlagSet(sys, "adopt")
 	name := fs.String("name", "", "task name for the adopted pane")
 	all := fs.Bool("all", false, "list every unregistered pane, whatever its command")
+	auto := fs.Bool("auto", false, "adopt every unregistered agent pane, named after its directory")
 	pos, err := parseInterspersed(fs, args)
 	if err != nil {
 		return flagExit(err)
 	}
-	listing := len(pos) == 0 && *name == ""
-	adopting := len(pos) == 1 && *name != "" && !*all
-	if !listing && !adopting {
+	autoAdopt := *auto && len(pos) == 0 && *name == "" && !*all
+	listing := !*auto && len(pos) == 0 && *name == ""
+	adopting := !*auto && len(pos) == 1 && *name != "" && !*all
+	if !listing && !adopting && !autoAdopt {
 		return sys.usageError("adopt", "%s", adoptUsage)
 	}
 	ctl, err := sys.openController(ctx)
@@ -36,6 +38,9 @@ func cmdAdopt(ctx context.Context, sys *system, args []string) int {
 	defer ctl.Close()
 	if listing {
 		return adoptList(ctx, sys, ctl, *all)
+	}
+	if autoAdopt {
+		return adoptAuto(ctx, sys, ctl)
 	}
 	res, err := ctl.Adopt(ctx, controller.AdoptRequest{PaneID: pos[0], Name: *name})
 	if err != nil {
@@ -77,6 +82,30 @@ func adoptList(ctx context.Context, sys *system, ctl *controller.Controller, all
 	}
 	_ = tw.Flush()
 	fmt.Fprintf(sys.stdout, "\nadopt one with: agentctl adopt %s --name <name>\n", list.Panes[0].PaneID)
+	return exitOK
+}
+
+func adoptAuto(ctx context.Context, sys *system, ctl *controller.Controller) int {
+	res, err := ctl.AutoAdopt(ctx)
+	if err != nil {
+		return sys.fail(err)
+	}
+	if res.Warning != "" {
+		fmt.Fprintf(sys.stderr, "agentctl: warning: %s\n", controller.OneLine(res.Warning))
+	}
+	for _, h := range res.Hints {
+		fmt.Fprintf(sys.stderr, "agentctl: note: %s\n", controller.OneLine(h))
+	}
+	for _, s := range res.Skipped {
+		fmt.Fprintf(sys.stderr, "agentctl: skipped %s\n", clean(s))
+	}
+	if len(res.Adopted) == 0 {
+		fmt.Fprintln(sys.stdout, "No unregistered agent panes to adopt.")
+		return exitOK
+	}
+	for _, a := range res.Adopted {
+		fmt.Fprintf(sys.stdout, "adopted %s as %s · %s · %s\n", a.Identity.PaneID, a.TaskID, clean(a.Branch), clean(a.Worktree))
+	}
 	return exitOK
 }
 

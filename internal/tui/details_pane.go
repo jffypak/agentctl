@@ -11,22 +11,21 @@ import (
 
 // Details pane geometry: the list shows the selected task's details on its
 // right once the screen has room for both (paneMinScreen columns inside the
-// margins); narrower screens keep ↵ for the full detail.
+// margins); narrower screens keep ↵ for the full detail. The screen splits
+// 50/50 between the list and the pane.
 const (
 	paneMinScreen = 118
-	paneMinWidth  = 36
-	paneMaxWidth  = 64
 	paneSep       = " │ "
 	maxPromptRows = 4 // the prompt is context; the last message gets the room
 )
 
-// paneWidth is the details pane's width for an inner screen width, 0 when
-// the screen is too narrow for it.
+// paneWidth is the details pane's width for an inner screen width (half of
+// what the separator leaves), 0 when the screen is too narrow for it.
 func paneWidth(inner int) int {
 	if inner < paneMinScreen {
 		return 0
 	}
-	return min(max(inner*2/5, paneMinWidth), paneMaxWidth)
+	return (inner - len([]rune(paneSep))) / 2
 }
 
 // withDetailsPane renders the list body on the left and the selected task's

@@ -727,14 +727,27 @@ func TestManageViewsNeverPrintRawEscapes(t *testing.T) {
 	}
 }
 
-func TestCloseOnAClosedTaskSaysSo(t *testing.T) {
+// TestCloseOnAClosedTaskOffersDelete: x on a closed task goes straight to
+// the delete question, and only y (after the plan is shown) deletes.
+func TestCloseOnAClosedTaskOffersDelete(t *testing.T) {
 	t.Parallel()
 	f := newFixture(t)
 	f.seed(t, everyState)
 	m := press(t, f.model(t, 80, 24, Options{}), "/", "c", "l", "o", "s", "e", "d", "enter") // archived
 	m = pressRun(t, m, "x")
-	if topView(m) != nil || !strings.Contains(screenText(m), "archived is already closed") {
+	if _, ok := topView(m).(confirmView); !ok || !strings.Contains(screenText(m), "delete archived? y/N") ||
+		!strings.Contains(screenText(m), "the name is free again") {
 		t.Fatalf("x on a closed task:\n%s", screenText(m))
+	}
+	if m2 := press(t, m, "n"); topView(m2) != nil {
+		t.Fatalf("n did not cancel the delete:\n%s", screenText(m2))
+	}
+	m = pressRun(t, m, "y")
+	if topView(m) != nil || !strings.Contains(screenText(m), "deleted archived") {
+		t.Fatalf("y on the delete question:\n%s", screenText(m))
+	}
+	if _, err := f.ctl.PlanDelete(context.Background(), "archived"); err == nil {
+		t.Fatal("archived still exists after delete")
 	}
 }
 

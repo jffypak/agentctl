@@ -9,6 +9,7 @@ const (
 
 	EventTaskCreated = "task.created" // {repo, branch, worktree, base_ref, base_sha, origin}
 	EventTaskClosed  = "task.closed"  // {}
+	EventTaskDeleted = "task.deleted" // {name, branch, worktree, stopped, worktree_removed, branch_deleted}; task_id is the archived id
 
 	EventSessionStarted      = "session.started"       // {socket, server_pid, session_id, pane_id, pane_pid, argv0}
 	EventSessionAdopted      = "session.adopted"       // same identity fields as session.started
@@ -34,7 +35,7 @@ const (
 func EventTypes() []string {
 	return []string{
 		EventUIOpened, EventUIClosed, EventUIAction,
-		EventTaskCreated, EventTaskClosed,
+		EventTaskCreated, EventTaskClosed, EventTaskDeleted,
 		EventSessionStarted, EventSessionAdopted, EventSessionWrapped, EventSessionLaunchFailed, EventSessionDisconnected,
 		EventAgentStateChanged,
 		EventMessageQueued, EventMessageClaimed, EventMessageSent, EventMessageAcknowledged,

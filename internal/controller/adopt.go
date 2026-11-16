@@ -65,7 +65,8 @@ type CandidateQuery struct {
 // ListAdoptCandidates lists live panes on the resolved tmux server whose
 // command is a configured agent name and whose identity (server pid, pane id,
 // pane pid) is not bound to any session. It never registers anything: the
-// user picks a pane explicitly (invariant 5). A missing server yields an
+// user picks a pane, or AutoAdopt registers them all (invariant 5 holds:
+// each task is bound to a captured pane identity, never to a cwd). A missing server yields an
 // empty list.
 func (c *Controller) ListAdoptCandidates(ctx context.Context, q CandidateQuery) (AdoptCandidates, error) {
 	if err := c.requireTmux(); err != nil {
@@ -194,10 +195,8 @@ func (c *Controller) Adopt(ctx context.Context, req AdoptRequest) (AdoptResult, 
 	if _, err := c.lookPath("git"); err != nil {
 		return AdoptResult{}, userErr(ErrGitMissing, err, "git not found on PATH (install git 2.40 or newer)")
 	}
-	if exists, err := c.store.Tasks().Exists(ctx, req.Name); err != nil {
+	if err := c.checkNameFree(ctx, req.Name); err != nil {
 		return AdoptResult{}, err
-	} else if exists {
-		return AdoptResult{}, taskExists(req.Name)
 	}
 	pane, id, err := c.adoptablePane(ctx, req.PaneID)
 	if err != nil {

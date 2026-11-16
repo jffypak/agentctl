@@ -239,3 +239,41 @@ func TestRestartRecoveryFreshProcess(t *testing.T) {
 		}
 	}
 }
+
+func TestCloseDeleteAsksThenFreesTheName(t *testing.T) {
+	t.Parallel()
+	f := newCLIFixture(t)
+	if r := runCmd(t, f.env, f.repo.Root, "new", "demo", "--goal", "g"); r.code != 0 {
+		t.Fatalf("new = %+v", r)
+	}
+	if r := runCmd(t, f.env, f.repo.Root, "close", "demo"); r.code != 0 {
+		t.Fatalf("close = %+v", r)
+	}
+	if r := runCmd(t, f.env, f.repo.Root, "new", "demo", "--goal", "g"); r.code == 0 || !strings.Contains(r.stderr, "agentctl close --delete demo") {
+		t.Fatalf("new over a closed name = %+v", r)
+	}
+	wt := filepath.Join(f.repo.WorktreesDir(), "demo")
+
+	r := piRun(t, f.env, f.repo.Root, "n\n", "close", "demo", "--delete")
+	if r.code == 0 || !strings.Contains(r.stderr, "Delete task demo?") || !strings.Contains(r.stderr, "removes worktree "+wt) ||
+		!strings.Contains(r.stderr, "aborted; nothing changed") {
+		t.Fatalf("delete answered n = %+v", r)
+	}
+	if f.repo.Git(t, "branch", "--list", "jpark/demo") == "" {
+		t.Fatal("n deleted the branch")
+	}
+
+	r = piRun(t, f.env, f.repo.Root, "y\n", "close", "demo", "--delete")
+	if r.code != 0 || !strings.Contains(r.stdout, "deleted demo") || !strings.Contains(r.stdout, "deleted branch jpark/demo") {
+		t.Fatalf("delete answered y = %+v", r)
+	}
+	if f.repo.Git(t, "branch", "--list", "jpark/demo") != "" || strings.Contains(f.repo.Git(t, "worktree", "list", "--porcelain"), wt) {
+		t.Fatal("branch or worktree still there")
+	}
+	if r := runCmd(t, f.env, f.repo.Root, "new", "demo", "--goal", "g"); r.code != 0 {
+		t.Fatalf("new after delete = %+v", r)
+	}
+	if r := runCmd(t, f.env, f.repo.Root, "close", "demo", "--stop", "--delete"); r.code == 0 {
+		t.Fatalf("--stop with --delete accepted: %+v", r)
+	}
+}

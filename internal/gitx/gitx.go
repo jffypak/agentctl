@@ -1,6 +1,6 @@
-// Package gitx wraps the git CLI (no libgit2). Phase 1 is non-destructive by
-// construction: this package never resets, deletes branches or worktrees,
-// cleans, forces, or pushes (archtest enforces the vocabulary). Every command
+// Package gitx wraps the git CLI (no libgit2). It is non-destructive by
+// construction: it never resets, cleans or pushes, and only delete.go may
+// remove a worktree or delete a branch (archtest enforces the vocabulary). Every command
 // runs with GIT_OPTIONAL_LOCKS=0 so reads never take the index lock, and with
 // LC_ALL=C so error messages can be classified.
 //

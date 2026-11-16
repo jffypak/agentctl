@@ -1,10 +1,8 @@
 package tui
 
 import (
-	"path/filepath"
 	"strconv"
 	"strings"
-	"unicode"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
@@ -132,7 +130,7 @@ func (v adoptView) listKey(k tea.KeyPressMsg) (view, tea.Cmd) {
 			return v, nil
 		}
 		v.naming, v.nameErr = true, ""
-		v.name = lineInput{limit: domain.MaxSlugLen}.SetValue(suggestName(v.cands.Panes[v.sel].Cwd))
+		v.name = lineInput{limit: domain.MaxSlugLen}.SetValue(controller.SuggestTaskName(v.cands.Panes[v.sel].Cwd))
 	}
 	return v, nil
 }
@@ -295,33 +293,6 @@ func paneWhere(p controller.AdoptCandidate) string {
 // safeText is tmux-reported text made safe to print (escapes and control
 // characters quoted, never interpreted).
 func safeText(s string) string { return controller.DisplayPath(domain.SanitizeTerminalText(s)) }
-
-// suggestName turns a directory's base name into a task-name suggestion
-// (lowercase, other characters as '-'), or "" when nothing usable is left.
-func suggestName(dir string) string {
-	base := filepath.Base(filepath.Clean(dir))
-	var b strings.Builder
-	dash := false
-	for _, r := range strings.ToLower(base) {
-		ok := (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9')
-		switch {
-		case ok:
-			b.WriteRune(r)
-			dash = false
-		case !dash && b.Len() > 0 && (r == '-' || r == '_' || r == '.' || unicode.IsSpace(r) || r > unicode.MaxASCII || unicode.IsPunct(r)):
-			b.WriteByte('-')
-			dash = true
-		}
-	}
-	s := strings.TrimRight(b.String(), "-")
-	if len(s) > domain.MaxSlugLen {
-		s = strings.TrimRight(s[:domain.MaxSlugLen], "-")
-	}
-	if domain.ValidateSlug(s) != nil {
-		return ""
-	}
-	return s
-}
 
 // hintLines are the listing's notes (a normally started Codex pane that
 // agentctl can't track), one muted line each, after a blank line.
