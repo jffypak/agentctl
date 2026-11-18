@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/jffypak/agentctl/internal/paths"
 )
 
 // HookTimeoutSeconds is the per-hook timeout written into the settings. The
@@ -37,10 +39,16 @@ func shellQuote(s string) string {
 
 // settingsFile is the generated Claude Code settings: the hooks (no matcher
 // means "match everything" for every event) and, in the launch file only,
-// the status line that captures quota (statusline.go).
+// the task-context permissions and the status line that captures quota
+// (statusline.go).
 type settingsFile struct {
-	Hooks      map[string][]matcherGroup `json:"hooks"`
-	StatusLine *statusLine               `json:"statusLine,omitempty"`
+	Hooks       map[string][]matcherGroup `json:"hooks"`
+	Permissions *permissions              `json:"permissions,omitempty"`
+	StatusLine  *statusLine               `json:"statusLine,omitempty"`
+}
+
+type permissions struct {
+	Allow []string `json:"allow"`
 }
 
 type statusLine struct {
@@ -63,23 +71,31 @@ type hookHandler struct {
 // path always yields the same bytes. `agentctl hooks-snippet` prints exactly
 // this for users to merge into their own Claude settings.
 func SettingsJSON(agentctlPath string) ([]byte, error) {
-	return renderSettings(agentctlPath, false)
+	return renderSettings(agentctlPath, "", false)
 }
 
 // LaunchSettingsJSON is SettingsJSON plus the `agentctl statusline` status
-// line: the file every session agentctl launches gets with --settings. The
-// snippet leaves the status line out, so merging it never replaces a user's
-// own status line.
-func LaunchSettingsJSON(agentctlPath string) ([]byte, error) {
-	return renderSettings(agentctlPath, true)
+// line and an allow rule to read and edit everything under <home>/tasks (the
+// task context files, internal/taskctx) without a permission prompt: the file
+// every session agentctl launches gets with --settings. The snippet leaves
+// both out, so merging it never replaces a user's own status line or widens
+// their permissions.
+func LaunchSettingsJSON(agentctlPath, home string) ([]byte, error) {
+	return renderSettings(agentctlPath, home, true)
 }
 
-func renderSettings(agentctlPath string, withStatusLine bool) ([]byte, error) {
+func renderSettings(agentctlPath, home string, launch bool) ([]byte, error) {
 	if err := validateAgentctlPath(agentctlPath); err != nil {
 		return nil, err
 	}
 	doc := settingsFile{Hooks: map[string][]matcherGroup{}}
-	if withStatusLine {
+	if launch {
+		if !filepath.IsAbs(home) || strings.ContainsAny(home, "\x00\n\r") {
+			return nil, fmt.Errorf("claude: agentctl home %q is not a clean absolute path", home)
+		}
+		// "//" starts an absolute path in a Claude Code permission rule.
+		tasks := "/" + paths.ForHome(home).Tasks + "/**"
+		doc.Permissions = &permissions{Allow: []string{"Read(" + tasks + ")", "Edit(" + tasks + ")"}}
 		doc.StatusLine = &statusLine{Type: "command", Command: StatusLineCommand(agentctlPath)}
 	}
 	for _, ev := range hookEvents {
@@ -118,7 +134,7 @@ func (a *Adapter) EnsureSettings(home string) (string, error) {
 	if !filepath.IsAbs(home) {
 		return "", fmt.Errorf("claude: agentctl home %q is not absolute", home)
 	}
-	want, err := LaunchSettingsJSON(a.cfg.AgentctlPath)
+	want, err := LaunchSettingsJSON(a.cfg.AgentctlPath, home)
 	if err != nil {
 		return "", err
 	}

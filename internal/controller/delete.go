@@ -11,6 +11,7 @@ import (
 	"github.com/jffypak/agentctl/internal/adapter/claude"
 	"github.com/jffypak/agentctl/internal/domain"
 	"github.com/jffypak/agentctl/internal/store"
+	"github.com/jffypak/agentctl/internal/taskctx"
 )
 
 // Delete error kinds (errors.Is).
@@ -44,6 +45,11 @@ type DeletePlan struct {
 	DeleteBranch    bool
 	UnmergedCommits int // commits on Branch that BaseRef lacks; -1 unknown
 
+	// ContextFile is the task's context file when it holds notes
+	// (internal/taskctx); the delete moves it to ContextArchiveDir.
+	ContextFile       string
+	ContextArchiveDir string
+
 	// Kept lists, one line each, what the delete leaves alone and why.
 	Kept []string
 }
@@ -54,6 +60,7 @@ type DeleteResult struct {
 	Stopped         bool
 	WorktreeRemoved bool
 	BranchDeleted   bool
+	ContextArchived string // where the context file went; "" when it held no notes
 }
 
 // PlanDelete validates a delete without changing anything.
@@ -66,7 +73,8 @@ func (c *Controller) PlanDelete(ctx context.Context, name string) (DeletePlan, e
 // only after explicit confirmation of PlanDelete. For a task `agentctl new`
 // created it kills the agent's tmux session if it still runs, removes the
 // worktree (uncommitted changes included) and deletes the branch (merged or
-// not). For any other task it removes only agentctl's records. The steps run
+// not). For any task it archives the context file (internal/taskctx), then
+// removes agentctl's records. The steps run
 // in that order; if one fails, the later ones do not run, the task is kept,
 // and a second delete continues where the first one stopped.
 func (c *Controller) DeleteTask(ctx context.Context, name string) (DeleteResult, error) {
@@ -108,6 +116,13 @@ func (c *Controller) DeleteTask(ctx context.Context, name string) (DeleteResult,
 		}
 		res.BranchDeleted = true
 	}
+	// Before the records go: a context file left behind would show up in a
+	// new task of the same name.
+	archived, err := taskctx.Archive(c.paths.Home, plan.TaskID, c.now())
+	if err != nil {
+		return res, userErr(ErrDeleteFailed, err, "archiving the context file of %q failed: %v; the task is kept (fix it, then delete again)", plan.TaskID, err)
+	}
+	res.ContextArchived = archived
 	if _, err := c.store.Tasks().Delete(ctx, store.DeleteInput{TaskID: plan.TaskID, Payload: map[string]any{
 		"branch": plan.Branch, "worktree": plan.Worktree, "stopped": res.Stopped,
 		"worktree_removed": res.WorktreeRemoved, "branch_deleted": res.BranchDeleted,
@@ -135,6 +150,9 @@ func (c *Controller) planDelete(ctx context.Context, name string) (DeletePlan, s
 	plan := DeletePlan{
 		TaskID: task.ID, RepoRoot: repo.RootPath, Worktree: task.WorktreePath, Branch: task.Branch,
 		BaseRef: task.BaseRef, Closed: task.State == domain.TaskClosed, UnmergedCommits: -1,
+	}
+	if taskctx.HasNotes(c.paths.Home, task.ID) {
+		plan.ContextFile, plan.ContextArchiveDir = taskctx.Path(c.paths.Home, task.ID), c.paths.ContextArchive
 	}
 	sess, err := c.store.Sessions().LatestForTask(ctx, task.ID)
 	hasSession := err == nil
@@ -269,6 +287,9 @@ func DeletePlanLines(p DeletePlan) []string {
 			out = append(out, "deletes branch "+DisplayPath(p.Branch))
 		}
 	}
+	if p.ContextFile != "" {
+		out = append(out, "archives context file "+DisplayPath(p.ContextFile)+" to "+DisplayPath(p.ContextArchiveDir)+"/")
+	}
 	out = append(out, p.Kept...)
 	return append(out, "forgets task "+p.TaskID+" and its messages; the name is free again")
 }
@@ -284,6 +305,9 @@ func DeleteSummary(r DeleteResult) string {
 	}
 	if r.BranchDeleted {
 		parts = append(parts, "deleted branch "+DisplayPath(r.Branch))
+	}
+	if r.ContextArchived != "" {
+		parts = append(parts, "archived context to "+DisplayPath(r.ContextArchived))
 	}
 	if !r.Owned {
 		parts = append(parts, "worktree and branch kept (agentctl did not create them)")

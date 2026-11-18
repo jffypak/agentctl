@@ -329,7 +329,8 @@ func (r *rig) paneAlive(id domain.Identity) bool {
 }
 
 // checkHooksFailedOpen (invariant 7): every hook any fakeagent ran exited 0,
-// wrote nothing on stdout and finished in under 2 s; hook-errors.log is empty.
+// wrote nothing on stdout except the task context on a Claude SessionStart,
+// and finished in under 2 s; hook-errors.log is empty.
 func (r *rig) checkHooksFailedOpen() {
 	files, _ := filepath.Glob(filepath.Join(r.logs, "*.hooks.jsonl"))
 	n := 0
@@ -353,6 +354,9 @@ func (r *rig) checkHooksFailedOpen() {
 				continue
 			}
 			n++
+			if h.Event == "SessionStart" && strings.HasPrefix(h.Stdout, "agentctl task context for task ") {
+				h.Stdout = ""
+			}
 			if h.Exit != 0 || h.Stdout != "" || h.TimedOut || h.Millis >= hookLimit.Milliseconds() {
 				r.t.Errorf("hook %s failed closed: exit %d stdout %q %dms", h.Event, h.Exit, h.Stdout, h.Millis)
 			}

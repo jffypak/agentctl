@@ -116,6 +116,8 @@ To delete a task, press `x` then `R` (or `x` on a closed task), or use
   uncommitted or untracked files.
 - It deletes the branch. It warns you first if the branch has commits that
   are not on the base branch.
+- It moves the task's context file to `context-archive/` (see "Task
+  context"), if the file has notes.
 - It frees the name, so you can start a new task with that name.
 
 agentctl removes the worktree and the branch only for a task it created with
@@ -176,6 +178,28 @@ if you have one. Claude Code sends quota only on Pro, Max and Ultra plans,
 and only after the session's first reply. `as of …` shows when the numbers
 are more than 2 minutes old.
 
+### Task context
+
+Each task has one notes file, `<home>/tasks/<name>/context.md`. It lives
+as long as the task does, so notes saved there carry over from one Claude
+session to the next: a restart, `/resume`, `/clear` or a compaction.
+
+- Each time a Claude session of the task starts, agentctl's `SessionStart`
+  hook gives the agent the file's path and contents. The first session
+  creates the file.
+- The agent saves notes there when it learns something a later session
+  needs. You can edit the file too.
+- The sessions that `agentctl new` starts can read and edit everything under
+  `<home>/tasks/` with no permission prompt. An adopted pane asks first.
+- A file larger than 8 KB, or not valid UTF-8, is named but not shown. The
+  agent reads it with the Read tool.
+- A plain close keeps the file. A delete moves it to
+  `<home>/context-archive/<name>~<ms>.md`, so a new task with the same name
+  starts with no notes.
+
+An adopted pane gets the file only in sessions that start after you adopt
+it. Codex agents do not get it yet.
+
 ### Other commands
 
 `agentctl ls [--json] [--closed]` lists tasks by attention section.
@@ -220,8 +244,9 @@ attach to start`.
 
 `$AGENTCTL_HOME`, else `$XDG_STATE_HOME/agentctl`, else
 `~/.local/state/agentctl`. This holds `agentctl.db` (SQLite registry and events),
-`logs/` (`hook-errors.log`, `deliver.log`, full captures) and
-`hooks/claude-settings.json`. Key bindings can be overridden in
+`logs/` (`hook-errors.log`, `deliver.log`, full captures),
+`hooks/claude-settings.json`, `tasks/<name>/context.md` (see "Task context")
+and `context-archive/`. Key bindings can be overridden in
 `$XDG_CONFIG_HOME/agentctl/config.yaml` (`keys: {diff: D}`).
 
 ## Troubleshooting

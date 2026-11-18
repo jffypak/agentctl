@@ -9,7 +9,9 @@
 // Invariant 7 (hooks fail open): Run never returns an error, never writes to
 // stdout (Claude Code feeds SessionStart / UserPromptSubmit hook stdout into
 // the model's context), finishes within Budget, and appends every error to
-// <home>/logs/hook-errors.log.
+// <home>/logs/hook-errors.log. The one exception to "nothing on stdout" is
+// Outcome.Context: for a Claude SessionStart of a resolved task, Run returns
+// the task's context text (internal/taskctx), and `agentctl hook` prints it.
 //
 // Pipeline (one file per stage): read stdin (≤ MaxPayload) → ParseHook →
 // open the registry (store.HookBusyTimeout) → resolve the session
@@ -76,6 +78,7 @@ type Outcome struct {
 	SessionID int64  // resolved session (0 for orphans and unmanaged panes)
 	Orphan    string // hook.orphan reason, "" when matched or ignored
 	Applied   bool   // a state write happened
+	Context   string // Claude SessionStart only: the task context text for stdout (context.go)
 	TimedOut  bool   // the budget elapsed before the pipeline finished
 	Err       error  // first error (already logged)
 }
@@ -265,6 +268,9 @@ func (r *runner) run(ctx context.Context) Outcome {
 		return o
 	}
 	o.TaskID, o.SessionID = match.session.TaskID, match.session.ID
+	if r.cfg.Agent == claude.Name && obs.Event == "SessionStart" {
+		o.Context = r.taskContext(o, p.Home) // context.go
+	}
 	r.note(o)
 	switch r.cfg.Agent {
 	case claude.Name:

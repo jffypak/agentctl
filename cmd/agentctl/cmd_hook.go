@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"io"
 	"strings"
 
 	"github.com/jffypak/agentctl/internal/hookingest"
@@ -10,15 +11,17 @@ import (
 // cmdHook: agentctl hook — the Claude Code hook entry point.
 //
 // Claude Code spawns it once per hook event with the payload JSON on stdin.
-// It always exits 0 and never writes to stdout (Claude Code feeds
-// SessionStart / UserPromptSubmit hook stdout into the model's context, so
-// any output would be a prompt injection), finishes within the hook budget,
+// It always exits 0 and writes nothing to stdout except, on a Claude
+// SessionStart of a known task, that task's context text (internal/taskctx).
+// Claude Code feeds SessionStart / UserPromptSubmit hook stdout into the
+// model's context, so any other output would be a prompt injection. It
+// finishes within the hook budget,
 // and appends errors to <home>/logs/hook-errors.log (internal/hookingest).
 // The only argument read is `--agent <name>` / `--agent=<name>` (claude or
 // codex; default claude), parsed by hand so no usage text can ever reach
 // stdout. Anything else is ignored.
 func cmdHook(ctx context.Context, sys *system, args []string) int {
-	hookingest.Run(ctx, hookingest.Config{
+	o := hookingest.Run(ctx, hookingest.Config{
 		Agent:      hookAgentArg(args),
 		Getenv:     sys.getenv,
 		Stdin:      sys.stdin,
@@ -26,6 +29,9 @@ func cmdHook(ctx context.Context, sys *system, args []string) int {
 		Executable: sys.executable,
 		Now:        sys.now,
 	})
+	if o.Context != "" {
+		_, _ = io.WriteString(sys.stdout, o.Context)
+	}
 	return exitOK
 }
 

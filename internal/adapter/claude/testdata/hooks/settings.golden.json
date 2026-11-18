@@ -111,6 +111,12 @@
       }
     ]
   },
+  "permissions": {
+    "allow": [
+      "Read(/@HOME@/tasks/**)",
+      "Edit(/@HOME@/tasks/**)"
+    ]
+  },
   "statusLine": {
     "type": "command",
     "command": "'/opt/agentctl/bin/agentctl' statusline"

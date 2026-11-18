@@ -24,9 +24,10 @@ type settingsDoc struct {
 	} `json:"hooks"`
 }
 
-// TestEnsureSettingsGolden pins the generated file byte for byte: every mapped
-// event, one command hook each, shell-quoted absolute path + " hook",
-// timeout 5, mode 0600, and a rewrite that is byte-identical.
+// TestEnsureSettingsGolden pins the generated file byte for byte (the home
+// directory written as @HOME@): every mapped event, one command hook each,
+// shell-quoted absolute path + " hook", timeout 5, the task-context allow
+// rules, mode 0600, and a rewrite that is byte-identical.
 func TestEnsureSettingsGolden(t *testing.T) {
 	home := testenv.TempHome(t)
 	a := claude.New(claude.Config{AgentctlPath: goldenAgentctl})
@@ -45,8 +46,8 @@ func TestEnsureSettingsGolden(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(got) != string(want) {
-		t.Fatalf("generated settings differ from testdata/hooks/settings.golden.json:\n%s", got)
+	if pinned := strings.ReplaceAll(string(got), home, "@HOME@"); pinned != string(want) {
+		t.Fatalf("generated settings (home as @HOME@) differ from testdata/hooks/settings.golden.json:\n%s", pinned)
 	}
 	assertMode(t, path, 0o600)
 	assertMode(t, filepath.Dir(path), 0o700)
@@ -153,8 +154,9 @@ func TestHookCommandShellQuotes(t *testing.T) {
 }
 
 // TestSettingsJSONIsTheFileContent: hooks-snippet prints SettingsJSON, which
-// must be exactly what EnsureSettings writes minus the status line, so
-// merging the snippet never replaces a user's own status line.
+// must be exactly what EnsureSettings writes minus the status line and the
+// task-context permissions, so merging the snippet never replaces a user's
+// own status line or widens their permissions.
 func TestSettingsJSONIsTheFileContent(t *testing.T) {
 	home := testenv.TempHome(t)
 	path, err := claude.New(claude.Config{AgentctlPath: goldenAgentctl}).EnsureSettings(home)
@@ -162,7 +164,7 @@ func TestSettingsJSONIsTheFileContent(t *testing.T) {
 		t.Fatal(err)
 	}
 	file, _ := os.ReadFile(path)
-	launch, err := claude.LaunchSettingsJSON(goldenAgentctl)
+	launch, err := claude.LaunchSettingsJSON(goldenAgentctl, home)
 	if err != nil || string(launch) != string(file) {
 		t.Fatalf("LaunchSettingsJSON differs from the file (%v):\n%s", err, launch)
 	}
@@ -177,7 +179,16 @@ func TestSettingsJSONIsTheFileContent(t *testing.T) {
 	if _, ok := without["statusLine"]; ok {
 		t.Fatalf("snippet has a statusLine:\n%s", snippet)
 	}
-	if string(withLine["hooks"]) != string(without["hooks"]) || len(withLine) != 2 {
+	if _, ok := without["permissions"]; ok {
+		t.Fatalf("snippet has permissions:\n%s", snippet)
+	}
+	var perms struct{ Allow []string }
+	tasks := "/" + filepath.Join(home, "tasks") + "/**"
+	if err := json.Unmarshal(withLine["permissions"], &perms); err != nil ||
+		strings.Join(perms.Allow, ",") != "Read("+tasks+"),Edit("+tasks+")" {
+		t.Fatalf("permissions = %+v (%v)", perms, err)
+	}
+	if string(withLine["hooks"]) != string(without["hooks"]) || len(withLine) != 3 {
 		t.Fatalf("snippet hooks differ from the file:\n%s", snippet)
 	}
 	var sl struct{ Type, Command string }

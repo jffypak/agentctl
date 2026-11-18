@@ -184,9 +184,30 @@ func (it *hookIT) eventCount(typ string) int {
 	return n
 }
 
+// contextPrefix starts the task context a Claude SessionStart hook prints.
+const contextPrefix = "agentctl task context for task "
+
+// hookStdout joins the stdout of every logged hook run of event.
+func (it *hookIT) hookStdout(event string) string {
+	it.t.Helper()
+	b, err := os.ReadFile(filepath.Join(it.logs, "hooks.jsonl"))
+	if err != nil {
+		it.t.Fatal(err)
+	}
+	var out strings.Builder
+	for _, line := range strings.Split(strings.TrimSpace(string(b)), "\n") {
+		var r struct{ Event, Stdout string }
+		if json.Unmarshal([]byte(line), &r) == nil && r.Event == event {
+			out.WriteString(r.Stdout)
+		}
+	}
+	return out.String()
+}
+
 // checkHooksFailedOpen: every hook fakeagent ran exited 0, wrote nothing on
-// stdout, and finished well inside its 5 s timeout; nothing was logged as an
-// error.
+// stdout except the task context on SessionStart (none when the pane was not
+// adopted yet), and finished well inside its 5 s timeout; nothing was logged
+// as an error.
 func (it *hookIT) checkHooksFailedOpen() {
 	f, err := os.Open(filepath.Join(it.logs, "hooks.jsonl"))
 	if err != nil {
@@ -208,6 +229,9 @@ func (it *hookIT) checkHooksFailedOpen() {
 			continue
 		}
 		n++
+		if r.Event == "SessionStart" && strings.HasPrefix(r.Stdout, contextPrefix) {
+			r.Stdout = ""
+		}
 		if r.Exit != 0 || r.Stdout != "" || r.TimedOut || r.Millis >= hookBudgetLimit.Milliseconds() {
 			it.t.Errorf("hook %s: exit %d stdout %q %dms", r.Event, r.Exit, r.Stdout, r.Millis)
 		}
@@ -240,6 +264,9 @@ func TestHookStateEndToEnd(t *testing.T) {
 		t.Fatalf("t1 = %+v", tk)
 	}
 	sess, pane := tk.Session.ID, tk.Session.TmuxPaneID
+	if out := it.hookStdout("SessionStart"); !strings.Contains(out, contextPrefix+`"t1": `+filepath.Join(it.paths.Home, "tasks", "t1", "context.md")) {
+		t.Fatalf("SessionStart stdout = %q, want the t1 task context", out)
+	}
 	want := []string{"starting>working", "working>ready"} // no SessionStart ready before the goal turn
 	if got := it.chain(sess); strings.Join(got, " ") != strings.Join(want, " ") {
 		t.Fatalf("state chain = %v, want %v", got, want)

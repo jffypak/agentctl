@@ -82,7 +82,9 @@ path instead of jumping into panes.
 SQLite via `modernc.org/sqlite` (pure Go, no cgo), opened with WAL +
 `busy_timeout=5000`, because short-lived `agentctl hook` processes write
 concurrently with the TUI. Home: `$AGENTCTL_HOME`, else `$XDG_STATE_HOME/agentctl`,
-else `~/.local/state/agentctl` → `agentctl.db`, `logs/`, `hooks/claude-settings.json`.
+else `~/.local/state/agentctl` → `agentctl.db`, `logs/`, `hooks/claude-settings.json`,
+`tasks/<task>/context.md` (the task context, `internal/taskctx`) and
+`context-archive/<task>~<ms>.md` (context files of deleted tasks).
 Config lives at `$XDG_CONFIG_HOME/agentctl/config.yaml` (optional).
 
 | Table | Key fields |
@@ -128,7 +130,7 @@ keeps no tool input or output. Bulky captures go to `logs/` files.
  └────────────┬─────────────┘     ┌──────────────────┐
               │ controller API    │  SQLite (WAL)    │◀─── agentctl hook  (spawned by Claude
               ▼                   │  registry+events │      Code per hook event; <2s, exit 0,
- ┌──────────────────────────┐     └──────────────────┘      fail-open, no stdout)
+ ┌──────────────────────────┐     └──────────────────┘      fail-open, stdout: task ctx only)
  │ internal/controller      │──────────▲                         │ on →ready with queue:
  │ NewTask Adopt Reconcile  │                                    ▼ spawn detached
  │ Send/Queue Drain Inspect │                          agentctl deliver --session N
@@ -271,9 +273,18 @@ revives them. Every state write, from hooks or reconcile, goes through
 conditional UPDATE guarded by `domain.CanTransition`, and it appends
 `agent.state_changed` in the same transaction.
 
-**Hook stdout must be empty.** Claude Code feeds `SessionStart` and
-`UserPromptSubmit` hook stdout into the model's context, so any stray output is
-a prompt injection.
+**Hook stdout is empty, except the task context.** Claude Code feeds
+`SessionStart` and `UserPromptSubmit` hook stdout into the model's context, so
+any stray output is a prompt injection. The one exception: on a Claude
+`SessionStart` of a resolved task, the hook prints the task context
+(`internal/taskctx`): the path of `<home>/tasks/<task>/context.md` and, when the
+file is at most 8 KB of valid UTF-8, its contents. The hook creates the file the
+first time. `agentctl hook` prints the whole text in one write after the
+pipeline returns, never part of it. Any error is logged and the session starts
+without it. The
+launch settings allow `Read` and `Edit` under `<home>/tasks/` so the agent can
+save notes without a prompt. A confirmed delete archives the file before the
+task's rows go; a plain close keeps it.
 
 **Send.** Validate the body (non-empty, ≤64 KiB, no NUL), insert it as
 `queued`, then `Drain`. Sending to a `stopped`, `failed`, or `disconnected` agent
@@ -404,7 +415,8 @@ These are used by the acceptance pass. A violation is a failing review.
    `disconnected`. Capture, attach, and delivery all verify identity first.
 6. **Unknown is honest.** Missing or ambiguous hooks render as `unknown`, never as
    `ready`, idle, or done. A failed or unknown state never renders as success.
-7. **Hooks fail open.** `agentctl hook` always exits 0, writes nothing to stdout,
+7. **Hooks fail open.** `agentctl hook` always exits 0, writes nothing to stdout
+   except the task context on a Claude `SessionStart` (see "Hook stdout"),
    finishes in under 2 s (self-timeout), and logs errors to `logs/hook-errors.log`.
 8. **Tests are hermetic.** Every tmux call goes through `internal/tmux` with an
    explicit socket. No test touches the user's tmux server, `~/.claude`, or real

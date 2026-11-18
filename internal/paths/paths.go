@@ -3,7 +3,9 @@
 //	home   = $AGENTCTL_HOME, else $XDG_STATE_HOME/agentctl, else ~/.local/state/agentctl
 //	         ├── agentctl.db
 //	         ├── logs/
-//	         └── hooks/claude-settings.json
+//	         ├── hooks/claude-settings.json
+//	         ├── tasks/<task>/context.md   (internal/taskctx)
+//	         └── context-archive/<task>~<ms>.md
 //	config = $XDG_CONFIG_HOME/agentctl/config.yaml, else ~/.config/agentctl/config.yaml
 //
 // All results are absolute, because home is exported into agent sessions
@@ -27,6 +29,8 @@ type Paths struct {
 	Logs           string
 	Hooks          string
 	ClaudeSettings string
+	Tasks          string // per-task files: tasks/<task>/context.md
+	ContextArchive string // context files of deleted tasks
 	ConfigFile     string
 }
 
@@ -38,6 +42,8 @@ func ForHome(home string) Paths {
 		Logs:           filepath.Join(home, "logs"),
 		Hooks:          filepath.Join(home, "hooks"),
 		ClaudeSettings: filepath.Join(home, "hooks", "claude-settings.json"),
+		Tasks:          filepath.Join(home, "tasks"),
+		ContextArchive: filepath.Join(home, "context-archive"),
 	}
 }
 
